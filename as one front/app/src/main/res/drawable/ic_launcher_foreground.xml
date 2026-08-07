@@ -1,0 +1,33 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.85"
+        android:scaleY="0.85">
+        <!-- Emerald Green Arc -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#008559"
+            android:strokeWidth="10"
+            android:strokeLineCap="round"
+            android:pathData="M 32,54 A 22,22 0 1,1 68,36" />
+        <!-- Dark Petrol Blue Arc -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#004F71"
+            android:strokeWidth="10"
+            android:strokeLineCap="round"
+            android:pathData="M 76,54 A 22,22 0 1,1 40,72" />
+        <!-- Cyan Inner Arc -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#0096C7"
+            android:strokeWidth="8"
+            android:strokeLineCap="round"
+            android:pathData="M 42,54 A 12,12 0 0,1 64,48" />
+    </group>
+</vector>
