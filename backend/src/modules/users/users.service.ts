@@ -1,0 +1,137 @@
+import { Injectable, ConflictException, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateProfileDto, ChangePasswordDto } from './dto/update-profile.dto';
+import * as bcrypt from 'bcrypt';
+import { Role, AgentType } from '@prisma/client';
+
+@Injectable()
+export class UsersService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(dto: CreateUserDto) {
+    const existing = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
+    if (existing) {
+      throw new ConflictException('Ce numéro de téléphone est déjà utilisé');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 12);
+
+    const user = await this.prisma.user.create({
+      data: {
+        phone: dto.phone,
+        email: dto.email,
+        passwordHash,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        role: dto.role,
+        agentType: dto.role === Role.AGENT ? (dto.agentType || AgentType.TEMPORAIRE) : null,
+        mobileMoneyOperator: dto.mobileMoneyOperator,
+        agentProfile: dto.role === Role.AGENT ? {
+          create: { isAvailable: true },
+        } : undefined,
+      },
+      select: {
+        id: true,
+        phone: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        agentType: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    return user;
+  }
+
+  async findAll(role?: Role) {
+    return this.prisma.user.findMany({
+      where: role ? { role } : undefined,
+      select: {
+        id: true,
+        phone: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        agentType: true,
+        isActive: true,
+        rankingScore: true,
+        agentProfile: { select: { isAvailable: true } },
+      },
+      orderBy: { lastName: 'asc' },
+    });
+  }
+
+  async findOne(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: { agentProfile: true },
+    });
+    if (!user) throw new NotFoundException('Utilisateur introuvable');
+    return user;
+  }
+
+  async setActive(id: string, isActive: boolean) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { isActive },
+      select: { id: true, isActive: true, firstName: true, lastName: true },
+    });
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    if (dto.phone) {
+      const existing = await this.prisma.user.findFirst({
+        where: { phone: dto.phone, NOT: { id: userId } },
+      });
+      if (existing) {
+        throw new ConflictException('Ce numéro est déjà utilisé');
+      }
+    }
+
+    // Détection opérateur Mobile Money (simple)
+    let operator = dto.mobileMoneyOperator;
+    if (dto.phone && !operator) {
+      const digits = dto.phone.replace(/\D/g, '');
+      if (digits.includes('90') || digits.includes('91')) operator = 'TMoney';
+      else if (digits.includes('97') || digits.includes('96')) operator = 'Flooz';
+    }
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(dto.firstName ? { firstName: dto.firstName } : {}),
+        ...(dto.lastName ? { lastName: dto.lastName } : {}),
+        ...(dto.phone ? { phone: dto.phone } : {}),
+        ...(operator ? { mobileMoneyOperator: operator } : {}),
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        mobileMoneyOperator: true,
+        role: true,
+      },
+    });
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException();
+
+    const valid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!valid) {
+      throw new UnauthorizedException('Mot de passe actuel incorrect');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+    return { ok: true };
+  }
+}

@@ -1,0 +1,274 @@
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { CreateTaskDto } from './dto/create-task.dto';
+import { CloseReportDto } from './dto/close-report.dto';
+import { AssignmentStatus } from '@prisma/client';
+
+@Injectable()
+export class ReportsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async addTask(siteId: string, dto: CreateTaskDto, createdById: string) {
+    const site = await this.prisma.site.findUnique({ where: { id: siteId } });
+    if (!site) throw new NotFoundException('Site introuvable');
+
+    return this.prisma.siteTask.create({
+      data: {
+        siteId,
+        description: dto.description,
+        performedAt: dto.performedAt ? new Date(dto.performedAt) : new Date(),
+        createdById,
+      },
+      include: {
+        createdBy: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+    });
+  }
+
+  async listTasks(siteId: string) {
+    return this.prisma.siteTask.findMany({
+      where: { siteId },
+      include: {
+        createdBy: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+      orderBy: { performedAt: 'asc' },
+    });
+  }
+
+  /**
+   * Clôture de chantier : génère un rapport complet
+   * - dates début / fin
+   * - historique des tâches datées
+   * - détails site, équipe, pointages, matériel, incidents
+   */
+  async closeAndGenerateReport(
+    siteId: string,
+    dto: CloseReportDto,
+    createdById: string,
+  ) {
+    const site = await this.prisma.site.findUnique({
+      where: { id: siteId },
+      include: {
+        chefs: {
+          include: {
+            chef: {
+              select: { id: true, firstName: true, lastName: true, phone: true },
+            },
+          },
+        },
+      },
+    });
+    if (!site) throw new NotFoundException('Site introuvable');
+
+    const [tasks, assignments, pointages, materials, incidents] =
+      await Promise.all([
+        this.prisma.siteTask.findMany({
+          where: { siteId },
+          orderBy: { performedAt: 'asc' },
+          include: {
+            createdBy: {
+              select: { firstName: true, lastName: true },
+            },
+          },
+        }),
+        this.prisma.assignment.findMany({
+          where: {
+            siteId,
+            status: {
+              in: [
+                AssignmentStatus.CONFIRMED,
+                AssignmentStatus.LOCKED,
+                AssignmentStatus.COMPLETED,
+              ],
+            },
+          },
+          include: {
+            agent: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+                agentType: true,
+              },
+            },
+          },
+        }),
+        this.prisma.pointage.findMany({
+          where: { siteId },
+          orderBy: { notedAt: 'asc' },
+          include: {
+            agent: {
+              select: { firstName: true, lastName: true },
+            },
+          },
+        }),
+        this.prisma.materialMovement.findMany({
+          where: { siteId },
+          include: {
+            item: true,
+            retention: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        }),
+        this.prisma.incident.findMany({
+          where: { siteId },
+          orderBy: { createdAt: 'asc' },
+        }),
+      ]);
+
+    const startDate = dto.startDate
+      ? new Date(dto.startDate)
+      : site.startDate || site.createdAt;
+    const endDate = dto.endDate ? new Date(dto.endDate) : new Date();
+
+    const details = {
+      site: {
+        id: site.id,
+        name: site.name,
+        type: site.type,
+        address: site.address,
+        location: site.location,
+        dailyRate: site.dailyRate,
+        exceptionalRate: site.exceptionalRate,
+        bonusAmount: site.bonusAmount,
+      },
+      period: {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      },
+      chefs: site.chefs.map((c) => c.chef),
+      team: assignments.map((a) => ({
+        assignmentId: a.id,
+        status: a.status,
+        startDate: a.startDate,
+        endDate: a.endDate,
+        agent: a.agent,
+      })),
+      tasks: tasks.map((t) => ({
+        id: t.id,
+        description: t.description,
+        performedAt: t.performedAt,
+        by: t.createdBy
+          ? `${t.createdBy.firstName} ${t.createdBy.lastName}`
+          : null,
+      })),
+      pointages: pointages.map((p) => ({
+        type: p.type,
+        notedAt: p.notedAt,
+        agent: p.agent
+          ? `${p.agent.firstName} ${p.agent.lastName}`
+          : null,
+        photoUrl: p.photoUrl,
+      })),
+      materials: materials.map((m) => ({
+        type: m.type,
+        quantity: m.quantity,
+        state: m.state,
+        item: m.item?.name,
+        unitPrice: m.item?.unitPrice,
+        printableRef: m.printableRef,
+        retention: m.retention,
+        createdAt: m.createdAt,
+      })),
+      incidents: incidents.map((i) => ({
+        type: i.type,
+        severity: i.severity,
+        description: i.description,
+        status: i.status,
+        createdAt: i.createdAt,
+      })),
+      stats: {
+        tasksCount: tasks.length,
+        teamSize: assignments.length,
+        pointagesCount: pointages.length,
+        materialsCount: materials.length,
+        incidentsCount: incidents.length,
+      },
+    };
+
+    const report = await this.prisma.siteReport.create({
+      data: {
+        siteId,
+        startDate,
+        endDate,
+        summary: dto.summary || null,
+        details,
+        status: 'FINAL',
+        createdById,
+      },
+      include: {
+        site: { select: { id: true, name: true, type: true } },
+        createdBy: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+    });
+
+    // Marquer le site comme terminé (inactif) + assignments COMPLETED
+    await this.prisma.$transaction([
+      this.prisma.site.update({
+        where: { id: siteId },
+        data: { isActive: false, endDate },
+      }),
+      this.prisma.assignment.updateMany({
+        where: {
+          siteId,
+          status: {
+            in: [AssignmentStatus.CONFIRMED, AssignmentStatus.LOCKED],
+          },
+        },
+        data: { status: AssignmentStatus.COMPLETED, isLocked: false },
+      }),
+    ]);
+
+    return report;
+  }
+
+  async getReport(reportId: string) {
+    const report = await this.prisma.siteReport.findUnique({
+      where: { id: reportId },
+      include: {
+        site: true,
+        createdBy: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+    });
+    if (!report) throw new NotFoundException('Rapport introuvable');
+    return report;
+  }
+
+  async listReportsBySite(siteId: string) {
+    return this.prisma.siteReport.findMany({
+      where: { siteId },
+      orderBy: { closedAt: 'desc' },
+      include: {
+        createdBy: {
+          select: { firstName: true, lastName: true },
+        },
+      },
+    });
+  }
+
+  async listAllReports() {
+    return this.prisma.siteReport.findMany({
+      orderBy: { closedAt: 'desc' },
+      take: 50,
+      include: {
+        site: { select: { id: true, name: true, type: true } },
+        createdBy: {
+          select: { firstName: true, lastName: true },
+        },
+      },
+    });
+  }
+}

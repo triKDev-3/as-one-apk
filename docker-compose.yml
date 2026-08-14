@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: asone
+      POSTGRES_PASSWORD: asone_secret
+      POSTGRES_DB: asone
+    ports:
+      - "5432:5432"
+    volumes:
+      - asone_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U asone -d asone"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://asone:asone_secret@db:5432/asone?schema=public
+      JWT_SECRET: change-me-in-production-use-long-random
+      JWT_EXPIRES_IN: 7d
+      PORT: 3000
+      PUBLIC_API_URL: http://localhost:3000
+      NODE_ENV: production
+    volumes:
+      - asone_uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  asone_pg:
+  asone_uploads:

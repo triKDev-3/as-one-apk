@@ -1,6 +1,0 @@
-{
-  "name": "AS ONE",
-  "description": "Application de gestion d'équipes, matériel, pointage anti-fraude et paie pour AS ONE",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
