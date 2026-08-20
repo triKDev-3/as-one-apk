@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/providers/providers.dart';
+import '../../core/widgets/custom_card.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -80,88 +82,121 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SvgPicture.asset(
-                  'assets/images/logo.svg',
-                  height: 72,
-                  placeholderBuilder: (_) => const Icon(
-                    Icons.business,
-                    size: 72,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'AS ONE',
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        color: AppColors.primary,
-                        letterSpacing: 1.2,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Facility Management',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.accent,
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
-                const SizedBox(height: 48),
-                TextField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Numéro de téléphone',
-                    prefixIcon: Icon(Icons.phone_outlined),
-                    hintText: 'ex: +22890123456',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: _obscure,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _login(),
-                  decoration: InputDecoration(
-                    labelText: 'Mot de passe',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscure ? Icons.visibility_off : Icons.visibility,
-                      ),
-                      onPressed: () => setState(() => _obscure = !_obscure),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.background,
+              AppColors.surfaceElevated,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Logo avec animation
+                  SvgPicture.asset(
+                    'assets/images/logo.svg',
+                    height: 80,
+                    placeholderBuilder: (_) => const Icon(
+                      Icons.business,
+                      size: 80,
+                      color: AppColors.primary,
                     ),
-                  ),
-                ),
-                const SizedBox(height: 28),
-                ElevatedButton(
-                  onPressed: authState.isLoading ? null : _login,
-                  child: authState.isLoading
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Colors.white,
+                  )
+                      .animate()
+                      .fadeIn(duration: 600.ms)
+                      .scale(delay: 200.ms, duration: 400.ms, curve: Curves.easeOutBack),
+                  
+                  const SizedBox(height: 24),
+                  
+                  Text(
+                    'AS ONE',
+                    style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                          color: AppColors.primaryDark,
+                        ),
+                  ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.2, end: 0),
+                  
+                  const SizedBox(height: 8),
+                  
+                  Text(
+                    'Facility Management',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: AppColors.accent,
+                        ),
+                  ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2, end: 0),
+                  
+                  const SizedBox(height: 48),
+
+                  // Formulaire dans une carte "Glassmorphic"
+                  CustomCard(
+                    isGlassmorphic: true,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        TextField(
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            labelText: 'Numéro de téléphone',
+                            prefixIcon: Icon(Icons.phone_outlined, color: AppColors.primary),
+                            hintText: 'ex: +22890123456',
                           ),
-                        )
-                      : const Text('Se connecter'),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Compte créé uniquement par la Direction',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  textAlign: TextAlign.center,
-                ),
-              ],
+                        ),
+                        const SizedBox(height: 20),
+                        TextField(
+                          controller: _passwordController,
+                          obscureText: _obscure,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _login(),
+                          decoration: InputDecoration(
+                            labelText: 'Mot de passe',
+                            prefixIcon: const Icon(Icons.lock_outline, color: AppColors.primary),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscure ? Icons.visibility_off : Icons.visibility,
+                                color: AppColors.textSecondary,
+                              ),
+                              onPressed: () => setState(() => _obscure = !_obscure),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        ElevatedButton(
+                          onPressed: authState.isLoading ? null : _login,
+                          child: authState.isLoading
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('Se connecter'),
+                        ),
+                      ],
+                    ),
+                  ).animate().fadeIn(delay: 500.ms, duration: 600.ms).slideY(begin: 0.1, end: 0),
+                  
+                  const SizedBox(height: 32),
+                  
+                  Text(
+                    'Compte créé uniquement par la Direction',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary.withOpacity(0.8),
+                    ),
+                    textAlign: TextAlign.center,
+                  ).animate().fadeIn(delay: 800.ms),
+                ],
+              ),
             ),
           ),
         ),
