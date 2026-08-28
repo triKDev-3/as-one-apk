@@ -30,9 +30,21 @@ export class CreateSiteDto {
 
   @IsOptional()
   @IsNumber()
-  exceptionalRate?: number;
+  nightRate?: number;
+
+  @IsOptional()
+  @IsNumber()
+  sundayRate?: number;
 
   @IsOptional()
   @IsNumber()
   bonusAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  monthlySalary?: number;
+
+  @IsOptional()
+  @IsNumber()
+  fixedAmount?: number;
 }

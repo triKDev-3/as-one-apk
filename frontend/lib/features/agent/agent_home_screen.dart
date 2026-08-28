@@ -5,7 +5,11 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/custom_card.dart';
+import '../../core/widgets/hero_banner.dart';
 import 'agent_repository.dart';
+import 'screens/planning_screen.dart';
+import 'screens/pointages_history_screen.dart';
+import 'screens/remuneration_screen.dart';
 
 final agentDashboardProvider =
     FutureProvider.autoDispose<AgentDashboard>((ref) async {
@@ -95,39 +99,35 @@ class _AgentHomeScreenState extends ConsumerState<AgentHomeScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Mon espace'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            onPressed: () => context.push('/agent/profile'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-          ),
-        ],
-      ),
       body: dashboardAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
         error: (err, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.cloud_off,
-                    size: 48, color: AppColors.textSecondary),
-                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.dangerLight,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.cloud_off_rounded, size: 40, color: AppColors.danger),
+                ),
+                const SizedBox(height: 16),
                 Text(
                   err.toString(),
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
                 ),
-                const SizedBox(height: 16),
-                ElevatedButton(
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
                   onPressed: () => ref.invalidate(agentDashboardProvider),
-                  child: const Text('Réessayer'),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Réessayer'),
                 ),
               ],
             ),
@@ -141,170 +141,359 @@ class _AgentHomeScreenState extends ConsumerState<AgentHomeScreen> {
 
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(agentDashboardProvider),
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Bonjour, $name',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    dashboard.myRank != null
-                        ? 'Classement #${dashboard.myRank} · ${dashboard.rankingScore.toStringAsFixed(1)} ★'
-                        : '${dashboard.rankingScore.toStringAsFixed(1)} ★',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 28),
-                  _AvailabilityButton(
-                    isAvailable: isAvailable,
-                    loading: _toggling,
-                    onTap: () => _toggleAvailability(isAvailable),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Affectations en attente de confirmation
-                  if (dashboard.pendingAssignments.isNotEmpty) ...[
-                    Text(
-                      'À confirmer',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 8),
-                    ...dashboard.pendingAssignments.map((a) {
-                      final site = a['site'] as Map<String, dynamic>? ?? {};
-                      final id = a['id'] as String;
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppColors.warning.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.warning.withOpacity(0.4)),
+            child: Column(
+              children: [
+                // Top Hero Banner
+                HeroBanner(
+                  userName: name,
+                  roleName: 'Agent de Sécurité / Chantier',
+                  subtitle: dashboard.myRank != null
+                      ? 'Rang #${dashboard.myRank} au classement général'
+                      : 'Membre actif du réseau AS ONE',
+                  trailing: Row(
+                    children: [
+                      IconButton.filledTonal(
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.12),
+                          foregroundColor: Colors.white,
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        icon: const Icon(Icons.person_outline_rounded, size: 20),
+                        onPressed: () => context.push('/agent/profile'),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton.filledTonal(
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.12),
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: const Icon(Icons.logout_rounded, size: 20),
+                        onPressed: _logout,
+                      ),
+                    ],
+                  ),
+                  bottomContent: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withOpacity(0.2)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
+                            const Icon(Icons.star_rounded, color: AppColors.warning, size: 18),
+                            const SizedBox(width: 6),
                             Text(
-                              site['name'] as String? ?? 'Site',
-                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Confirmer avant 22h',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: () => _respond(id, false),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: AppColors.danger,
-                                      side: const BorderSide(color: AppColors.danger),
-                                    ),
-                                    child: const Text('Refuser'),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: () => _respond(id, true),
-                                    child: const Text('Confirmer'),
-                                  ),
-                                ),
-                              ],
+                              '${dashboard.rankingScore.toStringAsFixed(1)} / 5.0',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                              ),
                             ),
                           ],
                         ),
-                      );
-                    }),
-                    const SizedBox(height: 16),
-                  ],
+                      ),
+                      const SizedBox(width: 10),
+                      if (dashboard.myRank != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.accent.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.accent.withOpacity(0.4)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.military_tech_rounded, color: AppColors.accent, size: 18),
+                              const SizedBox(width: 6),
+                              Text(
+                                'TOP #${dashboard.myRank}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
 
-                  const SizedBox(height: 8),
-                  _InfoCard(
-                    title: 'Dernier net calculé',
-                    value: dashboard.recentPayroll.isNotEmpty
-                        ? '${dashboard.recentPayroll.first['netAmount'] ?? '—'} FCFA'
-                        : '— FCFA',
-                    icon: Icons.account_balance_wallet_outlined,
-                    color: AppColors.primary,
-                  ).animate().fadeIn(delay: 200.ms).slideX(begin: 0.1, end: 0),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Actions rapides',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ).animate().fadeIn(delay: 300.ms),
-                  const SizedBox(height: 16),
-                  Row(
+                // Scrollable Body
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
                     children: [
-                      Expanded(
-                        child: _QuickAction(
-                          icon: Icons.calendar_today_outlined,
-                          label: 'Mes\naffectations',
-                          onTap: () {},
+                      // 1. Availability Status Card (Hero action)
+                      _AvailabilityToggleCard(
+                        isAvailable: isAvailable,
+                        loading: _toggling,
+                        onTap: () => _toggleAvailability(isAvailable),
+                      ).animate().fadeIn().slideY(begin: 0.1, end: 0),
+
+                      const SizedBox(height: 20),
+
+                      // 2. Pending Mission Confirmation (if any)
+                      if (dashboard.pendingAssignments.isNotEmpty) ...[
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppColors.danger.withOpacity(0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.notification_important_rounded, color: AppColors.danger, size: 18),
+                            ),
+                            const SizedBox(width: 10),
+                            const Text(
+                              'Proposition de mission reçue !',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.danger,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        ...dashboard.pendingAssignments.map((a) {
+                          final id = a['id'] as String;
+                          final site = a['site'] as Map<String, dynamic>? ?? {};
+                          return CustomCard(
+                            padding: const EdgeInsets.all(16),
+                            backgroundColor: AppColors.warningLight.withOpacity(0.4),
+                            border: Border.all(color: AppColors.warning.withOpacity(0.5), width: 1.5),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        site['name'] as String? ?? 'Chantier',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 16,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.warning,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Text(
+                                        'À CONFIRMER',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  site['address'] as String? ?? 'Confirmez avant 22h pour valider votre place.',
+                                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: () => _respond(id, false),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: AppColors.danger,
+                                          side: const BorderSide(color: AppColors.danger),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                          padding: const EdgeInsets.symmetric(vertical: 12),
+                                        ),
+                                        child: const Text('Refuser', style: TextStyle(fontWeight: FontWeight.w700)),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(14),
+                                          boxShadow: AppColors.glowShadow(AppColors.accent),
+                                        ),
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: AppColors.accent,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                            padding: const EdgeInsets.symmetric(vertical: 12),
+                                            elevation: 0,
+                                          ),
+                                          onPressed: () => _respond(id, true),
+                                          child: const Text('Accepter & Valider', style: TextStyle(fontWeight: FontWeight.w800, color: Colors.white)),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                        const SizedBox(height: 24),
+                      ],
+
+                      // 3. Quick Financial Overview Banner
+                      const Text(
+                        'Rémunération',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _QuickAction(
-                          icon: Icons.history,
-                          label: 'Historique\n& transactions',
-                          onTap: () {},
+                      const SizedBox(height: 12),
+                      CustomCard(
+                        onTap: () => context.push('/agent/remuneration'),
+                        padding: const EdgeInsets.all(18),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    AppColors.primary.withOpacity(0.15),
+                                    AppColors.primary.withOpacity(0.04),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppColors.primary.withOpacity(0.15)),
+                              ),
+                              child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary, size: 28),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Suivi mensuel',
+                                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Voir le détail par mois →',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                          ],
+                        ),
+                      ).animate().fadeIn(delay: 200.ms),
+
+                      const SizedBox(height: 24),
+
+                      // 4. Quick Actions Row
+                      const Text(
+                        'Accès rapides',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _QuickAction(
-                          icon: Icons.leaderboard_outlined,
-                          label: 'Classement',
-                          onTap: () => context.push('/agent/ranking'),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _AgentNavCard(
+                              icon: Icons.calendar_month_rounded,
+                              label: 'Mon planning',
+                              color: AppColors.primary,
+                              onTap: () => context.push('/agent/planning'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _AgentNavCard(
+                              icon: Icons.history_rounded,
+                              label: 'Pointages',
+                              color: AppColors.secondary,
+                              onTap: () => context.push('/agent/pointages'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _AgentNavCard(
+                              icon: Icons.emoji_events_rounded,
+                              label: 'Classement',
+                              color: AppColors.warning,
+                              onTap: () => context.push('/agent/ranking'),
+                            ),
+                          ),
+                        ],
+                      ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1, end: 0),
+
+                      const SizedBox(height: 28),
+
+                      // Upcoming / Current Assignments list
+                      const Text(
+                        'Historique des missions',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                    ].animate(interval: 100.ms).fadeIn(delay: 400.ms).slideY(begin: 0.1, end: 0),
+                      const SizedBox(height: 12),
+                      if (dashboard.assignments.isEmpty)
+                        CustomCard(
+                          padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+                          child: Center(
+                            child: Column(
+                              children: [
+                                Icon(Icons.assignment_outlined, size: 36, color: AppColors.textTertiary),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Aucune mission enregistrée pour le moment',
+                                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        ...dashboard.assignments.map((a) {
+                          final site = a['site'] as Map<String, dynamic>? ?? {};
+                          final status = a['status'] as String? ?? '';
+                          final start = a['startDate'] as String? ?? '';
+                          return _AssignmentTile(
+                            siteName: site['name'] as String? ?? 'Chantier',
+                            type: site['type'] as String? ?? 'Chantier',
+                            date: start.length >= 10 ? start.substring(0, 10) : start,
+                            status: _statusLabel(status),
+                          );
+                        }),
+                    ],
                   ),
-                  const SizedBox(height: 32),
-                  Text(
-                    'Mes affectations',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 12),
-                  if (dashboard.assignments.isEmpty)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Text(
-                        'Aucune affectation en cours',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  else
-                    ...dashboard.assignments.map((a) {
-                      final site =
-                          a['site'] as Map<String, dynamic>? ?? {};
-                      final status = a['status'] as String? ?? '';
-                      final start = a['startDate'] as String? ?? '';
-                      return _AssignmentTile(
-                        siteName: site['name'] as String? ?? 'Site',
-                        type: site['type'] as String? ?? '',
-                        date: start.length >= 10
-                            ? start.substring(0, 10)
-                            : start,
-                        status: _statusLabel(status),
-                      );
-                    }),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         },
@@ -327,12 +516,12 @@ class _AgentHomeScreenState extends ConsumerState<AgentHomeScreen> {
   }
 }
 
-class _AvailabilityButton extends StatelessWidget {
+class _AvailabilityToggleCard extends StatelessWidget {
   final bool isAvailable;
   final bool loading;
   final VoidCallback onTap;
 
-  const _AvailabilityButton({
+  const _AvailabilityToggleCard({
     required this.isAvailable,
     required this.loading,
     required this.onTap,
@@ -340,123 +529,81 @@ class _AvailabilityButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isAvailable ? AppColors.accent : AppColors.danger;
-    final label = isAvailable ? 'DISPONIBLE' : 'INDISPONIBLE';
+    final activeColor = isAvailable ? AppColors.accent : AppColors.danger;
+    final title = isAvailable ? 'DISPONIBLE POUR MISSION' : 'ACTUELLEMENT INDISPONIBLE';
     final subtitle = isAvailable
-        ? 'Appuyez pour vous déclarer indisponible'
-        : 'Appuyez pour vous déclarer disponible';
+        ? 'Vous recevez les propositions de chantiers'
+        : 'Touchez pour réactiver votre disponibilité';
 
-    return GestureDetector(
-      onTap: loading ? null : onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.35),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            if (loading)
-              const SizedBox(
-                height: 36,
-                width: 36,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 3,
-                ),
-              )
-            else
-              Icon(
-                isAvailable ? Icons.check_circle : Icons.cancel,
-                size: 48,
-                color: Colors.white,
-              ),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.1,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 13,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _InfoCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
     return CustomCard(
-      padding: const EdgeInsets.all(20),
+      onTap: loading ? null : onTap,
+      padding: const EdgeInsets.all(18),
+      gradient: LinearGradient(
+        colors: isAvailable
+            ? [const Color(0xFF047857), const Color(0xFF059669), const Color(0xFF10B981)]
+            : [const Color(0xFF991B1B), const Color(0xFFDC2626)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      customShadow: AppColors.glowShadow(activeColor),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [color.withOpacity(0.2), color.withOpacity(0.05)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
+              color: Colors.white.withOpacity(0.2),
+              shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 32),
+            child: loading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                  )
+                : Icon(
+                    isAvailable ? Icons.check_circle_rounded : Icons.pause_circle_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
           ),
-          const SizedBox(width: 20),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title, 
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: AppColors.textSecondary,
-                  )
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
-                  value,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: color,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 12,
+                  ),
                 ),
               ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              isAvailable ? 'Actif' : 'Changer',
+              style: TextStyle(
+                color: activeColor,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+              ),
             ),
           ),
         ],
@@ -465,14 +612,16 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
-class _QuickAction extends StatelessWidget {
+class _AgentNavCard extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color color;
   final VoidCallback onTap;
 
-  const _QuickAction({
+  const _AgentNavCard({
     required this.icon,
     required this.label,
+    required this.color,
     required this.onTap,
   });
 
@@ -480,27 +629,25 @@ class _QuickAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomCard(
       onTap: onTap,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.08),
-              shape: BoxShape.circle,
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: AppColors.primary, size: 28),
+            child: Icon(icon, color: color, size: 24),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
             label,
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
-              height: 1.2,
             ),
           ),
         ],

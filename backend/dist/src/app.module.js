@@ -23,6 +23,8 @@ const notifications_module_1 = require("./modules/notifications/notifications.mo
 const upload_module_1 = require("./modules/upload/upload.module");
 const incidents_module_1 = require("./modules/incidents/incidents.module");
 const reports_module_1 = require("./modules/reports/reports.module");
+const stats_module_1 = require("./modules/stats/stats.module");
+const whatsapp_module_1 = require("./modules/whatsapp/whatsapp.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -44,6 +46,8 @@ exports.AppModule = AppModule = __decorate([
             upload_module_1.UploadModule,
             incidents_module_1.IncidentsModule,
             reports_module_1.ReportsModule,
+            stats_module_1.StatsModule,
+            whatsapp_module_1.WhatsappModule,
         ],
     })
 ], AppModule);

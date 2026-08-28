@@ -14,10 +14,12 @@ const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const client_1 = require("@prisma/client");
 const notifications_gateway_1 = require("../notifications/notifications.gateway");
+const whatsapp_service_1 = require("../whatsapp/whatsapp.service");
 let AssignmentsService = class AssignmentsService {
-    constructor(prisma, notifications) {
+    constructor(prisma, notifications, whatsapp) {
         this.prisma = prisma;
         this.notifications = notifications;
+        this.whatsapp = whatsapp;
     }
     async create(dto, chefId) {
         const existingLocked = await this.prisma.assignment.findFirst({
@@ -48,7 +50,7 @@ let AssignmentsService = class AssignmentsService {
                 status: needsConfirmation
                     ? client_1.AssignmentStatus.PENDING_CONFIRMATION
                     : client_1.AssignmentStatus.CONFIRMED,
-                isLocked: !!dto.endDate,
+                isLocked: true,
             },
             include: {
                 agent: { select: { id: true, firstName: true, lastName: true, phone: true } },
@@ -63,6 +65,17 @@ let AssignmentsService = class AssignmentsService {
             status: assignment.status,
             message: 'Nouvelle affectation — confirmez avant 22h',
         });
+        if (assignment.agent?.phone) {
+            const siteName = assignment.site?.name || 'chantier';
+            const date = assignment.startDate
+                ? new Date(assignment.startDate).toLocaleDateString('fr-FR')
+                : 'prochainement';
+            const msg = `📋 *Convocation AS ONE*\n` +
+                `Bonjour ${assignment.agent.firstName} ${assignment.agent.lastName},\n` +
+                `Vous êtes convoqué(e) sur le chantier *${siteName}* à partir du *${date}*.\n` +
+                `Veuillez confirmer votre présence dans l'application.`;
+            this.whatsapp.sendMessage(chefId, assignment.agent.phone, msg).catch(() => { });
+        }
         return assignment;
     }
     async confirmOrRefuse(assignmentId, agentId, accept) {
@@ -187,11 +200,82 @@ let AssignmentsService = class AssignmentsService {
             orderBy: { lastName: 'asc' },
         });
     }
+    async getAvailableAgents(siteId) {
+        const agents = await this.prisma.user.findMany({
+            where: { role: client_1.Role.AGENT, isActive: true },
+            include: {
+                agentProfile: { select: { isAvailable: true } },
+                ratingsReceived: {
+                    select: { score: true },
+                },
+                pointages: {
+                    select: { notedAt: true },
+                },
+                assignments: {
+                    where: {
+                        isLocked: true,
+                        status: { in: [client_1.AssignmentStatus.CONFIRMED, client_1.AssignmentStatus.LOCKED] },
+                    },
+                    select: { id: true, siteId: true },
+                },
+            },
+        });
+        return agents.map((a) => {
+            const ratings = a.ratingsReceived;
+            const avgScore = ratings.length > 0
+                ? ratings.reduce((sum, r) => sum + r.score, 0) / ratings.length
+                : null;
+            const daysWorked = new Set(a.pointages.map(p => p.notedAt.toDateString())).size;
+            const isLockedElsewhere = a.assignments.some((asgn) => siteId && asgn.siteId !== siteId);
+            return {
+                id: a.id,
+                firstName: a.firstName,
+                lastName: a.lastName,
+                phone: a.phone,
+                contractType: a.contractType,
+                rankingScore: a.rankingScore,
+                avgScore,
+                daysWorked,
+                isAvailable: a.agentProfile?.isAvailable ?? true,
+                isLockedElsewhere,
+            };
+        });
+    }
+    async releaseAgent(assignmentId, chefId) {
+        const assignment = await this.prisma.assignment.findUnique({
+            where: { id: assignmentId },
+            include: {
+                agent: { select: { firstName: true, lastName: true, phone: true } },
+                site: { select: { name: true } },
+            },
+        });
+        if (!assignment)
+            throw new common_1.NotFoundException('Affectation introuvable');
+        if (assignment.createdById !== chefId)
+            throw new common_1.ForbiddenException('Action non autorisée');
+        const updated = await this.prisma.assignment.update({
+            where: { id: assignmentId },
+            data: { isLocked: false, status: client_1.AssignmentStatus.REFUSED },
+        });
+        this.notifications.notifyAssignment(assignment.agentId, {
+            id: assignmentId,
+            status: updated.status,
+            message: 'Vous avez été libéré(e) de ce chantier par votre chef.',
+        });
+        if (assignment.agent?.phone) {
+            const siteName = assignment.site?.name || 'chantier';
+            const msg = `ℹ️ *AS ONE* : Vous avez été libéré(e) du chantier *${siteName}*.\n` +
+                `Attendez une nouvelle convocation pour y retourner.`;
+            this.whatsapp.sendMessage(chefId, assignment.agent.phone, msg).catch(() => { });
+        }
+        return updated;
+    }
 };
 exports.AssignmentsService = AssignmentsService;
 exports.AssignmentsService = AssignmentsService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        notifications_gateway_1.NotificationsGateway])
+        notifications_gateway_1.NotificationsGateway,
+        whatsapp_service_1.WhatsappService])
 ], AssignmentsService);
 //# sourceMappingURL=assignments.service.js.map

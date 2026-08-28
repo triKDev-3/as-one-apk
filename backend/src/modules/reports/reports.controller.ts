@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   UseGuards,
@@ -64,5 +65,20 @@ export class ReportsController {
   @Roles(Role.CHEF, Role.ADMIN, Role.COMPTABLE)
   getOne(@Param('id') id: string) {
     return this.service.getReport(id);
+  }
+
+  @Get('sites/:siteId/reports/latest')
+  @Roles(Role.CHEF, Role.ADMIN, Role.COMPTABLE)
+  getLatest(@Param('siteId') siteId: string) {
+    return this.service.getLatestReportBySite(siteId);
+  }
+
+  @Patch('reports/:id')
+  @Roles(Role.CHEF, Role.ADMIN)
+  updateSummary(
+    @Param('id') id: string,
+    @Body('summary') summary: string,
+  ) {
+    return this.service.updateReportSummary(id, summary);
   }
 }

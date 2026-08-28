@@ -25,6 +25,8 @@ export declare class AuthService {
             isAvailable: boolean;
             availableUntil: Date | null;
             lastAvailabilityChange: Date;
+            paidMonths: import("@prisma/client/runtime/library").JsonValue | null;
+            unavailableDates: import("@prisma/client/runtime/library").JsonValue | null;
             userId: string;
         } | null;
     } & {
@@ -35,6 +37,7 @@ export declare class AuthService {
         firstName: string;
         lastName: string;
         role: import(".prisma/client").$Enums.Role;
+        contractType: string;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;

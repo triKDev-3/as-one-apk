@@ -35,6 +35,8 @@ export declare class UsersController {
             isAvailable: boolean;
             availableUntil: Date | null;
             lastAvailabilityChange: Date;
+            paidMonths: import("@prisma/client/runtime/library").JsonValue | null;
+            unavailableDates: import("@prisma/client/runtime/library").JsonValue | null;
             userId: string;
         } | null;
     } & {
@@ -45,6 +47,7 @@ export declare class UsersController {
         firstName: string;
         lastName: string;
         role: import(".prisma/client").$Enums.Role;
+        contractType: string;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -57,6 +60,14 @@ export declare class UsersController {
         firstName: string;
         lastName: string;
         isActive: boolean;
+    }>;
+    updateRole(id: string, dto: {
+        role: Role;
+    }): Promise<{
+        id: string;
+        firstName: string;
+        lastName: string;
+        role: import(".prisma/client").$Enums.Role;
     }>;
     updateProfile(req: any, dto: UpdateProfileDto): Promise<{
         id: string;

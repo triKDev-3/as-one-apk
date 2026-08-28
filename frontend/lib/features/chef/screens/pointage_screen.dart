@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/providers.dart';
@@ -31,6 +32,21 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
   final _picker = ImagePicker();
 
   Future<void> _pickPhoto(ImageSource source) async {
+    final permission = source == ImageSource.camera ? Permission.camera : Permission.photos;
+    final status = await permission.request();
+    if (status.isPermanentlyDenied) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Veuillez autoriser l\'accès dans les paramètres.')),
+        );
+        openAppSettings();
+      }
+      return;
+    }
+    // Storage permission might not be explicitly granted but available via picker in some Android versions.
+    // However, handling it gracefully:
+    if (source == ImageSource.camera && !status.isGranted) return;
+
     final x = await _picker.pickImage(
       source: source,
       maxWidth: 1600,
@@ -114,39 +130,8 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Type de pointage',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    _TypeChip(
-                      label: 'Arrivée',
-                      selected: _type == 'ARRIVEE',
-                      onTap: () => setState(() => _type = 'ARRIVEE'),
-                    ),
-                    _TypeChip(
-                      label: 'Départ',
-                      selected: _type == 'DEPART',
-                      onTap: () => setState(() => _type = 'DEPART'),
-                    ),
-                    if (isPermanence)
-                      _TypeChip(
-                        label: 'Présence',
-                        selected: _type == 'PRESENCE_PERMANENCE',
-                        onTap: () =>
-                            setState(() => _type = 'PRESENCE_PERMANENCE'),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  DateFormat('dd/MM/yyyy').format(DateTime.now()),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
+                  'Date: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}',
+                  style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -352,28 +337,3 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
   }
 }
 
-class _TypeChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _TypeChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      selectedColor: AppColors.primary.withOpacity(0.15),
-      labelStyle: TextStyle(
-        color: selected ? AppColors.primary : AppColors.textPrimary,
-        fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-      ),
-    );
-  }
-}

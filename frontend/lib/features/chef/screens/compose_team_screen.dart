@@ -27,6 +27,9 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
   final Set<String> _assigningIds = {};
   DateTime _startDate = DateTime.now().add(const Duration(days: 1));
   DateTime? _endDate;
+  // Filters & sort
+  String _contractFilter = 'ALL'; // ALL | PERMANENT | TEMPORAIRE
+  String _sortMode = 'score'; // score | days
 
   Future<void> _assignSelected() async {
     if (_selectedAgentIds.isEmpty) return;
@@ -38,7 +41,7 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
 
     // Snapshot agents info for WhatsApp after success
     final agentsSnapshot =
-        ref.read(availableAgentsProvider).valueOrNull ?? [];
+        ref.read(availableAgentsProvider(widget.siteId)).valueOrNull ?? [];
     final selectedAgents = agentsSnapshot
         .where((a) => _selectedAgentIds.contains(a.id))
         .toList();
@@ -258,7 +261,7 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
   @override
   Widget build(BuildContext context) {
     final siteName = widget.site?.name ?? 'Site';
-    final agentsAsync = ref.watch(availableAgentsProvider);
+    final agentsAsync = ref.watch(availableAgentsProvider(widget.siteId));
     final currentAsync = ref.watch(siteAssignmentsProvider(widget.siteId));
 
     // Agents déjà sur ce site → exclus de la sélection
@@ -307,6 +310,62 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
               ],
             ),
           ),
+          // Filtre + Tri bar
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: Row(
+              children: [
+                // Contract filter chips
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _FilterChip(
+                          label: 'Tous',
+                          selected: _contractFilter == 'ALL',
+                          onTap: () => setState(() => _contractFilter = 'ALL'),
+                        ),
+                        const SizedBox(width: 6),
+                        _FilterChip(
+                          label: 'Permanents',
+                          selected: _contractFilter == 'PERMANENT',
+                          color: AppColors.primary,
+                          onTap: () => setState(() => _contractFilter = 'PERMANENT'),
+                        ),
+                        const SizedBox(width: 6),
+                        _FilterChip(
+                          label: 'Temporaires',
+                          selected: _contractFilter == 'TEMPORAIRE',
+                          color: AppColors.secondary,
+                          onTap: () => setState(() => _contractFilter = 'TEMPORAIRE'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Sort button
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.sort, color: AppColors.primary),
+                  tooltip: 'Trier',
+                  initialValue: _sortMode,
+                  onSelected: (v) => setState(() => _sortMode = v),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'score',
+                      child: Text('Par classement ★'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'days',
+                      child: Text('Par jours travaillés'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
           const Divider(height: 1),
 
           // Équipe actuelle
@@ -334,16 +393,54 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                       spacing: 6,
                       runSpacing: 6,
                       children: current
-                          .map((a) => GestureDetector(
-                                onLongPress: () => _requestTransfer(a),
-                                child: Chip(
-                                  label: Text(a.agentName),
-                                  backgroundColor: Colors.white,
-                                  side: const BorderSide(color: AppColors.border),
-                                  visualDensity: VisualDensity.compact,
-                                ),
+                          .map((a) => ActionChip(
+                                label: Text(a.agentName),
+                                backgroundColor: Colors.white,
+                                side: const BorderSide(color: AppColors.border),
+                                visualDensity: VisualDensity.compact,
+                                avatar: const Icon(Icons.person_remove_outlined, size: 16, color: AppColors.danger),
+                                onPressed: () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (_) => AlertDialog(
+                                      title: const Text('Libérer l\'agent ?'),
+                                      content: Text(
+                                        'Libérer ${a.agentName} de ce chantier. '
+                                        'Il devra être reconvoqué pour revenir.',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context, false),
+                                          child: const Text('Annuler'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context, true),
+                                          child: const Text('Libérer', style: TextStyle(color: AppColors.danger)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirm == true && mounted) {
+                                    try {
+                                      await ref.read(assignmentsRepositoryProvider).releaseAgent(a.id);
+                                      ref.invalidate(siteAssignmentsProvider(widget.siteId));
+                                      ref.invalidate(availableAgentsProvider(widget.siteId));
+                                    } catch (e) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text(e.toString()), backgroundColor: AppColors.danger),
+                                        );
+                                      }
+                                    }
+                                  }
+                                },
                               ))
                           .toList(),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Appuyez sur un agent pour le libérer (indisponible). Appui long = transfert.',
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),
@@ -366,7 +463,7 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                       const SizedBox(height: 12),
                       ElevatedButton(
                         onPressed: () =>
-                            ref.invalidate(availableAgentsProvider),
+                            ref.invalidate(availableAgentsProvider(widget.siteId)),
                         child: const Text('Réessayer'),
                       ),
                     ],
@@ -374,9 +471,27 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                 ),
               ),
               data: (agents) {
-                final filtered = agents
+                var filtered = agents
                     .where((a) => !alreadyAssignedIds.contains(a.id))
                     .toList();
+
+                // Apply contract filter
+                if (_contractFilter != 'ALL') {
+                  filtered = filtered
+                      .where((a) => a.contractType == _contractFilter)
+                      .toList();
+                }
+
+                // Apply sort
+                filtered.sort((a, b) {
+                  if (_sortMode == 'days') {
+                    return b.daysWorked.compareTo(a.daysWorked);
+                  }
+                  // Default: score
+                  final scoreA = a.avgScore ?? a.rankingScore;
+                  final scoreB = b.avgScore ?? b.rankingScore;
+                  return scoreB.compareTo(scoreA);
+                });
 
                 if (filtered.isEmpty) {
                   return const Center(
@@ -386,7 +501,7 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
 
                 return RefreshIndicator(
                   onRefresh: () async {
-                    ref.invalidate(availableAgentsProvider);
+                    ref.invalidate(availableAgentsProvider(widget.siteId));
                     ref.invalidate(siteAssignmentsProvider(widget.siteId));
                   },
                   child: ListView.builder(
@@ -558,15 +673,33 @@ class _AgentTile extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        '${agent.phone} · ${agent.rankingScore.toStringAsFixed(1)} ★'
-                        '${agent.agentType != null ? ' · ${agent.agentType}' : ''}'
-                        '${!agent.isAvailable ? ' · INDISPONIBLE' : ''}',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: agent.isAvailable
-                                  ? null
-                                  : AppColors.danger,
+                      // Badges row
+                      Wrap(
+                        spacing: 4,
+                        children: [
+                          _Badge(
+                            label: agent.contractType == 'PERMANENT' ? 'Permanent' : 'Temp.',
+                            color: agent.contractType == 'PERMANENT' ? AppColors.primary : AppColors.secondary,
+                          ),
+                          _Badge(
+                            label: '${(agent.avgScore ?? agent.rankingScore).toStringAsFixed(1)} ★',
+                            color: AppColors.warning,
+                          ),
+                          _Badge(
+                            label: '${agent.daysWorked}j travaillis',
+                            color: AppColors.accent,
+                          ),
+                          if (agent.isLockedElsewhere)
+                            const _Badge(
+                              label: 'Indisponible',
+                              color: AppColors.danger,
+                            )
+                          else if (!agent.isAvailable)
+                            const _Badge(
+                              label: 'Inactif',
+                              color: AppColors.textSecondary,
                             ),
+                        ],
                       ),
                     ],
                   ),
@@ -589,6 +722,70 @@ class _AgentTile extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.color = AppColors.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? color.withOpacity(0.15) : Colors.transparent,
+          border: Border.all(color: selected ? color : AppColors.border),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+            color: selected ? color : AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _Badge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          color: color,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );

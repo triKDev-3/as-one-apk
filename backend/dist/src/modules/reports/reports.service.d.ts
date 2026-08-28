@@ -68,8 +68,11 @@ export declare class ReportsService {
             startDate: Date | null;
             endDate: Date | null;
             dailyRate: import("@prisma/client/runtime/library").Decimal | null;
-            exceptionalRate: import("@prisma/client/runtime/library").Decimal | null;
+            nightRate: import("@prisma/client/runtime/library").Decimal | null;
+            sundayRate: import("@prisma/client/runtime/library").Decimal | null;
             bonusAmount: import("@prisma/client/runtime/library").Decimal | null;
+            monthlySalary: import("@prisma/client/runtime/library").Decimal | null;
+            fixedAmount: import("@prisma/client/runtime/library").Decimal | null;
             createdById: string | null;
         };
         createdBy: {
@@ -128,4 +131,78 @@ export declare class ReportsService {
         summary: string | null;
         closedAt: Date;
     })[]>;
+    getLatestReportBySite(siteId: string): Promise<({
+        site: {
+            id: string;
+            isActive: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            name: string;
+            type: import(".prisma/client").$Enums.SiteType;
+            address: string | null;
+            location: string | null;
+            startDate: Date | null;
+            endDate: Date | null;
+            dailyRate: import("@prisma/client/runtime/library").Decimal | null;
+            nightRate: import("@prisma/client/runtime/library").Decimal | null;
+            sundayRate: import("@prisma/client/runtime/library").Decimal | null;
+            bonusAmount: import("@prisma/client/runtime/library").Decimal | null;
+            monthlySalary: import("@prisma/client/runtime/library").Decimal | null;
+            fixedAmount: import("@prisma/client/runtime/library").Decimal | null;
+            createdById: string | null;
+        };
+        createdBy: {
+            id: string;
+            firstName: string;
+            lastName: string;
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        startDate: Date;
+        endDate: Date;
+        createdById: string;
+        siteId: string;
+        status: string;
+        details: import("@prisma/client/runtime/library").JsonValue;
+        summary: string | null;
+        closedAt: Date;
+    }) | null>;
+    updateReportSummary(reportId: string, summary: string): Promise<{
+        site: {
+            id: string;
+            isActive: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            name: string;
+            type: import(".prisma/client").$Enums.SiteType;
+            address: string | null;
+            location: string | null;
+            startDate: Date | null;
+            endDate: Date | null;
+            dailyRate: import("@prisma/client/runtime/library").Decimal | null;
+            nightRate: import("@prisma/client/runtime/library").Decimal | null;
+            sundayRate: import("@prisma/client/runtime/library").Decimal | null;
+            bonusAmount: import("@prisma/client/runtime/library").Decimal | null;
+            monthlySalary: import("@prisma/client/runtime/library").Decimal | null;
+            fixedAmount: import("@prisma/client/runtime/library").Decimal | null;
+            createdById: string | null;
+        };
+        createdBy: {
+            id: string;
+            firstName: string;
+            lastName: string;
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        startDate: Date;
+        endDate: Date;
+        createdById: string;
+        siteId: string;
+        status: string;
+        details: import("@prisma/client/runtime/library").JsonValue;
+        summary: string | null;
+        closedAt: Date;
+    }>;
 }

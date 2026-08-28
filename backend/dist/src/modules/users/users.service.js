@@ -84,6 +84,26 @@ let UsersService = class UsersService {
             select: { id: true, isActive: true, firstName: true, lastName: true },
         });
     }
+    async updateRole(id, newRole) {
+        const user = await this.prisma.user.findUnique({ where: { id } });
+        if (!user)
+            throw new common_1.NotFoundException('Utilisateur introuvable');
+        if (user.role === client_1.Role.ADMIN)
+            throw new common_1.BadRequestException('Impossible de modifier le rôle d\'un admin');
+        if (newRole === client_1.Role.AGENT && user.role !== client_1.Role.AGENT) {
+            const existingProfile = await this.prisma.agentProfile.findUnique({ where: { userId: id } });
+            if (!existingProfile) {
+                await this.prisma.agentProfile.create({
+                    data: { userId: id, isAvailable: true }
+                });
+            }
+        }
+        return this.prisma.user.update({
+            where: { id },
+            data: { role: newRole },
+            select: { id: true, role: true, firstName: true, lastName: true },
+        });
+    }
     async updateProfile(userId, dto) {
         if (dto.phone) {
             const existing = await this.prisma.user.findFirst({

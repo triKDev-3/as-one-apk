@@ -34,6 +34,8 @@ export declare class UsersService {
             isAvailable: boolean;
             availableUntil: Date | null;
             lastAvailabilityChange: Date;
+            paidMonths: import("@prisma/client/runtime/library").JsonValue | null;
+            unavailableDates: import("@prisma/client/runtime/library").JsonValue | null;
             userId: string;
         } | null;
     } & {
@@ -44,6 +46,7 @@ export declare class UsersService {
         firstName: string;
         lastName: string;
         role: import(".prisma/client").$Enums.Role;
+        contractType: string;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -56,6 +59,12 @@ export declare class UsersService {
         firstName: string;
         lastName: string;
         isActive: boolean;
+    }>;
+    updateRole(id: string, newRole: Role): Promise<{
+        id: string;
+        firstName: string;
+        lastName: string;
+        role: import(".prisma/client").$Enums.Role;
     }>;
     updateProfile(userId: string, dto: UpdateProfileDto): Promise<{
         id: string;

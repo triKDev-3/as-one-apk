@@ -10,6 +10,7 @@ import '../../features/chef/repositories/pointage_repository.dart';
 import '../../features/magasinier/repositories/material_repository.dart';
 import '../../features/comptable/repositories/payroll_repository.dart';
 import '../network/realtime_service.dart';
+export 'view_mode_provider.dart';
 
 // ---------- Infrastructure ----------
 
@@ -138,8 +139,8 @@ final pointageRepositoryProvider = Provider<PointageRepository>((ref) {
 });
 
 final availableAgentsProvider =
-    FutureProvider.autoDispose<List<AvailableAgent>>((ref) {
-  return ref.watch(assignmentsRepositoryProvider).getAvailableAgents();
+    FutureProvider.autoDispose.family<List<AvailableAgent>, String?>((ref, siteId) {
+  return ref.watch(assignmentsRepositoryProvider).getAvailableAgents(siteId: siteId);
 });
 
 final siteAssignmentsProvider = FutureProvider.autoDispose

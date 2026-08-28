@@ -27,8 +27,10 @@ let RatingController = class RatingController {
     create(dto, req) {
         return this.service.create(dto, req.user.id);
     }
-    ranking(limit) {
-        return this.service.getRanking(limit ? parseInt(limit, 10) : 50);
+    ranking(limit, sortBy) {
+        const parsedLimit = limit ? parseInt(limit, 10) : 50;
+        const sort = sortBy === 'days' ? 'days' : 'score';
+        return this.service.getRanking(parsedLimit, sort);
     }
     byAssignment(assignmentId) {
         return this.service.getByAssignment(assignmentId);
@@ -48,8 +50,9 @@ __decorate([
     (0, common_1.Get)('ranking'),
     (0, roles_decorator_1.Roles)(client_1.Role.AGENT, client_1.Role.CHEF, client_1.Role.ADMIN, client_1.Role.COMPTABLE),
     __param(0, (0, common_1.Query)('limit')),
+    __param(1, (0, common_1.Query)('sortBy')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], RatingController.prototype, "ranking", null);
 __decorate([

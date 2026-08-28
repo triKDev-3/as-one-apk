@@ -138,8 +138,11 @@ export class ReportsService {
         address: site.address,
         location: site.location,
         dailyRate: site.dailyRate,
-        exceptionalRate: site.exceptionalRate,
+        nightRate: site.nightRate,
+        sundayRate: site.sundayRate,
         bonusAmount: site.bonusAmount,
+        monthlySalary: site.monthlySalary,
+        fixedAmount: site.fixedAmount,
       },
       period: {
         startDate: startDate.toISOString(),
@@ -268,6 +271,35 @@ export class ReportsService {
         createdBy: {
           select: { firstName: true, lastName: true },
         },
+      },
+    });
+  }
+
+  /** Retourne le dernier rapport d'un site, ou null s'il n'en a pas */
+  async getLatestReportBySite(siteId: string) {
+    const report = await this.prisma.siteReport.findFirst({
+      where: { siteId },
+      orderBy: { closedAt: 'desc' },
+      include: {
+        site: true,
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+    return report; // null si aucun
+  }
+
+  /** Modifie uniquement le résumé d'un rapport existant */
+  async updateReportSummary(reportId: string, summary: string) {
+    const report = await this.prisma.siteReport.findUnique({
+      where: { id: reportId },
+    });
+    if (!report) throw new NotFoundException('Rapport introuvable');
+    return this.prisma.siteReport.update({
+      where: { id: reportId },
+      data: { summary },
+      include: {
+        site: true,
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
       },
     });
   }

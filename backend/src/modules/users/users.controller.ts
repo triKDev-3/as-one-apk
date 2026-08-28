@@ -37,6 +37,12 @@ export class UsersController {
     return this.usersService.setActive(id, dto.isActive);
   }
 
+  @Patch(':id/role')
+  @Roles(Role.ADMIN)
+  updateRole(@Param('id') id: string, @Body() dto: { role: Role }) {
+    return this.usersService.updateRole(id, dto.role);
+  }
+
   @Patch('me/profile')
   @Roles(Role.AGENT, Role.CHEF, Role.MAGASINIER, Role.COMPTABLE, Role.ADMIN)
   updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {

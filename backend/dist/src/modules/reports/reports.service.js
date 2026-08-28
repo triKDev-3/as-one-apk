@@ -128,8 +128,11 @@ let ReportsService = class ReportsService {
                 address: site.address,
                 location: site.location,
                 dailyRate: site.dailyRate,
-                exceptionalRate: site.exceptionalRate,
+                nightRate: site.nightRate,
+                sundayRate: site.sundayRate,
                 bonusAmount: site.bonusAmount,
+                monthlySalary: site.monthlySalary,
+                fixedAmount: site.fixedAmount,
             },
             period: {
                 startDate: startDate.toISOString(),
@@ -252,6 +255,32 @@ let ReportsService = class ReportsService {
                 createdBy: {
                     select: { firstName: true, lastName: true },
                 },
+            },
+        });
+    }
+    async getLatestReportBySite(siteId) {
+        const report = await this.prisma.siteReport.findFirst({
+            where: { siteId },
+            orderBy: { closedAt: 'desc' },
+            include: {
+                site: true,
+                createdBy: { select: { id: true, firstName: true, lastName: true } },
+            },
+        });
+        return report;
+    }
+    async updateReportSummary(reportId, summary) {
+        const report = await this.prisma.siteReport.findUnique({
+            where: { id: reportId },
+        });
+        if (!report)
+            throw new common_1.NotFoundException('Rapport introuvable');
+        return this.prisma.siteReport.update({
+            where: { id: reportId },
+            data: { summary },
+            include: {
+                site: true,
+                createdBy: { select: { id: true, firstName: true, lastName: true } },
             },
         });
     }

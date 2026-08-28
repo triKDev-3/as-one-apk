@@ -38,6 +38,9 @@ let UsersController = class UsersController {
     setActive(id, dto) {
         return this.usersService.setActive(id, dto.isActive);
     }
+    updateRole(id, dto) {
+        return this.usersService.updateRole(id, dto.role);
+    }
     updateProfile(req, dto) {
         return this.usersService.updateProfile(req.user.id, dto);
     }
@@ -79,6 +82,15 @@ __decorate([
     __metadata("design:paramtypes", [String, set_active_dto_1.SetActiveDto]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "setActive", null);
+__decorate([
+    (0, common_1.Patch)(':id/role'),
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "updateRole", null);
 __decorate([
     (0, common_1.Patch)('me/profile'),
     (0, roles_decorator_1.Roles)(client_1.Role.AGENT, client_1.Role.CHEF, client_1.Role.MAGASINIER, client_1.Role.COMPTABLE, client_1.Role.ADMIN),

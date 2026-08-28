@@ -30,8 +30,23 @@ let AgentController = class AgentController {
     getMyDashboard(req) {
         return this.agentService.getMyDashboard(req.user.id);
     }
+    getPointagesHistory(req) {
+        return this.agentService.getPointagesHistory(req.user.id);
+    }
+    getPlanning(req) {
+        return this.agentService.getPlanning(req.user.id);
+    }
+    getRemuneration(req) {
+        return this.agentService.getRemuneration(req.user.id);
+    }
+    markMonthPaid(req, dto) {
+        return this.agentService.markMonthPaid(req.user.id, dto.monthKey);
+    }
     getAvailable() {
         return this.agentService.getAvailableAgents();
+    }
+    markDayAvailability(req, dto) {
+        return this.agentService.markDayAvailability(req.user.id, dto.date, dto.available);
     }
 };
 exports.AgentController = AgentController;
@@ -53,12 +68,54 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AgentController.prototype, "getMyDashboard", null);
 __decorate([
+    (0, common_1.Get)('pointages'),
+    (0, roles_decorator_1.Roles)(client_1.Role.AGENT),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AgentController.prototype, "getPointagesHistory", null);
+__decorate([
+    (0, common_1.Get)('calendar'),
+    (0, roles_decorator_1.Roles)(client_1.Role.AGENT),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AgentController.prototype, "getPlanning", null);
+__decorate([
+    (0, common_1.Get)('remuneration'),
+    (0, roles_decorator_1.Roles)(client_1.Role.AGENT),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AgentController.prototype, "getRemuneration", null);
+__decorate([
+    (0, common_1.Post)('remuneration/mark-paid'),
+    (0, roles_decorator_1.Roles)(client_1.Role.AGENT),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], AgentController.prototype, "markMonthPaid", null);
+__decorate([
     (0, common_1.Get)('available'),
     (0, roles_decorator_1.Roles)(client_1.Role.CHEF, client_1.Role.ADMIN),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AgentController.prototype, "getAvailable", null);
+__decorate([
+    (0, common_1.Post)('availability-mark'),
+    (0, roles_decorator_1.Roles)(client_1.Role.AGENT),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], AgentController.prototype, "markDayAvailability", null);
 exports.AgentController = AgentController = __decorate([
     (0, common_1.Controller)('agent'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),

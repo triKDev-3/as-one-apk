@@ -75,9 +75,6 @@ let PayrollService = class PayrollService {
             if (pointages.length > 0 && pointages[0].site.dailyRate) {
                 dailyRate = Number(pointages[0].site.dailyRate);
             }
-            if (pointages.length > 0 && pointages[0].site.exceptionalRate) {
-                dailyRate = Number(pointages[0].site.exceptionalRate);
-            }
             baseAmount = daysWorked * dailyRate;
             details.push({
                 type: 'jours_travailles',

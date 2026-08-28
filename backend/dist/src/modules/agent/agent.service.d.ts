@@ -78,4 +78,36 @@ export declare class AgentService {
             lastAvailabilityChange: Date;
         } | null;
     }[]>;
+    getPointagesHistory(agentId: string): Promise<{
+        id: string;
+        siteName: string;
+        type: import(".prisma/client").$Enums.PointageType;
+        date: string;
+        location: {
+            lat: number;
+            lng: number;
+        } | null;
+    }[]>;
+    getPlanning(agentId: string, monthKey?: string): Promise<Record<string, {
+        status: string;
+        siteName?: string;
+    }>>;
+    getRemuneration(agentId: string): Promise<{
+        monthKey: string;
+        daysWorked: number;
+        totalAmount: number;
+        isPaid: boolean;
+        paidAt: string | null;
+        details: any[];
+    }[]>;
+    markMonthPaid(agentId: string, monthKey: string): Promise<{
+        success: boolean;
+        monthKey: string;
+        paidAt: string;
+    }>;
+    markDayAvailability(userId: string, date: string, available: boolean): Promise<{
+        success: boolean;
+        date: string;
+        available: boolean;
+    }>;
 }

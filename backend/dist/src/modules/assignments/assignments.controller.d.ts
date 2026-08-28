@@ -103,6 +103,32 @@ export declare class AssignmentsController {
         confirmedAt: Date | null;
         refusedAt: Date | null;
     })[]>;
+    getAvailableAgents(siteId?: string): Promise<{
+        id: string;
+        firstName: string;
+        lastName: string;
+        phone: string;
+        contractType: string;
+        rankingScore: number;
+        avgScore: number | null;
+        daysWorked: number;
+        isAvailable: boolean;
+        isLockedElsewhere: boolean;
+    }[]>;
+    releaseAgent(id: string, req: any): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        startDate: Date;
+        endDate: Date | null;
+        createdById: string;
+        siteId: string;
+        agentId: string;
+        status: import(".prisma/client").$Enums.AssignmentStatus;
+        isLocked: boolean;
+        confirmedAt: Date | null;
+        refusedAt: Date | null;
+    }>;
     resolveTransfer(id: string, accept: boolean, req: any): Promise<{
         ok: boolean;
         status: string;

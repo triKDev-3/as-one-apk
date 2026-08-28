@@ -7,6 +7,9 @@ export declare class CreateSiteDto {
     startDate?: string;
     endDate?: string;
     dailyRate?: number;
-    exceptionalRate?: number;
+    nightRate?: number;
+    sundayRate?: number;
     bonusAmount?: number;
+    monthlySalary?: number;
+    fixedAmount?: number;
 }

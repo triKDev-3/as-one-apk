@@ -13,6 +13,8 @@ export declare class JwtStrategy extends JwtStrategy_base {
             isAvailable: boolean;
             availableUntil: Date | null;
             lastAvailabilityChange: Date;
+            paidMonths: import("@prisma/client/runtime/library").JsonValue | null;
+            unavailableDates: import("@prisma/client/runtime/library").JsonValue | null;
             userId: string;
         } | null;
     } & {
@@ -23,6 +25,7 @@ export declare class JwtStrategy extends JwtStrategy_base {
         firstName: string;
         lastName: string;
         role: import(".prisma/client").$Enums.Role;
+        contractType: string;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;

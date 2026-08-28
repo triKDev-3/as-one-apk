@@ -25,7 +25,8 @@ class _CloseReportScreenState extends ConsumerState<CloseReportScreen> {
   DateTime? _start;
   DateTime? _end;
   bool _loading = false;
-  Map<String, dynamic>? _report;
+  bool _checking = true; // true pendant la vérification initiale
+  Map<String, dynamic>? _report; // rapport existant ou généré
 
   @override
   void initState() {
@@ -34,6 +35,28 @@ class _CloseReportScreenState extends ConsumerState<CloseReportScreen> {
         ? DateTime.tryParse(widget.site!.startDate!)
         : null;
     _end = DateTime.now();
+    _checkExistingReport();
+  }
+
+  /// Vérifie au démarrage si un rapport existe déjà pour ce site
+  Future<void> _checkExistingReport() async {
+    try {
+      final api = ref.read(apiClientProvider);
+      final response =
+          await api.dio.get('/sites/${widget.siteId}/reports/latest');
+      final data = response.data;
+      if (data != null && data is Map<String, dynamic>) {
+        // Rapport existant → pré-remplir le résumé pour l'édition
+        setState(() {
+          _report = data;
+          _summaryCtrl.text = data['summary'] as String? ?? '';
+        });
+      }
+    } catch (_) {
+      // 404 ou erreur réseau → pas de rapport, on affiche le formulaire
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
   }
 
   Future<void> _pickStart() async {
@@ -56,6 +79,7 @@ class _CloseReportScreenState extends ConsumerState<CloseReportScreen> {
     if (d != null) setState(() => _end = d);
   }
 
+  /// Crée un nouveau rapport (premier appel)
   Future<void> _submit() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -101,9 +125,41 @@ class _CloseReportScreenState extends ConsumerState<CloseReportScreen> {
             backgroundColor: AppColors.accent,
           ),
         );
-        // Propose l'envoi WhatsApp immédiatement
         final msg = WhatsAppHelper.siteReportMessage(reportData);
         await WhatsAppHelper.openWhatsApp(message: msg);
+      }
+    } on DioException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ApiClient.extractError(e)),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// Met à jour uniquement le résumé d'un rapport existant
+  Future<void> _updateSummary() async {
+    if (_report == null) return;
+    setState(() => _loading = true);
+    try {
+      final api = ref.read(apiClientProvider);
+      final response = await api.dio.patch(
+        '/reports/${_report!['id']}',
+        data: {'summary': _summaryCtrl.text.trim()},
+      );
+      setState(() => _report = response.data as Map<String, dynamic>);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Résumé mis à jour ✅'),
+            backgroundColor: AppColors.accent,
+          ),
+        );
       }
     } on DioException catch (e) {
       if (mounted) {
@@ -123,10 +179,33 @@ class _CloseReportScreenState extends ConsumerState<CloseReportScreen> {
   Widget build(BuildContext context) {
     final siteName = widget.site?.name ?? 'Chantier';
 
-    if (_report != null) {
-      return _ReportView(report: _report!, siteName: siteName);
+    // Chargement initial
+    if (_checking) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: Text('Rapport — $siteName'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.pop(),
+          ),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
     }
 
+    // Rapport existant → affichage + possibilité de modifier le résumé
+    if (_report != null) {
+      return _ReportView(
+        report: _report!,
+        siteName: siteName,
+        summaryCtrl: _summaryCtrl,
+        loading: _loading,
+        onUpdateSummary: _updateSummary,
+      );
+    }
+
+    // Pas encore de rapport → formulaire de création
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -209,11 +288,22 @@ class _CloseReportScreenState extends ConsumerState<CloseReportScreen> {
   }
 }
 
+// ─── Vue du rapport existant ──────────────────────────────────────────────────
+
 class _ReportView extends StatelessWidget {
   final Map<String, dynamic> report;
   final String siteName;
+  final TextEditingController summaryCtrl;
+  final bool loading;
+  final VoidCallback onUpdateSummary;
 
-  const _ReportView({required this.report, required this.siteName});
+  const _ReportView({
+    required this.report,
+    required this.siteName,
+    required this.summaryCtrl,
+    required this.loading,
+    required this.onUpdateSummary,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -223,7 +313,6 @@ class _ReportView extends StatelessWidget {
     final team = details['team'] as List<dynamic>? ?? [];
     final stats = details['stats'] as Map<String, dynamic>? ?? {};
     final site = details['site'] as Map<String, dynamic>? ?? {};
-    final summary = report['summary'] as String?;
 
     String fmt(dynamic d) {
       if (d == null) return '—';
@@ -248,8 +337,32 @@ class _ReportView extends StatelessWidget {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 140),
         children: [
+          // Badge "rapport existant"
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.accent.withOpacity(0.4)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline,
+                    size: 16, color: AppColors.accent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Rapport déjà généré. Vous pouvez modifier le résumé ci-dessous.',
+                    style: const TextStyle(
+                        fontSize: 13, color: AppColors.accent),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           Text(
             site['name']?.toString() ?? siteName,
             style: Theme.of(context).textTheme.headlineMedium,
@@ -284,12 +397,31 @@ class _ReportView extends StatelessWidget {
             label: 'Incidents',
             value: '${stats['incidentsCount'] ?? 0}',
           ),
-          if (summary != null && summary.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Text('Résumé', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text(summary),
-          ],
+          const SizedBox(height: 20),
+          // Champ résumé modifiable
+          Text('Résumé', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          TextField(
+            controller: summaryCtrl,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              hintText: 'Travaux réalisés, observations, recommandations…',
+              alignLabelWithHint: true,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: loading ? null : onUpdateSummary,
+            icon: loading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child:
+                        CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.save_outlined),
+            label: const Text('Enregistrer le résumé'),
+          ),
           const SizedBox(height: 20),
           Text(
             'Historique des tâches',
@@ -303,7 +435,8 @@ class _ReportView extends StatelessWidget {
               final m = t as Map<String, dynamic>;
               return ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.check_circle, color: AppColors.accent),
+                leading:
+                    const Icon(Icons.check_circle, color: AppColors.accent),
                 title: Text(m['description']?.toString() ?? ''),
                 subtitle: Text(
                   '${fmt(m['performedAt'])}${m['by'] != null ? ' · ${m['by']}' : ''}',
@@ -357,9 +490,7 @@ class _ReportView extends StatelessWidget {
                       await WhatsAppHelper.copyMessage(message);
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text(
-                            'WhatsApp indisponible — texte copié',
-                          ),
+                          content: Text('WhatsApp indisponible — texte copié'),
                         ),
                       );
                     }

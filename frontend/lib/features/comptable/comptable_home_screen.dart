@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/providers/providers.dart';
+import '../../core/widgets/custom_card.dart';
+import '../../core/widgets/hero_banner.dart';
 
 final payrollPeriodsProvider =
     FutureProvider.autoDispose<List<dynamic>>((ref) {
@@ -29,35 +32,135 @@ class _ComptableHomeScreenState extends ConsumerState<ComptableHomeScreen> {
 
     final choice = await showModalBottomSheet<String>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.calendar_view_week),
-              title: const Text('Quinzaine (1–15)'),
-              subtitle: Text(
-                '${DateFormat('dd/MM').format(start)} → ${DateFormat('dd/MM').format(mid)}',
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Nouvelle période de paie',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
               ),
-              onTap: () => Navigator.pop(ctx, 'quinzaine'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.calendar_month),
-              title: const Text('Fin de mois (16–fin)'),
-              subtitle: Text(
-                '${DateFormat('dd/MM').format(mid.add(const Duration(days: 1)))} → ${DateFormat('dd/MM').format(endMonth)}',
+              const SizedBox(height: 6),
+              const Text(
+                'Sélectionnez la plage de dates pour le pré-calcul',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
-              onTap: () => Navigator.pop(ctx, 'mois'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.date_range),
-              title: const Text('Période personnalisée'),
-              onTap: () => Navigator.pop(ctx, 'custom'),
-            ),
-          ],
+              const SizedBox(height: 20),
+              CustomCard(
+                onTap: () => Navigator.pop(ctx, 'quinzaine'),
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.date_range_rounded, color: AppColors.primary),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Première quinzaine (1–15)',
+                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                          ),
+                          Text(
+                            '${DateFormat('dd/MM').format(start)} → ${DateFormat('dd/MM').format(mid)}',
+                            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+                  ],
+                ),
+              ),
+              CustomCard(
+                onTap: () => Navigator.pop(ctx, 'mois'),
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.calendar_month_rounded, color: AppColors.secondary),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Deuxième quinzaine (16–Fin)',
+                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                          ),
+                          Text(
+                            '${DateFormat('dd/MM').format(mid.add(const Duration(days: 1)))} → ${DateFormat('dd/MM').format(endMonth)}',
+                            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+                  ],
+                ),
+              ),
+              CustomCard(
+                onTap: () => Navigator.pop(ctx, 'custom'),
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.edit_calendar_rounded, color: AppColors.accent),
+                    ),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Période personnalisée',
+                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                          ),
+                          Text(
+                            'Choisir des dates spécifiques',
+                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -122,142 +225,170 @@ class _ComptableHomeScreenState extends ConsumerState<ComptableHomeScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Comptabilité'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          gradient: AppColors.primaryGradient,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: AppColors.glowShadow(AppColors.primary),
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: _creating ? null : _createPeriod,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          highlightElevation: 0,
+          icon: _creating
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.add_rounded, color: Colors.white),
+          label: const Text(
+            'Nouvelle période',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          ),
+        ),
+      ),
+      body: Column(
+        children: [
+          HeroBanner(
+            userName: user?.firstName != null ? '${user!.firstName} ${user.lastName}' : 'Responsable Paie',
+            roleName: 'Comptabilité',
+            subtitle: 'Générez, vérifiez et validez les virements & décomptes de paie.',
+            onLogout: () async {
               await ref.read(authProvider.notifier).logout();
               if (context.mounted) context.go('/login');
             },
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _creating ? null : _createPeriod,
-        backgroundColor: AppColors.accent,
-        icon: _creating
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : const Icon(Icons.add),
-        label: const Text('Nouvelle période'),
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(payrollPeriodsProvider),
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            Text(
-              'Bonjour, ${user?.firstName ?? 'Comptable'}',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Pré-calcul et validation des paies',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Périodes de paie',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 12),
-            periodsAsync.when(
-              loading: () => const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: CircularProgressIndicator(),
-                ),
-              ),
-              error: (e, _) => Text(e.toString()),
-              data: (periods) {
-                if (periods.isEmpty) {
-                  return Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async => ref.invalidate(payrollPeriodsProvider),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+                children: [
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Périodes de paie',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'Historique complet',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ).animate().fadeIn().slideX(begin: -0.05, end: 0),
+                  const SizedBox(height: 14),
+                  periodsAsync.when(
+                    loading: () => const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(40),
+                        child: CircularProgressIndicator(color: AppColors.primary),
+                      ),
                     ),
-                    child: const Text(
-                      'Aucune période. Créez-en une avec le bouton +',
-                      textAlign: TextAlign.center,
+                    error: (e, _) => Center(
+                      child: Text(
+                        e.toString(),
+                        style: const TextStyle(color: AppColors.danger),
+                      ),
                     ),
-                  );
-                }
-                return Column(
-                  children: periods.map((p) {
-                    final id = p['id'] as String? ?? '';
-                    final status = p['status'] as String? ?? '';
-                    final start = (p['startDate'] as String? ?? '').length >= 10
-                        ? (p['startDate'] as String).substring(0, 10)
-                        : '';
-                    final end = (p['endDate'] as String? ?? '').length >= 10
-                        ? (p['endDate'] as String).substring(0, 10)
-                        : '';
-                    final count = p['_count']?['lines'] ??
-                        (p['lines'] is List ? (p['lines'] as List).length : 0);
-
-                    Color statusColor = AppColors.secondary;
-                    if (status == 'VALIDATED' || status == 'PAID') {
-                      statusColor = AppColors.accent;
-                    } else if (status == 'SIMULATION' || status == 'DRAFT') {
-                      statusColor = AppColors.warning;
-                    }
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: Material(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () => context.push('/comptable/period/$id'),
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: AppColors.border),
+                    data: (periods) {
+                      if (periods.isEmpty) {
+                        return CustomCard(
+                          padding: const EdgeInsets.all(32),
+                          child: Center(
+                            child: Column(
+                              children: [
+                                Icon(Icons.receipt_long_outlined, size: 48, color: AppColors.textTertiary),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'Aucune période de paie enregistrée',
+                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Créez votre première période avec le bouton ci-dessous',
+                                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
                             ),
+                          ),
+                        );
+                      }
+                      return Column(
+                        children: periods.map((p) {
+                          final id = p['id'] as String? ?? '';
+                          final status = p['status'] as String? ?? '';
+                          final start = (p['startDate'] as String? ?? '').length >= 10
+                              ? (p['startDate'] as String).substring(0, 10)
+                              : '';
+                          final end = (p['endDate'] as String? ?? '').length >= 10
+                              ? (p['endDate'] as String).substring(0, 10)
+                              : '';
+                          final count = p['_count']?['lines'] ??
+                              (p['lines'] is List ? (p['lines'] as List).length : 0);
+
+                          Color statusColor = AppColors.secondary;
+                          String statusLabel = 'BROUILLON';
+                          if (status == 'VALIDATED' || status == 'PAID') {
+                            statusColor = AppColors.accent;
+                            statusLabel = 'VALIDÉ';
+                          } else if (status == 'SIMULATION' || status == 'DRAFT') {
+                            statusColor = AppColors.warning;
+                            statusLabel = 'EN COURS';
+                          }
+
+                          return CustomCard(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            onTap: () => context.push('/comptable/period/$id'),
+                            padding: const EdgeInsets.all(16),
                             child: Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(10),
+                                  padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
                                     color: statusColor.withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius: BorderRadius.circular(14),
                                   ),
                                   child: Icon(
-                                    Icons.receipt_long,
+                                    Icons.receipt_long_rounded,
                                     color: statusColor,
+                                    size: 24,
                                   ),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         '$start → $end',
                                         style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
+                                          fontWeight: FontWeight.w800,
                                           fontSize: 15,
+                                          color: AppColors.textPrimary,
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
+                                      const SizedBox(height: 4),
                                       Text(
-                                        '$count ligne(s)',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium,
+                                        '$count agent(s) calculé(s)',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.textSecondary,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -265,36 +396,36 @@ class _ComptableHomeScreenState extends ConsumerState<ComptableHomeScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 10,
-                                    vertical: 4,
+                                    vertical: 5,
                                   ),
                                   decoration: BoxDecoration(
                                     color: statusColor.withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
-                                    status,
+                                    statusLabel,
                                     style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
                                       color: statusColor,
+                                      letterSpacing: 0.5,
                                     ),
                                   ),
                                 ),
-                                const Icon(Icons.chevron_right,
-                                    color: AppColors.textSecondary),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.arrow_forward_ios_rounded, size: 13, color: AppColors.textTertiary),
                               ],
                             ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                );
-              },
+                          );
+                        }).toList(),
+                      ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.05, end: 0);
+                    },
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 80),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

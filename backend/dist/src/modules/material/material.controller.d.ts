@@ -40,10 +40,10 @@ export declare class MaterialController {
         type: string;
         createdById: string;
         siteId: string;
+        state: import(".prisma/client").$Enums.MaterialState | null;
         itemId: string;
         quantity: number;
         notes: string | null;
-        state: import(".prisma/client").$Enums.MaterialState | null;
         printableRef: string | null;
     }>;
     materialReturn(dto: MaterialReturnDto, req: any): Promise<{
@@ -61,10 +61,10 @@ export declare class MaterialController {
         type: string;
         createdById: string;
         siteId: string;
+        state: import(".prisma/client").$Enums.MaterialState | null;
         itemId: string;
         quantity: number;
         notes: string | null;
-        state: import(".prisma/client").$Enums.MaterialState | null;
         printableRef: string | null;
     }>;
     getBySite(siteId: string): Promise<({
@@ -91,10 +91,10 @@ export declare class MaterialController {
         type: string;
         createdById: string;
         siteId: string;
+        state: import(".prisma/client").$Enums.MaterialState | null;
         itemId: string;
         quantity: number;
         notes: string | null;
-        state: import(".prisma/client").$Enums.MaterialState | null;
         printableRef: string | null;
     })[]>;
     createAlert(body: any): Promise<{

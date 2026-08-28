@@ -9,12 +9,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { AssignmentStatus, Role } from '@prisma/client';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 
 @Injectable()
 export class AssignmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsGateway,
+    private readonly whatsapp: WhatsappService,
   ) {}
 
   /**
@@ -58,7 +60,7 @@ export class AssignmentsService {
         status: needsConfirmation
           ? AssignmentStatus.PENDING_CONFIRMATION
           : AssignmentStatus.CONFIRMED,
-        isLocked: !!dto.endDate, // multi-jours → locked
+        isLocked: true, // always locked until released or site is closed
       },
       include: {
         agent: { select: { id: true, firstName: true, lastName: true, phone: true } },
@@ -74,6 +76,20 @@ export class AssignmentsService {
       status: assignment.status,
       message: 'Nouvelle affectation — confirmez avant 22h',
     });
+
+    // Envoyer le message WhatsApp de convocation si le numéro est disponible
+    if (assignment.agent?.phone) {
+      const siteName = assignment.site?.name || 'chantier';
+      const date = assignment.startDate
+        ? new Date(assignment.startDate).toLocaleDateString('fr-FR')
+        : 'prochainement';
+      const msg =
+        `📋 *Convocation AS ONE*\n` +
+        `Bonjour ${assignment.agent.firstName} ${assignment.agent.lastName},\n` +
+        `Vous êtes convoqué(e) sur le chantier *${siteName}* à partir du *${date}*.\n` +
+        `Veuillez confirmer votre présence dans l'application.`;
+      this.whatsapp.sendMessage(chefId, assignment.agent.phone, msg).catch(() => {});
+    }
 
     return assignment;
   }
@@ -219,5 +235,96 @@ export class AssignmentsService {
       select: { id: true, firstName: true, lastName: true, phone: true },
       orderBy: { lastName: 'asc' },
     });
+  }
+
+  /**
+   * Liste des agents disponibles pour composition d'équipe.
+   * Inclut : contractType, score moyen (rating), jours travaillés (pointages ARRIVEE)
+   */
+  async getAvailableAgents(siteId?: string) {
+    const agents = await this.prisma.user.findMany({
+      where: { role: Role.AGENT, isActive: true },
+      include: {
+        agentProfile: { select: { isAvailable: true } },
+        ratingsReceived: {
+          select: { score: true },
+        },
+        pointages: {
+          select: { notedAt: true },
+        },
+        assignments: {
+          where: {
+            isLocked: true,
+            status: { in: [AssignmentStatus.CONFIRMED, AssignmentStatus.LOCKED] },
+          },
+          select: { id: true, siteId: true },
+        },
+      },
+    });
+
+    return agents.map((a) => {
+      const ratings = a.ratingsReceived;
+      const avgScore =
+        ratings.length > 0
+          ? ratings.reduce((sum: number, r: { score: number }) => sum + r.score, 0) / ratings.length
+          : null;
+      const daysWorked = new Set(a.pointages.map(p => p.notedAt.toDateString())).size;
+      const isLockedElsewhere = a.assignments.some(
+        (asgn: { siteId: string }) => siteId && asgn.siteId !== siteId,
+      );
+      return {
+        id: a.id,
+        firstName: a.firstName,
+        lastName: a.lastName,
+        phone: a.phone,
+        contractType: a.contractType,
+        rankingScore: a.rankingScore,
+        avgScore,
+        daysWorked,
+        isAvailable: a.agentProfile?.isAvailable ?? true,
+        isLockedElsewhere,
+      };
+    });
+  }
+
+  /**
+   * Un chef libère temporairement un agent (indisponibilité en cours de chantier).
+   * L'agent est libéré (isLocked=false) mais l'assignment n'est pas supprimé.
+   * Il ne peut revenir que via une nouvelle convocation.
+   */
+  async releaseAgent(assignmentId: string, chefId: string) {
+    const assignment = await this.prisma.assignment.findUnique({
+      where: { id: assignmentId },
+      include: {
+        agent: { select: { firstName: true, lastName: true, phone: true } },
+        site: { select: { name: true } },
+      },
+    });
+
+    if (!assignment) throw new NotFoundException('Affectation introuvable');
+    if (assignment.createdById !== chefId)
+      throw new ForbiddenException('Action non autorisée');
+
+    const updated = await this.prisma.assignment.update({
+      where: { id: assignmentId },
+      data: { isLocked: false, status: AssignmentStatus.REFUSED },
+    });
+
+    // Notifier l'agent
+    this.notifications.notifyAssignment(assignment.agentId, {
+      id: assignmentId,
+      status: updated.status,
+      message: 'Vous avez été libéré(e) de ce chantier par votre chef.',
+    });
+
+    if (assignment.agent?.phone) {
+      const siteName = assignment.site?.name || 'chantier';
+      const msg =
+        `ℹ️ *AS ONE* : Vous avez été libéré(e) du chantier *${siteName}*.\n` +
+        `Attendez une nouvelle convocation pour y retourner.`;
+      this.whatsapp.sendMessage(chefId, assignment.agent.phone, msg).catch(() => {});
+    }
+
+    return updated;
   }
 }

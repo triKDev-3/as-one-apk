@@ -1,10 +1,12 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 export declare class AssignmentsService {
     private readonly prisma;
     private readonly notifications;
-    constructor(prisma: PrismaService, notifications: NotificationsGateway);
+    private readonly whatsapp;
+    constructor(prisma: PrismaService, notifications: NotificationsGateway, whatsapp: WhatsappService);
     create(dto: CreateAssignmentDto, chefId: string): Promise<{
         site: {
             id: string;
@@ -136,4 +138,30 @@ export declare class AssignmentsService {
         firstName: string;
         lastName: string;
     }[]>;
+    getAvailableAgents(siteId?: string): Promise<{
+        id: string;
+        firstName: string;
+        lastName: string;
+        phone: string;
+        contractType: string;
+        rankingScore: number;
+        avgScore: number | null;
+        daysWorked: number;
+        isAvailable: boolean;
+        isLockedElsewhere: boolean;
+    }[]>;
+    releaseAgent(assignmentId: string, chefId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        startDate: Date;
+        endDate: Date | null;
+        createdById: string;
+        siteId: string;
+        agentId: string;
+        status: import(".prisma/client").$Enums.AssignmentStatus;
+        isLocked: boolean;
+        confirmedAt: Date | null;
+        refusedAt: Date | null;
+    }>;
 }

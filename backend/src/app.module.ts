@@ -14,6 +14,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { UploadModule } from './modules/upload/upload.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { StatsModule } from './modules/stats/stats.module';
+import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
 
 @Module({
   controllers: [HealthController],
@@ -32,6 +34,8 @@ import { ReportsModule } from './modules/reports/reports.module';
     UploadModule,
     IncidentsModule,
     ReportsModule,
+    StatsModule,
+    WhatsappModule,
   ],
 })
 export class AppModule {}

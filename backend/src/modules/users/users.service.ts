@@ -81,6 +81,29 @@ export class UsersService {
     });
   }
 
+  async updateRole(id: string, newRole: Role) {
+    // Basic verification
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('Utilisateur introuvable');
+    if (user.role === Role.ADMIN) throw new BadRequestException('Impossible de modifier le rôle d\'un admin');
+
+    // If changing to AGENT and doesn't have a profile, create one
+    if (newRole === Role.AGENT && user.role !== Role.AGENT) {
+      const existingProfile = await this.prisma.agentProfile.findUnique({ where: { userId: id } });
+      if (!existingProfile) {
+        await this.prisma.agentProfile.create({
+          data: { userId: id, isAvailable: true }
+        });
+      }
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: { role: newRole },
+      select: { id: true, role: true, firstName: true, lastName: true },
+    });
+  }
+
   async updateProfile(userId: string, dto: UpdateProfileDto) {
     if (dto.phone) {
       const existing = await this.prisma.user.findFirst({

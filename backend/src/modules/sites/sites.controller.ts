@@ -19,8 +19,12 @@ export class SitesController {
 
   @Get()
   @Roles(Role.ADMIN, Role.CHEF, Role.COMPTABLE, Role.MAGASINIER)
-  findAll(@Query('type') type?: string) {
-    return this.sitesService.findAll(type);
+  findAll(
+    @Request() req: any,
+    @Query('type') type?: string,
+    @Query('all') all?: string,
+  ) {
+    return this.sitesService.findAll(type, req.user.id, req.user.role, all === 'true');
   }
 
   @Get(':id')

@@ -37,6 +37,12 @@ let AssignmentsController = class AssignmentsController {
     getBySite(siteId) {
         return this.service.getBySite(siteId);
     }
+    getAvailableAgents(siteId) {
+        return this.service.getAvailableAgents(siteId);
+    }
+    releaseAgent(id, req) {
+        return this.service.releaseAgent(id, req.user.id);
+    }
     resolveTransfer(id, accept, req) {
         return this.service.resolveTransfer(id, req.user.id, accept);
     }
@@ -80,6 +86,23 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], AssignmentsController.prototype, "getBySite", null);
+__decorate([
+    (0, common_1.Get)('agents/available'),
+    (0, roles_decorator_1.Roles)(client_1.Role.CHEF, client_1.Role.ADMIN),
+    __param(0, (0, common_1.Query)('siteId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AssignmentsController.prototype, "getAvailableAgents", null);
+__decorate([
+    (0, common_1.Patch)(':id/release'),
+    (0, roles_decorator_1.Roles)(client_1.Role.CHEF, client_1.Role.ADMIN),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], AssignmentsController.prototype, "releaseAgent", null);
 __decorate([
     (0, common_1.Patch)('transfers/:id/resolve'),
     (0, roles_decorator_1.Roles)(client_1.Role.CHEF, client_1.Role.ADMIN),

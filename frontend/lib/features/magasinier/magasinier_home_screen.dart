@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/providers/providers.dart';
+import '../../core/widgets/custom_card.dart';
+import '../../core/widgets/hero_banner.dart';
+import '../../core/widgets/action_grid_card.dart';
 
 class MagasinierHomeScreen extends ConsumerWidget {
   const MagasinierHomeScreen({super.key});
@@ -13,128 +17,142 @@ class MagasinierHomeScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Magasin'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
+      body: Column(
+        children: [
+          HeroBanner(
+            userName: user?.firstName != null ? '${user!.firstName} ${user.lastName}' : 'Gestionnaire Stock',
+            roleName: 'Magasinier & Parc',
+            subtitle: 'Suivi du matériel de chantier, des dotations et de la flotte automobile.',
+            onLogout: () async {
               await ref.read(authProvider.notifier).logout();
               if (context.mounted) context.go('/login');
             },
           ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Text(
-            'Bonjour, ${user?.firstName ?? 'Magasinier'}',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Gestion du matériel et des alertes',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 24),
-          _ActionCard(
-            icon: Icons.outbox_outlined,
-            title: 'Sortie de matériel',
-            subtitle: 'Affecter au chantier',
-            color: AppColors.primary,
-            onTap: () => context.push('/magasinier/out'),
-          ),
-          const SizedBox(height: 12),
-          _ActionCard(
-            icon: Icons.move_to_inbox_outlined,
-            title: 'Retour de matériel',
-            subtitle: 'État + retenues',
-            color: AppColors.secondary,
-            onTap: () => context.push('/magasinier/return'),
-          ),
-          const SizedBox(height: 12),
-          _ActionCard(
-            icon: Icons.inventory_2_outlined,
-            title: 'Catalogue',
-            subtitle: 'Articles consignables / consommables',
-            color: AppColors.accent,
-            onTap: () => context.push('/magasinier/catalog'),
-          ),
-          const SizedBox(height: 12),
-          _ActionCard(
-            icon: Icons.warning_amber_outlined,
-            title: 'Alertes véhicules',
-            subtitle: 'Assurance, vidange…',
-            color: AppColors.warning,
-            onTap: () => context.push('/magasinier/alerts'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ActionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 28),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+              children: [
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
+                      'Stock & Équipements',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+                    Text(
+                      'Inventaire actif',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
                   ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-            ],
+                ).animate().fadeIn().slideX(begin: -0.05, end: 0),
+
+                const SizedBox(height: 14),
+
+                // 2x2 Action Grid
+                GridView.count(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 14,
+                  childAspectRatio: 1.1,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    ActionGridCard(
+                      icon: Icons.outbox_rounded,
+                      title: 'Sortie Matériel',
+                      subtitle: 'Affecter aux chantiers',
+                      accentColor: AppColors.primary,
+                      onTap: () => context.push('/magasinier/out'),
+                    ),
+                    ActionGridCard(
+                      icon: Icons.move_to_inbox_rounded,
+                      title: 'Retour & Contrôle',
+                      subtitle: 'État, dégradations',
+                      accentColor: AppColors.secondary,
+                      onTap: () => context.push('/magasinier/return'),
+                    ),
+                    ActionGridCard(
+                      icon: Icons.inventory_2_rounded,
+                      title: 'Catalogue Stock',
+                      subtitle: 'Consommables & EPI',
+                      accentColor: AppColors.accent,
+                      onTap: () => context.push('/magasinier/catalog'),
+                    ),
+                    ActionGridCard(
+                      icon: Icons.directions_car_filled_rounded,
+                      title: 'Parc Véhicules',
+                      subtitle: 'Kilométrage & suivi',
+                      accentColor: AppColors.primaryDark,
+                      onTap: () => context.push('/magasinier/alerts'),
+                    ),
+                  ],
+                ).animate().fadeIn(delay: 150.ms).scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1)),
+
+                const SizedBox(height: 20),
+
+                // Vehicle Maintenance Alert Hero Card
+                CustomCard(
+                  onTap: () => context.push('/magasinier/alerts'),
+                  padding: const EdgeInsets.all(18),
+                  border: Border.all(color: AppColors.warning.withOpacity(0.4), width: 1.2),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.warning.withOpacity(0.2),
+                              AppColors.warning.withOpacity(0.05),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.warning.withOpacity(0.3), width: 1),
+                        ),
+                        child: const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 26),
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Alertes Maintenance & Échéances',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            SizedBox(height: 3),
+                            Text(
+                              'Assurances, visites techniques, vidanges à planifier',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textTertiary, size: 14),
+                    ],
+                  ),
+                ).animate().fadeIn(delay: 350.ms).slideY(begin: 0.1, end: 0),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

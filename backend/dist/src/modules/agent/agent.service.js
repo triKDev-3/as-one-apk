@@ -131,6 +131,137 @@ let AgentService = class AgentService {
             return (b.rankingScore ?? 0) - (a.rankingScore ?? 0);
         });
     }
+    async getPointagesHistory(agentId) {
+        const pointages = await this.prisma.pointage.findMany({
+            where: { agentId },
+            include: {
+                site: { select: { name: true } },
+            },
+            orderBy: { notedAt: 'desc' },
+        });
+        return pointages.map((p) => ({
+            id: p.id,
+            siteName: p.site.name,
+            type: p.type,
+            date: p.notedAt.toISOString(),
+            location: p.latitude && p.longitude ? { lat: p.latitude, lng: p.longitude } : null,
+        }));
+    }
+    async getPlanning(agentId, monthKey) {
+        const now = new Date();
+        let startDate;
+        let endDate;
+        if (monthKey && /^\d{4}-\d{2}$/.test(monthKey)) {
+            const [year, month] = monthKey.split('-').map(Number);
+            startDate = new Date(year, month - 1, 1);
+            endDate = new Date(year, month, 0, 23, 59, 59);
+        }
+        else {
+            startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        }
+        const pointages = await this.prisma.pointage.findMany({
+            where: {
+                agentId,
+                notedAt: { gte: startDate, lte: endDate },
+                type: 'ARRIVEE'
+            },
+            include: { site: { select: { name: true } } },
+            orderBy: { notedAt: 'asc' },
+        });
+        const profile = await this.prisma.agentProfile.findUnique({ where: { userId: agentId } });
+        const unavailableDates = profile?.unavailableDates ?? [];
+        const calendarMap = {};
+        for (const p of pointages) {
+            const dateKey = p.notedAt.toISOString().split('T')[0];
+            calendarMap[dateKey] = { status: 'worked', siteName: p.site.name };
+        }
+        for (const d of unavailableDates) {
+            if (!calendarMap[d]) {
+                calendarMap[d] = { status: 'unavailable' };
+            }
+        }
+        return calendarMap;
+    }
+    async getRemuneration(agentId) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: agentId },
+            include: { agentProfile: true },
+        });
+        if (!user)
+            throw new common_1.NotFoundException('Agent non trouvé');
+        const pointages = await this.prisma.pointage.findMany({
+            where: { agentId, type: 'ARRIVEE' },
+            orderBy: { notedAt: 'desc' },
+            include: { site: true },
+        });
+        const monthlyData = {};
+        for (const p of pointages) {
+            const monthKey = p.notedAt.toISOString().substring(0, 7);
+            if (!monthlyData[monthKey]) {
+                monthlyData[monthKey] = { daysWorked: 0, totalAmount: 0, details: [] };
+            }
+            const rate = p.site.dailyRate ? Number(p.site.dailyRate) : (user.agentType === 'PERMANENT' ? 5000 : 3000);
+            monthlyData[monthKey].daysWorked += 1;
+            monthlyData[monthKey].totalAmount += rate;
+            monthlyData[monthKey].details.push({
+                date: p.notedAt,
+                siteName: p.site.name,
+                amount: rate,
+            });
+        }
+        const paidMonths = user.agentProfile?.paidMonths || {};
+        const result = Object.entries(monthlyData).map(([monthKey, data]) => ({
+            monthKey,
+            daysWorked: data.daysWorked,
+            totalAmount: data.totalAmount,
+            isPaid: !!paidMonths[monthKey],
+            paidAt: paidMonths[monthKey] || null,
+            details: data.details,
+        }));
+        return result.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+    }
+    async markMonthPaid(agentId, monthKey) {
+        const profile = await this.prisma.agentProfile.findUnique({
+            where: { userId: agentId },
+        });
+        if (!profile)
+            throw new common_1.NotFoundException('Profil agent non trouvé');
+        const paidMonths = (profile.paidMonths || {});
+        paidMonths[monthKey] = new Date().toISOString();
+        await this.prisma.agentProfile.update({
+            where: { userId: agentId },
+            data: { paidMonths },
+        });
+        return { success: true, monthKey, paidAt: paidMonths[monthKey] };
+    }
+    async markDayAvailability(userId, date, available) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            throw new common_1.BadRequestException('Format de date invalide (YYYY-MM-DD attendu)');
+        }
+        const profile = await this.prisma.agentProfile.findUnique({
+            where: { userId },
+        });
+        if (!profile) {
+            throw new common_1.NotFoundException('Profil agent non trouvé');
+        }
+        let unavailableDates = profile.unavailableDates || [];
+        if (available) {
+            unavailableDates = unavailableDates.filter((d) => d !== date);
+        }
+        else {
+            if (!unavailableDates.includes(date)) {
+                unavailableDates.push(date);
+            }
+        }
+        await this.prisma.agentProfile.update({
+            where: { userId },
+            data: {
+                unavailableDates,
+            },
+        });
+        return { success: true, date, available };
+    }
 };
 exports.AgentService = AgentService;
 exports.AgentService = AgentService = __decorate([

@@ -51,32 +51,40 @@ class AvailableAgent {
   final String firstName;
   final String lastName;
   final String phone;
-  final String? agentType;
+  final String contractType; // PERMANENT | TEMPORAIRE
   final double rankingScore;
+  final double? avgScore;
+  final int daysWorked;
   final bool isAvailable;
+  final bool isLockedElsewhere;
 
   AvailableAgent({
     required this.id,
     required this.firstName,
     required this.lastName,
     required this.phone,
-    this.agentType,
+    this.contractType = 'TEMPORAIRE',
     this.rankingScore = 0,
+    this.avgScore,
+    this.daysWorked = 0,
     this.isAvailable = true,
+    this.isLockedElsewhere = false,
   });
 
   String get fullName => '$firstName $lastName';
 
   factory AvailableAgent.fromJson(Map<String, dynamic> json) {
-    final profile = json['agentProfile'] as Map<String, dynamic>?;
     return AvailableAgent(
       id: json['id'] as String,
       firstName: json['firstName'] as String? ?? '',
       lastName: json['lastName'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
-      agentType: json['agentType'] as String?,
+      contractType: json['contractType'] as String? ?? 'TEMPORAIRE',
       rankingScore: (json['rankingScore'] as num?)?.toDouble() ?? 0,
-      isAvailable: profile?['isAvailable'] as bool? ?? true,
+      avgScore: (json['avgScore'] as num?)?.toDouble(),
+      daysWorked: (json['daysWorked'] as num?)?.toInt() ?? 0,
+      isAvailable: json['isAvailable'] as bool? ?? true,
+      isLockedElsewhere: json['isLockedElsewhere'] as bool? ?? false,
     );
   }
 }
@@ -86,9 +94,12 @@ class AssignmentsRepository {
 
   AssignmentsRepository(this._api);
 
-  Future<List<AvailableAgent>> getAvailableAgents() async {
+  Future<List<AvailableAgent>> getAvailableAgents({String? siteId}) async {
     try {
-      final response = await _api.dio.get('/agent/available');
+      final response = await _api.dio.get(
+        '/assignments/agents/available',
+        queryParameters: siteId != null ? {'siteId': siteId} : null,
+      );
       final list = response.data as List<dynamic>;
       return list
           .map((e) => AvailableAgent.fromJson(e as Map<String, dynamic>))
@@ -144,24 +155,18 @@ class AssignmentsRepository {
     }
   }
 
-  Future<void> requestTransfer({
-    required String assignmentId,
-    required String toChefId,
-  }) async {
+  Future<List<dynamic>> listChefs() async {
     try {
-      await _api.dio.post(
-        '/assignments/$assignmentId/transfer',
-        data: {'toChefId': toChefId},
-      );
+      final response = await _api.dio.get('/assignments/chefs');
+      return response.data as List<dynamic>;
     } on DioException catch (e) {
       throw ApiClient.extractError(e);
     }
   }
 
-  Future<List<dynamic>> listChefs() async {
+  Future<void> releaseAgent(String assignmentId) async {
     try {
-      final response = await _api.dio.get('/assignments/chefs');
-      return response.data as List<dynamic>;
+      await _api.dio.patch('/assignments/$assignmentId/release');
     } on DioException catch (e) {
       throw ApiClient.extractError(e);
     }

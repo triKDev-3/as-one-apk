@@ -19,8 +19,13 @@ export class RatingController {
 
   @Get('ranking')
   @Roles(Role.AGENT, Role.CHEF, Role.ADMIN, Role.COMPTABLE)
-  ranking(@Query('limit') limit?: string) {
-    return this.service.getRanking(limit ? parseInt(limit, 10) : 50);
+  ranking(
+    @Query('limit') limit?: string,
+    @Query('sortBy') sortBy?: string,
+  ) {
+    const parsedLimit = limit ? parseInt(limit, 10) : 50;
+    const sort = sortBy === 'days' ? 'days' : 'score';
+    return this.service.getRanking(parsedLimit, sort);
   }
 
   @Get('assignment/:assignmentId')

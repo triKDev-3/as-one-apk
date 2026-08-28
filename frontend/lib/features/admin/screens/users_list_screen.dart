@@ -53,6 +53,38 @@ class UsersListScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _updateRole(
+    WidgetRef ref,
+    BuildContext context,
+    String id,
+    String newRole,
+  ) async {
+    try {
+      final api = ref.read(apiClientProvider);
+      await api.dio.patch('/users/$id/role', data: {
+        'role': newRole,
+      });
+      ref.invalidate(usersListProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Rôle mis à jour: $newRole'),
+            backgroundColor: AppColors.accent,
+          ),
+        );
+      }
+    } on DioException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ApiClient.extractError(e)),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usersAsync = ref.watch(usersListProvider);
@@ -123,17 +155,53 @@ class UsersListScreen extends ConsumerWidget {
                       ),
                     ),
                     subtitle: Text('$role · $phone'),
-                    trailing: IconButton(
-                      icon: Icon(
-                        active ? Icons.block : Icons.check_circle,
-                        color: active ? AppColors.danger : AppColors.accent,
-                      ),
-                      onPressed: () => _toggleActive(
-                        ref,
-                        context,
-                        u['id'] as String,
-                        active,
-                      ),
+                    trailing: PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert),
+                      onSelected: (value) {
+                        if (value == 'toggle') {
+                          _toggleActive(ref, context, u['id'] as String, active);
+                        } else if (value == 'AGENT' || value == 'CHEF') {
+                          _updateRole(ref, context, u['id'] as String, value);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'toggle',
+                          child: Row(
+                            children: [
+                              Icon(
+                                active ? Icons.block : Icons.check_circle,
+                                color: active ? AppColors.danger : AppColors.accent,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(active ? 'Désactiver' : 'Activer'),
+                            ],
+                          ),
+                        ),
+                        if (role != 'ADMIN' && role != 'AGENT')
+                          const PopupMenuItem(
+                            value: 'AGENT',
+                            child: Row(
+                              children: [
+                                Icon(Icons.person_outline, size: 20),
+                                SizedBox(width: 12),
+                                Text('Rétrograder (Agent)'),
+                              ],
+                            ),
+                          ),
+                        if (role != 'ADMIN' && role != 'CHEF')
+                          const PopupMenuItem(
+                            value: 'CHEF',
+                            child: Row(
+                              children: [
+                                Icon(Icons.star_outline, size: 20),
+                                SizedBox(width: 12),
+                                Text('Promouvoir (Chef)'),
+                              ],
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 );

@@ -43,6 +43,12 @@ let ReportsController = class ReportsController {
     getOne(id) {
         return this.service.getReport(id);
     }
+    getLatest(siteId) {
+        return this.service.getLatestReportBySite(siteId);
+    }
+    updateSummary(id, summary) {
+        return this.service.updateReportSummary(id, summary);
+    }
 };
 exports.ReportsController = ReportsController;
 __decorate([
@@ -96,6 +102,23 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], ReportsController.prototype, "getOne", null);
+__decorate([
+    (0, common_1.Get)('sites/:siteId/reports/latest'),
+    (0, roles_decorator_1.Roles)(client_1.Role.CHEF, client_1.Role.ADMIN, client_1.Role.COMPTABLE),
+    __param(0, (0, common_1.Param)('siteId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], ReportsController.prototype, "getLatest", null);
+__decorate([
+    (0, common_1.Patch)('reports/:id'),
+    (0, roles_decorator_1.Roles)(client_1.Role.CHEF, client_1.Role.ADMIN),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)('summary')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], ReportsController.prototype, "updateSummary", null);
 exports.ReportsController = ReportsController = __decorate([
     (0, common_1.Controller)(),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),

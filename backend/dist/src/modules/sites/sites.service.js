@@ -26,17 +26,23 @@ let SitesService = class SitesService {
                 startDate: dto.startDate ? new Date(dto.startDate) : null,
                 endDate: dto.endDate ? new Date(dto.endDate) : null,
                 dailyRate: dto.dailyRate,
-                exceptionalRate: dto.exceptionalRate,
+                nightRate: dto.nightRate ?? 4500,
+                sundayRate: dto.sundayRate ?? 5000,
                 bonusAmount: dto.bonusAmount,
+                monthlySalary: dto.monthlySalary,
+                fixedAmount: dto.fixedAmount,
                 createdById,
             },
         });
     }
-    async findAll(type) {
+    async findAll(type, userId, role, all) {
+        const isFiltered = role === 'CHEF' && !all;
+        const siteFilter = isFiltered && userId ? { chefs: { some: { chefId: userId } } } : {};
         return this.prisma.site.findMany({
             where: {
                 isActive: true,
                 ...(type ? { type: type } : {}),
+                ...siteFilter,
             },
             include: {
                 chefs: {

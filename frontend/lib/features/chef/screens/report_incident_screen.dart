@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/providers.dart';
 import '../repositories/sites_repository.dart';
@@ -54,6 +55,18 @@ class _ReportIncidentScreenState extends ConsumerState<ReportIncidentScreen> {
   }
 
   Future<void> _pickPhoto() async {
+    final status = await Permission.camera.request();
+    if (status.isPermanentlyDenied) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Veuillez autoriser l\'accès à l\'appareil photo dans les paramètres.')),
+        );
+        openAppSettings();
+      }
+      return;
+    }
+    if (!status.isGranted) return;
+
     final x = await _picker.pickImage(
       source: ImageSource.camera,
       maxWidth: 1600,

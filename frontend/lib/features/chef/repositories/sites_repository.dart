@@ -10,6 +10,13 @@ class SiteModel {
   final String? startDate;
   final String? endDate;
   final bool isActive;
+  final List<String> chefIds;
+  final double? dailyRate;
+  final double? nightRate;
+  final double? sundayRate;
+  final double? bonusAmount;
+  final double? monthlySalary;
+  final double? fixedAmount;
 
   SiteModel({
     required this.id,
@@ -20,9 +27,22 @@ class SiteModel {
     this.startDate,
     this.endDate,
     this.isActive = true,
+    this.chefIds = const [],
+    this.dailyRate,
+    this.nightRate,
+    this.sundayRate,
+    this.bonusAmount,
+    this.monthlySalary,
+    this.fixedAmount,
   });
 
   factory SiteModel.fromJson(Map<String, dynamic> json) {
+    double? _toDouble(dynamic v) {
+      if (v == null) return null;
+      if (v is num) return v.toDouble();
+      return double.tryParse(v.toString());
+    }
+
     return SiteModel(
       id: json['id'] as String,
       name: json['name'] as String? ?? '',
@@ -32,11 +52,30 @@ class SiteModel {
       startDate: json['startDate'] as String?,
       endDate: json['endDate'] as String?,
       isActive: json['isActive'] as bool? ?? true,
+      chefIds: (json['chefs'] as List<dynamic>?)
+              ?.map((c) => c['chefId'] as String)
+              .toList() ??
+          [],
+      dailyRate: _toDouble(json['dailyRate']),
+      nightRate: _toDouble(json['nightRate']),
+      sundayRate: _toDouble(json['sundayRate']),
+      bonusAmount: _toDouble(json['bonusAmount']),
+      monthlySalary: _toDouble(json['monthlySalary']),
+      fixedAmount: _toDouble(json['fixedAmount']),
     );
   }
 
   bool get isPermanence => type == 'PERMANENCE';
-  String get typeLabel => isPermanence ? 'Permanence' : 'Chantier';
+  bool get isChantier => type == 'CHANTIER';
+  bool get isRoutine => type == 'ROUTINE';
+
+  String get typeLabel {
+    switch (type) {
+      case 'PERMANENCE': return 'Permanence';
+      case 'ROUTINE': return 'Routine';
+      default: return 'Chantier';
+    }
+  }
 }
 
 class SitesRepository {
@@ -44,11 +83,16 @@ class SitesRepository {
 
   SitesRepository(this._api);
 
-  Future<List<SiteModel>> getSites({String? type}) async {
+  Future<List<SiteModel>> getSites({String? type, bool all = false}) async {
     try {
+      final query = <String, dynamic>{
+        if (type != null) 'type': type,
+        if (all) 'all': 'true',
+      };
+      
       final response = await _api.dio.get(
         '/sites',
-        queryParameters: type != null ? {'type': type} : null,
+        queryParameters: query.isNotEmpty ? query : null,
       );
       final list = response.data as List<dynamic>;
       return list

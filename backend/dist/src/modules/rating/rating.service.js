@@ -26,16 +26,19 @@ let RatingService = class RatingService {
         if (assignment.agentId !== dto.agentId) {
             throw new common_1.BadRequestException('Cet agent n\'est pas lié à cette affectation');
         }
-        const existing = await this.prisma.rating.findUnique({
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+        const existing = await this.prisma.rating.findFirst({
             where: {
-                assignmentId_agentId: {
-                    assignmentId: dto.assignmentId,
-                    agentId: dto.agentId,
-                },
+                assignmentId: dto.assignmentId,
+                agentId: dto.agentId,
+                createdAt: { gte: startOfDay, lte: endOfDay },
             },
         });
         if (existing) {
-            throw new common_1.ConflictException('Cet agent a déjà été noté pour cette affectation');
+            throw new common_1.ConflictException('Cet agent a déjà été noté aujourd\'hui pour ce chantier');
         }
         const rating = await this.prisma.rating.create({
             data: {
@@ -67,8 +70,8 @@ let RatingService = class RatingService {
         });
         return avg;
     }
-    async getRanking(limit = 50) {
-        return this.prisma.user.findMany({
+    async getRanking(limit = 50, sortBy = 'score') {
+        const agents = await this.prisma.user.findMany({
             where: { role: client_1.Role.AGENT, isActive: true },
             select: {
                 id: true,
@@ -76,10 +79,31 @@ let RatingService = class RatingService {
                 lastName: true,
                 rankingScore: true,
                 agentType: true,
+                _count: {
+                    select: {
+                        assignments: {
+                            where: { status: 'COMPLETED' },
+                        },
+                    },
+                },
             },
-            orderBy: { rankingScore: 'desc' },
-            take: limit,
+            take: limit * 2,
         });
+        const enriched = agents.map((a) => ({
+            id: a.id,
+            firstName: a.firstName,
+            lastName: a.lastName,
+            rankingScore: a.rankingScore,
+            agentType: a.agentType,
+            daysWorked: a._count.assignments,
+        }));
+        if (sortBy === 'days') {
+            enriched.sort((a, b) => b.daysWorked - a.daysWorked);
+        }
+        else {
+            enriched.sort((a, b) => b.rankingScore - a.rankingScore);
+        }
+        return enriched.slice(0, limit);
     }
     async getByAssignment(assignmentId) {
         return this.prisma.rating.findMany({

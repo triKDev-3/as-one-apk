@@ -30,6 +30,7 @@ enum AgentType {
 enum SiteType {
   CHANTIER
   PERMANENCE
+  ROUTINE
 }
 
 enum AssignmentStatus {
@@ -77,6 +78,7 @@ model User {
   firstName     String
   lastName      String
   role          Role
+  contractType  String    @default("TEMPORAIRE")
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -116,6 +118,8 @@ model AgentProfile {
   isAvailable     Boolean  @default(true) // gros bouton
   availableUntil  DateTime? // null = continue
   lastAvailabilityChange DateTime @default(now())
+  paidMonths      Json?    // pour marquer les mois payés: { "2023-10": "date" }
+  unavailableDates Json?   // dates futures marquées indispo: ["2025-01-10", ...]
 
   // Historique simple des disponibilités (optionnel pour audit léger)
   availabilityLogs AvailabilityLog[]
@@ -145,8 +149,11 @@ model Site {
 
   // Tarification
   dailyRate         Decimal? @db.Decimal(10, 2)
-  exceptionalRate   Decimal? @db.Decimal(10, 2)
+  nightRate         Decimal? @db.Decimal(10, 2) @default(4500) // Tarif de nuit
+  sundayRate        Decimal? @db.Decimal(10, 2) @default(5000) // Tarif dimanche
   bonusAmount       Decimal? @db.Decimal(10, 2)
+  monthlySalary     Decimal? @db.Decimal(10, 2) // Pour sites PERMANENCE
+  fixedAmount       Decimal? @db.Decimal(10, 2) // Forfait fixe pour CHANTIER
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -259,7 +266,8 @@ model Rating {
   agent         User       @relation("RatedAgent", fields: [agentId], references: [id])
   ratedBy       User       @relation("RatedBy", fields: [ratedById], references: [id])
 
-  @@unique([assignmentId, agentId])
+  @@index([assignmentId])
+  @@index([assignmentId, agentId])
 }
 
 // ============================================================

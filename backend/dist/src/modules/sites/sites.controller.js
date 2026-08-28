@@ -27,8 +27,8 @@ let SitesController = class SitesController {
     create(dto, req) {
         return this.sitesService.create(dto, req.user.id);
     }
-    findAll(type) {
-        return this.sitesService.findAll(type);
+    findAll(req, type, all) {
+        return this.sitesService.findAll(type, req.user.id, req.user.role, all === 'true');
     }
     findOne(id) {
         return this.sitesService.findOne(id);
@@ -50,9 +50,11 @@ __decorate([
 __decorate([
     (0, common_1.Get)(),
     (0, roles_decorator_1.Roles)(client_1.Role.ADMIN, client_1.Role.CHEF, client_1.Role.COMPTABLE, client_1.Role.MAGASINIER),
-    __param(0, (0, common_1.Query)('type')),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('type')),
+    __param(2, (0, common_1.Query)('all')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", void 0)
 ], SitesController.prototype, "findAll", null);
 __decorate([

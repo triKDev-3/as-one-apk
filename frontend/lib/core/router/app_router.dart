@@ -12,6 +12,8 @@ import '../../features/chef/screens/transfers_screen.dart';
 import '../../features/chef/screens/report_incident_screen.dart';
 import '../../features/chef/screens/site_tasks_screen.dart';
 import '../../features/chef/screens/close_report_screen.dart';
+import '../../features/chef/screens/chef_profile_screen.dart';
+import '../../features/chef/screens/stats_details_screen.dart';
 import '../../features/chef/repositories/sites_repository.dart';
 import '../../features/magasinier/magasinier_home_screen.dart';
 import '../../features/magasinier/screens/material_out_screen.dart';
@@ -22,7 +24,13 @@ import '../../features/admin/admin_home_screen.dart';
 import '../../features/admin/screens/create_user_screen.dart';
 import '../../features/admin/screens/create_site_screen.dart';
 import '../../features/admin/screens/users_list_screen.dart';
+import '../../features/admin/screens/admin_sites_screen.dart';
 import '../../features/shared/ranking_screen.dart';
+import '../../features/agent/screens/planning_screen.dart';
+import '../../features/agent/screens/pointages_history_screen.dart';
+import '../../features/agent/screens/remuneration_screen.dart';
+
+import '../../features/chef/screens/site_details_screen.dart';
 
 class AppRouter {
   static final router = GoRouter(
@@ -35,6 +43,9 @@ class AppRouter {
         routes: [
           GoRoute(path: 'ranking', builder: (_, __) => const RankingScreen()),
           GoRoute(path: 'profile', builder: (_, __) => const AgentProfileScreen()),
+          GoRoute(path: 'planning', builder: (_, __) => const PlanningScreen()),
+          GoRoute(path: 'pointages', builder: (_, __) => const PointagesHistoryScreen()),
+          GoRoute(path: 'remuneration', builder: (_, __) => const RemunerationScreen()),
         ],
       ),
       GoRoute(
@@ -42,6 +53,13 @@ class AppRouter {
         builder: (_, __) => const ChefHomeScreen(),
         routes: [
           GoRoute(path: 'select-site', builder: (_, __) => const SelectSiteScreen()),
+          GoRoute(
+            path: 'site/:siteId',
+            builder: (_, state) => SiteDetailsScreen(
+              siteId: state.pathParameters['siteId']!,
+              site: state.extra as SiteModel,
+            ),
+          ),
           GoRoute(
             path: 'compose/:siteId',
             builder: (_, state) => ComposeTeamScreen(
@@ -89,6 +107,16 @@ class AppRouter {
               site: state.extra as SiteModel?,
             ),
           ),
+          GoRoute(
+            path: 'stats-details/:type',
+            builder: (_, state) => StatsDetailsScreen(
+              statType: state.pathParameters['type']!,
+            ),
+          ),
+          GoRoute(
+            path: 'profile',
+            builder: (_, __) => const ChefProfileScreen(),
+          ),
         ],
       ),
       GoRoute(
@@ -134,7 +162,7 @@ class AppRouter {
           ),
           GoRoute(
             path: 'sites',
-            builder: (_, __) => const SelectSiteScreen(),
+            builder: (_, __) => const AdminSitesScreen(),
           ),
           GoRoute(
             path: 'ranking',

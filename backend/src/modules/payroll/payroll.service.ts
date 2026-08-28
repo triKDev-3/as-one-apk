@@ -103,9 +103,6 @@ export class PayrollService {
       if (pointages.length > 0 && pointages[0].site.dailyRate) {
         dailyRate = Number(pointages[0].site.dailyRate);
       }
-      if (pointages.length > 0 && pointages[0].site.exceptionalRate) {
-        dailyRate = Number(pointages[0].site.exceptionalRate);
-      }
 
       // Cas spécial : temporaire en remplacement permanence → prorata mensuel
       // (simplifié ici : on utilise le dailyRate si disponible)

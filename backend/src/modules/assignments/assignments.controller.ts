@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards, Request } from '@nestjs/common';
 import { AssignmentsService } from './assignments.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { RespondAssignmentDto } from './dto/respond-assignment.dto';
@@ -34,6 +34,18 @@ export class AssignmentsController {
   @Roles(Role.CHEF, Role.ADMIN, Role.COMPTABLE)
   getBySite(@Param('siteId') siteId: string) {
     return this.service.getBySite(siteId);
+  }
+
+  @Get('agents/available')
+  @Roles(Role.CHEF, Role.ADMIN)
+  getAvailableAgents(@Query('siteId') siteId?: string) {
+    return this.service.getAvailableAgents(siteId);
+  }
+
+  @Patch(':id/release')
+  @Roles(Role.CHEF, Role.ADMIN)
+  releaseAgent(@Param('id') id: string, @Request() req: any) {
+    return this.service.releaseAgent(id, req.user.id);
   }
 
   @Patch('transfers/:id/resolve')

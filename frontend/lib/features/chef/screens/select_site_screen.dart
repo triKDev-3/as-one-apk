@@ -6,7 +6,8 @@ import '../../../core/providers/providers.dart';
 import '../repositories/sites_repository.dart';
 
 final sitesListProvider = FutureProvider.autoDispose<List<SiteModel>>((ref) {
-  return ref.watch(sitesRepositoryProvider).getSites();
+  final viewAll = ref.watch(viewAllProvider);
+  return ref.watch(sitesRepositoryProvider).getSites(all: viewAll);
 });
 
 class SelectSiteScreen extends ConsumerWidget {
@@ -131,62 +132,7 @@ class _SiteTile extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
           onTap: () {
-            showModalBottomSheet(
-              context: context,
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              ),
-              builder: (ctx) => SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.group_add, color: AppColors.primary),
-                        title: const Text('Composer l\'équipe'),
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          context.push('/chef/compose/${site.id}', extra: site);
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.fact_check, color: AppColors.accent),
-                        title: const Text('Faire le pointage'),
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          context.push('/chef/pointage/${site.id}', extra: site);
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.star_rate, color: AppColors.warning),
-                        title: const Text('Noter les agents'),
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          context.push('/chef/rate/${site.id}', extra: site);
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.task_alt, color: AppColors.accent),
-                        title: const Text('Journal des tâches'),
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          context.push('/chef/tasks/${site.id}', extra: site);
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.assignment_turned_in, color: AppColors.primary),
-                        title: const Text('Rapport fin de chantier'),
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          context.push('/chef/report/${site.id}', extra: site);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
+            context.push('/chef/site/${site.id}', extra: site);
           },
           child: Container(
             padding: const EdgeInsets.all(16),

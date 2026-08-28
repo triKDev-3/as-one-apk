@@ -15,11 +15,14 @@ export declare class SitesController {
         startDate: Date | null;
         endDate: Date | null;
         dailyRate: import("@prisma/client/runtime/library").Decimal | null;
-        exceptionalRate: import("@prisma/client/runtime/library").Decimal | null;
+        nightRate: import("@prisma/client/runtime/library").Decimal | null;
+        sundayRate: import("@prisma/client/runtime/library").Decimal | null;
         bonusAmount: import("@prisma/client/runtime/library").Decimal | null;
+        monthlySalary: import("@prisma/client/runtime/library").Decimal | null;
+        fixedAmount: import("@prisma/client/runtime/library").Decimal | null;
         createdById: string | null;
     }>;
-    findAll(type?: string): Promise<({
+    findAll(req: any, type?: string, all?: string): Promise<({
         chefs: ({
             chef: {
                 id: string;
@@ -43,8 +46,11 @@ export declare class SitesController {
         startDate: Date | null;
         endDate: Date | null;
         dailyRate: import("@prisma/client/runtime/library").Decimal | null;
-        exceptionalRate: import("@prisma/client/runtime/library").Decimal | null;
+        nightRate: import("@prisma/client/runtime/library").Decimal | null;
+        sundayRate: import("@prisma/client/runtime/library").Decimal | null;
         bonusAmount: import("@prisma/client/runtime/library").Decimal | null;
+        monthlySalary: import("@prisma/client/runtime/library").Decimal | null;
+        fixedAmount: import("@prisma/client/runtime/library").Decimal | null;
         createdById: string | null;
     })[]>;
     findOne(id: string): Promise<{
@@ -81,8 +87,11 @@ export declare class SitesController {
         startDate: Date | null;
         endDate: Date | null;
         dailyRate: import("@prisma/client/runtime/library").Decimal | null;
-        exceptionalRate: import("@prisma/client/runtime/library").Decimal | null;
+        nightRate: import("@prisma/client/runtime/library").Decimal | null;
+        sundayRate: import("@prisma/client/runtime/library").Decimal | null;
         bonusAmount: import("@prisma/client/runtime/library").Decimal | null;
+        monthlySalary: import("@prisma/client/runtime/library").Decimal | null;
+        fixedAmount: import("@prisma/client/runtime/library").Decimal | null;
         createdById: string | null;
     }>;
     assignChef(siteId: string, chefId: string): Promise<{
