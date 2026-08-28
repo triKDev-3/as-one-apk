@@ -17,8 +17,18 @@ export class PointageController {
     return this.service.create(dto, req.user.id);
   }
 
+  @Get()
+  @Roles(Role.CHEF, Role.ADMIN, Role.COMPTABLE, Role.MAGASINIER)
+  list(
+    @Query('siteId') siteId?: string,
+    @Query('date') date?: string,
+    @Query('type') type?: string,
+  ) {
+    return this.service.list({ siteId, date, type });
+  }
+
   @Get('site/:siteId')
-  @Roles(Role.CHEF, Role.ADMIN, Role.COMPTABLE)
+  @Roles(Role.CHEF, Role.ADMIN, Role.COMPTABLE, Role.MAGASINIER)
   getBySite(
     @Param('siteId') siteId: string,
     @Query('date') date?: string,
