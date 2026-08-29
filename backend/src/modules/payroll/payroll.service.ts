@@ -68,7 +68,7 @@ export class PayrollService {
         where: {
           agentId: agent.id,
           notedAt: { gte: period.startDate, lte: period.endDate },
-          type: { in: ['ARRIVEE', 'PRESENCE_PERMANENCE'] },
+          type: { in: ['DEPART', 'PRESENCE_PERMANENCE'] },
         },
         include: {
           site: true,

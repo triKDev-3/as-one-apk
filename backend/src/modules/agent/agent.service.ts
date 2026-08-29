@@ -192,7 +192,7 @@ export class AgentService {
       where: { 
         agentId, 
         notedAt: { gte: startDate, lte: endDate },
-        type: 'ARRIVEE' 
+        type: { in: ['DEPART', 'PRESENCE_PERMANENCE', 'ARRIVEE'] } 
       },
       include: { site: { select: { name: true } } },
       orderBy: { notedAt: 'asc' },
@@ -234,7 +234,7 @@ export class AgentService {
 
     // On récupère tous les pointages (arrivées = jours travaillés)
     const pointages = await this.prisma.pointage.findMany({
-      where: { agentId, type: 'ARRIVEE' },
+      where: { agentId, type: { in: ['DEPART', 'PRESENCE_PERMANENCE', 'ARRIVEE'] } },
       orderBy: { notedAt: 'desc' },
       include: { site: true },
     });
