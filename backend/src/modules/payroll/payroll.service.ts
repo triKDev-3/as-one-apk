@@ -115,10 +115,17 @@ export class PayrollService {
         amount: baseAmount,
       });
 
+      const penalties = await this.prisma.incidentPenalty.findMany({
+        where: {
+          agentId: agent.id,
+          createdAt: { gte: period.startDate, lte: period.endDate },
+        },
+      });
+
       // Retenues individuelles
       let totalRetenues = 0;
       for (const r of retenues) {
-        if (r.agentId === agent.id || r.target === 'ONE_AGENT') {
+        if (r.agentId === agent.id) {
           totalRetenues += Number(r.amount);
           details.push({
             type: 'retenue_materiel',
@@ -126,6 +133,14 @@ export class PayrollService {
             item: r.movement?.item?.name,
           });
         }
+      }
+      for (const pen of penalties) {
+        totalRetenues += Number(pen.amount);
+        details.push({
+          type: 'penalite_incident',
+          amount: Number(pen.amount),
+          reason: pen.reason,
+        });
       }
 
       // Pour WHOLE_GROUP on pourrait diviser par le nombre d’agents pointés le jour J

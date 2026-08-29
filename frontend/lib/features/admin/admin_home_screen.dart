@@ -148,7 +148,7 @@ class AdminHomeScreen extends ConsumerWidget {
                           children: [
                             Text('Incidents', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                             SizedBox(height: 3),
-                            Text('Consulter et clôturer les signalements', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                            Text('Consultation des signalements', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                           ],
                         ),
                       ),

@@ -31,7 +31,7 @@ export class AssignmentsController {
   }
 
   @Get('site/:siteId')
-  @Roles(Role.CHEF, Role.ADMIN, Role.COMPTABLE)
+  @Roles(Role.CHEF, Role.ADMIN, Role.COMPTABLE, Role.MAGASINIER)
   getBySite(@Param('siteId') siteId: string) {
     return this.service.getBySite(siteId);
   }

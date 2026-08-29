@@ -148,7 +148,7 @@ class MagasinierHomeScreen extends ConsumerWidget {
                           children: [
                             Text('Incidents', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                             SizedBox(height: 3),
-                            Text('Consulter et signaler (matériel, dégâts)', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                            Text('Consulter et appliquer les pénalités', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                           ],
                         ),
                       ),

@@ -79,11 +79,7 @@ class AppRouter {
           GoRoute(path: 'transfers', builder: (_, __) => const TransfersScreen()),
           GoRoute(
             path: 'incidents',
-            builder: (_, __) => const IncidentsListScreen(
-              canCreate: true,
-              canResolve: true,
-              reportRoute: '/chef/incident',
-            ),
+            builder: (_, __) => const IncidentsListScreen(),
           ),
           GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
           GoRoute(path: 'pointages', builder: (_, __) => const PointagesLogScreen()),
@@ -129,9 +125,7 @@ class AppRouter {
           GoRoute(
             path: 'incidents',
             builder: (_, __) => const IncidentsListScreen(
-              canCreate: true,
-              canResolve: false,
-              reportRoute: '/magasinier/incident',
+              canApplyPenalty: true,
             ),
           ),
           GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
@@ -169,11 +163,7 @@ class AppRouter {
           GoRoute(path: 'pointages', builder: (_, __) => const PointagesLogScreen()),
           GoRoute(
             path: 'incidents',
-            builder: (_, __) => const IncidentsListScreen(
-              canCreate: true,
-              canResolve: true,
-              reportRoute: '/admin/incident',
-            ),
+            builder: (_, __) => const IncidentsListScreen(),
           ),
           GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
         ],

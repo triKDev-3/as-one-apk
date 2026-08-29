@@ -88,6 +88,8 @@ model User {
   ratingsGiven  Rating[]      @relation("RatedBy")
   ratingsReceived Rating[]    @relation("RatedAgent")
   materialRetentions MaterialRetention[]
+  incidentPenalties IncidentPenalty[] @relation("PenaltyAgent")
+  penaltiesApplied IncidentPenalty[] @relation("PenaltyAppliedBy")
   payrollLines  PayrollLine[]
   auditLogs     AuditLog[]
   incidentsReported Incident[]
@@ -274,6 +276,23 @@ model Incident {
   resolvedAt   DateTime?
   site         Site     @relation(fields: [siteId], references: [id])
   reportedBy   User     @relation(fields: [reportedById], references: [id])
+  penalties    IncidentPenalty[]
+}
+
+model IncidentPenalty {
+  id          String   @id @default(cuid())
+  incidentId  String
+  agentId     String?
+  target      RetentionTarget
+  amount      Decimal  @db.Decimal(10, 2)
+  reason      String?
+  appliedById String
+  createdAt   DateTime @default(now())
+  incident    Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  agent       User?    @relation("PenaltyAgent", fields: [agentId], references: [id])
+  appliedBy   User     @relation("PenaltyAppliedBy", fields: [appliedById], references: [id])
+  @@index([agentId, createdAt])
+  @@index([incidentId])
 }
 
 model SiteTask {
