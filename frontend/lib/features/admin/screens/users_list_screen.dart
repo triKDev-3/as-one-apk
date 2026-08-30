@@ -85,6 +85,34 @@ class UsersListScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _resetPassword(
+    WidgetRef ref,
+    BuildContext context,
+    String id,
+  ) async {
+    try {
+      final api = ref.read(apiClientProvider);
+      await api.dio.patch('/users/$id/reset-password');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Mot de passe réinitialisé avec succès'),
+            backgroundColor: AppColors.accent,
+          ),
+        );
+      }
+    } on DioException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ApiClient.extractError(e)),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usersAsync = ref.watch(usersListProvider);
@@ -160,6 +188,8 @@ class UsersListScreen extends ConsumerWidget {
                       onSelected: (value) {
                         if (value == 'toggle') {
                           _toggleActive(ref, context, u['id'] as String, active);
+                        } else if (value == 'reset_password') {
+                          _resetPassword(ref, context, u['id'] as String);
                         } else if (value == 'AGENT' || value == 'CHEF') {
                           _updateRole(ref, context, u['id'] as String, value);
                         }
@@ -176,6 +206,16 @@ class UsersListScreen extends ConsumerWidget {
                               ),
                               const SizedBox(width: 12),
                               Text(active ? 'Désactiver' : 'Activer'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'reset_password',
+                          child: Row(
+                            children: [
+                              Icon(Icons.lock_reset, size: 20),
+                              SizedBox(width: 12),
+                              Text('Réinitialiser MDP'),
                             ],
                           ),
                         ),

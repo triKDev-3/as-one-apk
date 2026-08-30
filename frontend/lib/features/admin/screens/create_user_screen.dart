@@ -18,7 +18,6 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
   final _phoneCtrl = TextEditingController();
   final _firstCtrl = TextEditingController();
   final _lastCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
   String _role = 'AGENT';
   String _agentType = 'TEMPORAIRE';
   bool _loading = false;
@@ -30,7 +29,6 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
       final api = ref.read(apiClientProvider);
       final data = {
         'phone': _phoneCtrl.text.trim(),
-        'password': _passCtrl.text,
         'firstName': _firstCtrl.text.trim(),
         'lastName': _lastCtrl.text.trim(),
         'role': _role,
@@ -98,14 +96,6 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
               ),
               validator: (v) =>
                   v == null || v.trim().length < 8 ? 'Invalide' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _passCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Mot de passe'),
-              validator: (v) =>
-                  v == null || v.length < 6 ? 'Min. 6 caractères' : null,
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(

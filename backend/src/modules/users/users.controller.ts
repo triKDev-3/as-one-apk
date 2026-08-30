@@ -54,4 +54,9 @@ export class UsersController {
   changePassword(@Request() req: any, @Body() dto: ChangePasswordDto) {
     return this.usersService.changePassword(req.user.id, dto);
   }
+  @Patch(':id/reset-password')
+  @Roles(Role.ADMIN)
+  resetPassword(@Param('id') id: string) {
+    return this.usersService.adminResetPassword(id);
+  }
 }
