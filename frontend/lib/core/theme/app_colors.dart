@@ -77,12 +77,12 @@ class AppColors {
   // Ombres Ambiantes
   static List<BoxShadow> softShadow = [
     BoxShadow(
-      color: const Color(0xFF0F172A).withOpacity(0.04),
+      color: const Color(0xFF0F172A).withValues(alpha: 0.04),
       blurRadius: 16,
       offset: const Offset(0, 4),
     ),
     BoxShadow(
-      color: const Color(0xFF0F172A).withOpacity(0.02),
+      color: const Color(0xFF0F172A).withValues(alpha: 0.02),
       blurRadius: 4,
       offset: const Offset(0, 1),
     ),
@@ -90,7 +90,7 @@ class AppColors {
 
   static List<BoxShadow> glowShadow(Color color) => [
     BoxShadow(
-      color: color.withOpacity(0.25),
+      color: color.withValues(alpha: 0.25),
       blurRadius: 20,
       offset: const Offset(0, 8),
       spreadRadius: -2,

@@ -26,9 +26,10 @@ let PointageService = class PointageService {
         const results = [];
         for (const agentId of dto.agentIds) {
             if (dto.type === client_1.PointageType.ARRIVEE || dto.type === client_1.PointageType.PRESENCE_PERMANENCE) {
-                const startOfDay = new Date();
+                const pointageDate = dto.notedAt ? new Date(dto.notedAt) : new Date();
+                const startOfDay = new Date(pointageDate);
                 startOfDay.setHours(0, 0, 0, 0);
-                const endOfDay = new Date();
+                const endOfDay = new Date(pointageDate);
                 endOfDay.setHours(23, 59, 59, 999);
                 const existing = await this.prisma.pointage.findFirst({
                     where: {
@@ -61,6 +62,13 @@ let PointageService = class PointageService {
                 },
                 orderBy: { createdAt: 'desc' },
             });
+            if (assignment && assignment.status === client_1.AssignmentStatus.PENDING_CONFIRMATION) {
+                await this.prisma.assignment.update({
+                    where: { id: assignment.id },
+                    data: { status: client_1.AssignmentStatus.CONFIRMED },
+                });
+                assignment.status = client_1.AssignmentStatus.CONFIRMED;
+            }
             const pointage = await this.prisma.pointage.create({
                 data: {
                     siteId: dto.siteId,
@@ -71,6 +79,7 @@ let PointageService = class PointageService {
                     latitude: dto.latitude,
                     longitude: dto.longitude,
                     createdById,
+                    notedAt: dto.notedAt ? new Date(dto.notedAt) : undefined,
                 },
                 include: {
                     agent: {

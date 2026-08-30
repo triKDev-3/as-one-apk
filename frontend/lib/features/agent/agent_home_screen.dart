@@ -7,9 +7,6 @@ import '../../core/providers/providers.dart';
 import '../../core/widgets/custom_card.dart';
 import '../../core/widgets/hero_banner.dart';
 import 'agent_repository.dart';
-import 'screens/planning_screen.dart';
-import 'screens/pointages_history_screen.dart';
-import 'screens/remuneration_screen.dart';
 
 final agentDashboardProvider =
     FutureProvider.autoDispose<AgentDashboard>((ref) async {
@@ -111,7 +108,7 @@ class _AgentHomeScreenState extends ConsumerState<AgentHomeScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.dangerLight,
                     shape: BoxShape.circle,
                   ),
@@ -154,7 +151,7 @@ class _AgentHomeScreenState extends ConsumerState<AgentHomeScreen> {
                     children: [
                       IconButton.filledTonal(
                         style: IconButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.12),
+                          backgroundColor: Colors.white.withValues(alpha: 0.12),
                           foregroundColor: Colors.white,
                         ),
                         icon: const Icon(Icons.person_outline_rounded, size: 20),
@@ -163,7 +160,7 @@ class _AgentHomeScreenState extends ConsumerState<AgentHomeScreen> {
                       const SizedBox(width: 8),
                       IconButton.filledTonal(
                         style: IconButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.12),
+                          backgroundColor: Colors.white.withValues(alpha: 0.12),
                           foregroundColor: Colors.white,
                         ),
                         icon: const Icon(Icons.logout_rounded, size: 20),
@@ -176,9 +173,9 @@ class _AgentHomeScreenState extends ConsumerState<AgentHomeScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
+                          color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withOpacity(0.2)),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -201,9 +198,9 @@ class _AgentHomeScreenState extends ConsumerState<AgentHomeScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: AppColors.accent.withOpacity(0.2),
+                            color: AppColors.accent.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.accent.withOpacity(0.4)),
+                            border: Border.all(color: AppColors.accent.withValues(alpha: 0.4)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -246,7 +243,7 @@ class _AgentHomeScreenState extends ConsumerState<AgentHomeScreen> {
                             Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: AppColors.danger.withOpacity(0.12),
+                                color: AppColors.danger.withValues(alpha: 0.12),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(Icons.notification_important_rounded, color: AppColors.danger, size: 18),
@@ -268,8 +265,8 @@ class _AgentHomeScreenState extends ConsumerState<AgentHomeScreen> {
                           final site = a['site'] as Map<String, dynamic>? ?? {};
                           return CustomCard(
                             padding: const EdgeInsets.all(16),
-                            backgroundColor: AppColors.warningLight.withOpacity(0.4),
-                            border: Border.all(color: AppColors.warning.withOpacity(0.5), width: 1.5),
+                            backgroundColor: AppColors.warningLight.withValues(alpha: 0.4),
+                            border: Border.all(color: AppColors.warning.withValues(alpha: 0.5), width: 1.5),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -370,28 +367,28 @@ class _AgentHomeScreenState extends ConsumerState<AgentHomeScreen> {
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   colors: [
-                                    AppColors.primary.withOpacity(0.15),
-                                    AppColors.primary.withOpacity(0.04),
+                                    AppColors.primary.withValues(alpha: 0.15),
+                                    AppColors.primary.withValues(alpha: 0.04),
                                   ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: AppColors.primary.withOpacity(0.15)),
+                                border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
                               ),
                               child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary, size: 28),
                             ),
                             const SizedBox(width: 16),
-                            Expanded(
+                            const Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Suivi mensuel',
                                     style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
                                   ),
-                                  const SizedBox(height: 4),
-                                  const Text(
+                                  SizedBox(height: 4),
+                                  Text(
                                     'Voir le détail par mois →',
                                     style: TextStyle(
                                       fontSize: 15,
@@ -463,14 +460,14 @@ class _AgentHomeScreenState extends ConsumerState<AgentHomeScreen> {
                       ),
                       const SizedBox(height: 12),
                       if (dashboard.assignments.isEmpty)
-                        CustomCard(
-                          padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+                        const CustomCard(
+                          padding: EdgeInsets.symmetric(vertical: 28, horizontal: 16),
                           child: Center(
                             child: Column(
                               children: [
                                 Icon(Icons.assignment_outlined, size: 36, color: AppColors.textTertiary),
-                                const SizedBox(height: 8),
-                                const Text(
+                                SizedBox(height: 8),
+                                Text(
                                   'Aucune mission enregistrée pour le moment',
                                   style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                                 ),
@@ -551,7 +548,7 @@ class _AvailabilityToggleCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: loading
@@ -584,7 +581,7 @@ class _AvailabilityToggleCard extends StatelessWidget {
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 12,
                   ),
                 ),
@@ -635,7 +632,7 @@ class _AgentNavCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -711,7 +708,7 @@ class _AssignmentTile extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: (isPending ? AppColors.warning : AppColors.accent)
-                    .withOpacity(0.12),
+                    .withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(

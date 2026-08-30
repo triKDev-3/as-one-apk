@@ -1,0 +1,12 @@
+comment doit fonctionner l'application ?
+
+A- Global:
+- je veux une barre de navigation de type mobile avec icon en bas de l'application.
+
+- Sur la liste des classement des agents , le nombres de jours est toujours de 0 alors qu'il ont été pointer
+
+B- pour les agents:
+
+- Le planning de l'agent doit etre marqué directement sur son calendrier lorsqu'il est assigner à un site à une date ou pour une durée donnée lorsqu'il confirme sa presence! NB: les dimanches ne sont pas comptabiliser.
+
+- Sur la liste de l'historique des pointages, il faut que lorsque l'agent appui sur un pointage qu'il recoit les détails concernant ce pointage

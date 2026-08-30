@@ -169,9 +169,38 @@ let AgentService = class AgentService {
             include: { site: { select: { name: true } } },
             orderBy: { notedAt: 'asc' },
         });
+        const routines = await this.prisma.assignment.findMany({
+            where: {
+                agentId,
+                status: { in: ['CONFIRMED', 'PENDING_CONFIRMATION', 'LOCKED'] },
+                missionType: 'ROUTINE'
+            },
+            include: { site: { select: { name: true } } }
+        });
         const profile = await this.prisma.agentProfile.findUnique({ where: { userId: agentId } });
         const unavailableDates = profile?.unavailableDates ?? [];
         const calendarMap = {};
+        for (const routine of routines) {
+            const days = routine.routineDays;
+            if (!Array.isArray(days) || days.length === 0)
+                continue;
+            let current = new Date(startDate);
+            while (current <= endDate) {
+                const dayOfWeek = current.getDay() === 0 ? 7 : current.getDay();
+                if (days.includes(dayOfWeek)) {
+                    const rStart = new Date(routine.startDate);
+                    rStart.setHours(0, 0, 0, 0);
+                    let rEnd = routine.endDate ? new Date(routine.endDate) : null;
+                    if (rEnd)
+                        rEnd.setHours(23, 59, 59, 999);
+                    if (current >= rStart && (!rEnd || current <= rEnd)) {
+                        const dateKey = current.toISOString().split('T')[0];
+                        calendarMap[dateKey] = { status: 'routine', siteName: routine.site.name };
+                    }
+                }
+                current.setDate(current.getDate() + 1);
+            }
+        }
         for (const p of pointages) {
             const dateKey = p.notedAt.toISOString().split('T')[0];
             calendarMap[dateKey] = { status: 'worked', siteName: p.site.name };

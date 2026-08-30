@@ -10,20 +10,66 @@ class WhatsAppHelper {
     required String startDate,
     String? endDate,
     String? chefName,
+    String? missionType,
+    List<int>? routineDays,
   }) {
-    final period = endDate != null && endDate.isNotEmpty
-        ? 'du $startDate au $endDate'
-        : 'le $startDate';
+    String typeText = '';
+    String periodText = '';
+
+    if (missionType == 'ROUTINE' && routineDays != null && routineDays.isNotEmpty) {
+      typeText = 'pour une mission de routine';
+      final labels = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+      final days = routineDays.map((d) => labels[d - 1]).join(', ');
+      periodText = 'chaque $days à partir du $startDate';
+    } else if (missionType == 'PERMANENTE') {
+      typeText = 'pour une mission permanente';
+      periodText = 'à partir du $startDate';
+    } else {
+      typeText = 'pour une mission temporaire';
+      periodText = endDate != null && endDate.isNotEmpty
+          ? 'du $startDate au $endDate'
+          : 'le $startDate';
+    }
 
     return '''Bonjour $agentName,
 
 Vous êtes affecté(e) sur le site :
-📍 $siteName
-📅 $period
+📍 $siteName $typeText
+📅 $periodText
 
 Merci de confirmer votre disponibilité dans l'application AS ONE avant 22h.
 
 ${chefName != null ? '— $chefName' : '— AS ONE Facility Management'}''';
+  }
+
+  /// Petit rapport de pointage par WhatsApp
+  static String pointageReportMessage({
+    required String siteName,
+    required String date,
+    required String type, // ARRIVEE, DEPART, PRESENCE_PERMANENCE
+    required List<Map<String, dynamic>> agents,
+  }) {
+    final buf = StringBuffer();
+    buf.writeln('📍 *Pointage — $siteName*');
+    buf.writeln('📅 *Date :* $date');
+    final typeLabel = type == 'ARRIVEE'
+        ? 'Arrivée'
+        : type == 'DEPART'
+            ? 'Départ'
+            : 'Présence';
+    buf.writeln('🏷️ *Type :* $typeLabel');
+    buf.writeln('');
+    buf.writeln('👥 *Agents pointés (${agents.length}) :*');
+    
+    for (final agent in agents) {
+      final name = agent['name'] ?? 'Inconnu';
+      final phone = agent['phone'] ?? '—';
+      buf.writeln('• $name ($phone)');
+    }
+
+    buf.writeln('');
+    buf.writeln('— AS ONE Facility Management');
+    return buf.toString();
   }
 
   /// Rapport de fin de chantier (texte WhatsApp)

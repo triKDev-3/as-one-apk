@@ -67,7 +67,7 @@ class _ComptableHomeScreenState extends ConsumerState<ComptableHomeScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(Icons.date_range_rounded, color: AppColors.primary),
@@ -101,7 +101,7 @@ class _ComptableHomeScreenState extends ConsumerState<ComptableHomeScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.withOpacity(0.1),
+                        color: AppColors.secondary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(Icons.calendar_month_rounded, color: AppColors.secondary),
@@ -134,7 +134,7 @@ class _ComptableHomeScreenState extends ConsumerState<ComptableHomeScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppColors.accent.withOpacity(0.1),
+                        color: AppColors.accent.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(Icons.edit_calendar_rounded, color: AppColors.accent),
@@ -306,19 +306,19 @@ class _ComptableHomeScreenState extends ConsumerState<ComptableHomeScreen> {
                     ),
                     data: (periods) {
                       if (periods.isEmpty) {
-                        return CustomCard(
-                          padding: const EdgeInsets.all(32),
+                        return const CustomCard(
+                          padding: EdgeInsets.all(32),
                           child: Center(
                             child: Column(
                               children: [
                                 Icon(Icons.receipt_long_outlined, size: 48, color: AppColors.textTertiary),
-                                const SizedBox(height: 12),
-                                const Text(
+                                SizedBox(height: 12),
+                                Text(
                                   'Aucune période de paie enregistrée',
                                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                                 ),
-                                const SizedBox(height: 4),
-                                const Text(
+                                SizedBox(height: 4),
+                                Text(
                                   'Créez votre première période avec le bouton ci-dessous',
                                   style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                                   textAlign: TextAlign.center,
@@ -360,7 +360,7 @@ class _ComptableHomeScreenState extends ConsumerState<ComptableHomeScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: statusColor.withOpacity(0.12),
+                                    color: statusColor.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(14),
                                   ),
                                   child: Icon(
@@ -399,7 +399,7 @@ class _ComptableHomeScreenState extends ConsumerState<ComptableHomeScreen> {
                                     vertical: 5,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: statusColor.withOpacity(0.12),
+                                    color: statusColor.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(

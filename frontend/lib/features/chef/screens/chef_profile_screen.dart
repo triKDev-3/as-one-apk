@@ -213,18 +213,18 @@ class _ChefProfileScreenState extends ConsumerState<ChefProfileScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF25D366).withOpacity(0.1),
+              color: const Color(0xFF25D366).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF25D366).withOpacity(0.3)),
+              border: Border.all(color: const Color(0xFF25D366).withValues(alpha: 0.3)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                const Row(
                   children: [
-                    const Icon(Icons.wechat_rounded, color: Color(0xFF25D366)),
-                    const SizedBox(width: 8),
-                    const Text(
+                    Icon(Icons.wechat_rounded, color: Color(0xFF25D366)),
+                    SizedBox(width: 8),
+                    Text(
                       'Connexion WhatsApp',
                       style: TextStyle(
                         fontSize: 16,
@@ -249,9 +249,9 @@ class _ChefProfileScreenState extends ConsumerState<ChefProfileScreen> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
+                      children: [
                         Icon(Icons.check_circle_rounded, color: Color(0xFF25D366)),
                         SizedBox(width: 8),
                         Text('WhatsApp connecté', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF1DA851))),
@@ -269,7 +269,7 @@ class _ChefProfileScreenState extends ConsumerState<ChefProfileScreen> {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         )

@@ -15,7 +15,7 @@ class CreateUserScreen extends ConsumerStatefulWidget {
 
 class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController(text: '+228');
   final _firstCtrl = TextEditingController();
   final _lastCtrl = TextEditingController();
   String _role = 'AGENT';
@@ -99,7 +99,7 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _role,
+              initialValue: _role,
               decoration: const InputDecoration(labelText: 'Rôle'),
               items: const [
                 DropdownMenuItem(value: 'AGENT', child: Text('Agent')),
@@ -113,7 +113,7 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
             if (_role == 'AGENT') ...[
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _agentType,
+                initialValue: _agentType,
                 decoration: const InputDecoration(labelText: 'Type agent'),
                 items: const [
                   DropdownMenuItem(

@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
-import { AssignmentStatus, Role } from '@prisma/client';
+import { AssignmentStatus, Role, Prisma } from '@prisma/client';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 
@@ -61,16 +61,19 @@ export class AssignmentsService {
           ? AssignmentStatus.PENDING_CONFIRMATION
           : AssignmentStatus.CONFIRMED,
         isLocked: true, // always locked until released or site is closed
+        missionType: dto.missionType || 'TEMPORAIRE',
+        routineDays: dto.routineDays ? (dto.routineDays as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+        fixedSalary: dto.fixedSalary || null,
       },
       include: {
         agent: { select: { id: true, firstName: true, lastName: true, phone: true } },
         site: { select: { id: true, name: true, type: true } },
       },
-    });
+    }) as any;
 
     this.notifications.notifyAssignment(dto.agentId, {
       id: assignment.id,
-      site: assignment.site,
+      site: (assignment as any).site,
       startDate: assignment.startDate,
       endDate: assignment.endDate,
       status: assignment.status,
@@ -269,9 +272,12 @@ export class AssignmentsService {
           ? ratings.reduce((sum: number, r: { score: number }) => sum + r.score, 0) / ratings.length
           : null;
       const daysWorked = new Set(a.pointages.map(p => p.notedAt.toDateString())).size;
+      const todayStr = new Date().toDateString();
+      const hasPointedToday = a.pointages.some(p => p.notedAt.toDateString() === todayStr);
+      
       const isLockedElsewhere = a.assignments.some(
         (asgn: { siteId: string }) => siteId && asgn.siteId !== siteId,
-      );
+      ) && !hasPointedToday;
       return {
         id: a.id,
         firstName: a.firstName,

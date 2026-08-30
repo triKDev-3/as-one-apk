@@ -198,6 +198,16 @@ export class AgentService {
       orderBy: { notedAt: 'asc' },
     });
 
+    // Récupérer les missions de routine de l'agent
+    const routines = await this.prisma.assignment.findMany({
+      where: {
+        agentId,
+        status: { in: ['CONFIRMED', 'PENDING_CONFIRMATION', 'LOCKED'] },
+        missionType: 'ROUTINE'
+      },
+      include: { site: { select: { name: true } } }
+    });
+
     // Récupérer les logs d'indisponibilité futures
     const profile = await this.prisma.agentProfile.findUnique({ where: { userId: agentId } });
     // Les indisponibilités futures sont stockées en JSON sur le profil
@@ -206,7 +216,31 @@ export class AgentService {
     // Construire le map date -> statut (format attendu par le frontend)
     const calendarMap: Record<string, { status: string; siteName?: string }> = {};
 
-    // Jours travaillés
+    for (const routine of routines) {
+      const days = routine.routineDays as unknown as number[];
+      if (!Array.isArray(days) || days.length === 0) continue;
+      // Parcourir chaque jour de startDate à endDate
+      let current = new Date(startDate);
+      while (current <= endDate) {
+        // En js, getDay() = 0 (Dimanche) .. 6 (Samedi). On veut 1 (Lundi) .. 7 (Dimanche)
+        const dayOfWeek = current.getDay() === 0 ? 7 : current.getDay();
+        if (days.includes(dayOfWeek)) {
+          // Vérifier si current >= routine.startDate (et <= endDate si défini)
+          const rStart = new Date(routine.startDate);
+          rStart.setHours(0, 0, 0, 0);
+          let rEnd = routine.endDate ? new Date(routine.endDate) : null;
+          if (rEnd) rEnd.setHours(23, 59, 59, 999);
+
+          if (current >= rStart && (!rEnd || current <= rEnd)) {
+            const dateKey = current.toISOString().split('T')[0];
+            calendarMap[dateKey] = { status: 'routine', siteName: routine.site.name };
+          }
+        }
+        current.setDate(current.getDate() + 1);
+      }
+    }
+
+    // Jours travaillés (écrase la routine si pointage effectué)
     for (const p of pointages) {
       const dateKey = p.notedAt.toISOString().split('T')[0];
       calendarMap[dateKey] = { status: 'worked', siteName: p.site.name };

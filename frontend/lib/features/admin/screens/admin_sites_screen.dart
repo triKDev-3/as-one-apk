@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/providers.dart';
-import '../../../core/network/api_client.dart';
 import '../../chef/repositories/sites_repository.dart';
 
 final adminSitesListProvider = FutureProvider.autoDispose<List<SiteModel>>((ref) {
@@ -147,7 +145,7 @@ class _AdminSiteTile extends ConsumerWidget {
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(

@@ -12,6 +12,7 @@ class PointageRepository {
     required List<String> agentIds,
     required String type, // ARRIVEE | DEPART | PRESENCE_PERMANENCE
     String? photoUrl,
+    String? notedAt,
   }) async {
     try {
       final response = await _api.dio.post(
@@ -21,6 +22,7 @@ class PointageRepository {
           'agentIds': agentIds,
           'type': type,
           if (photoUrl != null) 'photoUrl': photoUrl,
+          if (notedAt != null) 'notedAt': notedAt,
         },
       );
       return response.data as Map<String, dynamic>;

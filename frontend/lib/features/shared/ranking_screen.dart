@@ -83,13 +83,13 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
         ),
         data: (list) {
           if (list.isEmpty) {
-            return Center(
+            return const Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.military_tech_outlined, size: 56, color: AppColors.textTertiary),
-                  const SizedBox(height: 12),
-                  const Text(
+                  SizedBox(height: 12),
+                  Text(
                     'Aucun classement disponible pour le moment',
                     style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
                   ),
@@ -117,13 +117,13 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
                         color: (_sortMode == RankingSortMode.score
                                 ? AppColors.warning
                                 : AppColors.secondary)
-                            .withOpacity(0.12),
+                            .withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: (_sortMode == RankingSortMode.score
                                   ? AppColors.warning
                                   : AppColors.secondary)
-                              .withOpacity(0.3),
+                              .withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
@@ -166,7 +166,7 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primaryDark.withOpacity(0.2),
+                          color: AppColors.primaryDark.withValues(alpha: 0.2),
                           blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
@@ -251,7 +251,7 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
                   return CustomCard(
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    backgroundColor: isMe ? AppColors.secondaryLight.withOpacity(0.6) : Colors.white,
+                    backgroundColor: isMe ? AppColors.secondaryLight.withValues(alpha: 0.6) : Colors.white,
                     border: isMe ? Border.all(color: AppColors.primary, width: 1.5) : null,
                     child: Row(
                       children: [
@@ -275,7 +275,7 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: isMe ? AppColors.primaryGradient : null,
-                            color: isMe ? null : AppColors.primary.withOpacity(0.1),
+                            color: isMe ? null : AppColors.primary.withValues(alpha: 0.1),
                           ),
                           child: Center(
                             child: Text(
@@ -331,8 +331,8 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
                               ? Icons.calendar_today_rounded
                               : Icons.star_rounded,
                           color: _sortMode == RankingSortMode.score
-                              ? AppColors.secondary.withOpacity(0.6)
-                              : AppColors.warning.withOpacity(0.6),
+                              ? AppColors.secondary.withValues(alpha: 0.6)
+                              : AppColors.warning.withValues(alpha: 0.6),
                           label: _sortMode == RankingSortMode.score
                               ? '$days j.'
                               : score.toStringAsFixed(1),
@@ -373,7 +373,7 @@ class _StatBadge extends StatelessWidget {
         vertical: small ? 3 : 4,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -459,7 +459,7 @@ class _ToggleChip extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: selected ? color.withOpacity(0.18) : Colors.transparent,
+          color: selected ? color.withValues(alpha: 0.18) : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -518,7 +518,7 @@ class _PodiumAvatar extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: color, width: 2.5),
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
               ),
               child: Center(
                 child: Text(

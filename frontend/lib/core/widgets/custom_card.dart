@@ -32,7 +32,7 @@ class CustomCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final effectiveBorder = border ??
         (isGlassmorphic
-            ? Border.all(color: Colors.white.withOpacity(0.4), width: 1.2)
+            ? Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1.2)
             : Border.all(color: AppColors.borderLight, width: 1.0));
 
     final effectiveShadow = customShadow ??
@@ -42,7 +42,7 @@ class CustomCard extends StatelessWidget {
       margin: margin,
       decoration: BoxDecoration(
         color: isGlassmorphic
-            ? Colors.white.withOpacity(0.65)
+            ? Colors.white.withValues(alpha: 0.65)
             : (backgroundColor ?? Colors.white),
         gradient: gradient,
         borderRadius: BorderRadius.circular(borderRadius),
@@ -78,12 +78,12 @@ class CustomCard extends StatelessWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(borderRadius),
             onTap: onTap,
-            splashColor: AppColors.primary.withOpacity(0.08),
-            highlightColor: AppColors.primary.withOpacity(0.04),
+            splashColor: AppColors.primary.withValues(alpha: 0.08),
+            highlightColor: AppColors.primary.withValues(alpha: 0.04),
             child: Ink(
               decoration: BoxDecoration(
                 color: isGlassmorphic
-                    ? Colors.white.withOpacity(0.65)
+                    ? Colors.white.withValues(alpha: 0.65)
                     : (backgroundColor ?? Colors.white),
                 gradient: gradient,
                 borderRadius: BorderRadius.circular(borderRadius),

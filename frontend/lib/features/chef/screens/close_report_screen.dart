@@ -343,19 +343,19 @@ class _ReportView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.1),
+              color: AppColors.accent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.accent.withOpacity(0.4)),
+              border: Border.all(color: AppColors.accent.withValues(alpha: 0.4)),
             ),
-            child: Row(
+            child: const Row(
               children: [
-                const Icon(Icons.info_outline,
+                Icon(Icons.info_outline,
                     size: 16, color: AppColors.accent),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Rapport déjà généré. Vous pouvez modifier le résumé ci-dessous.',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 13, color: AppColors.accent),
                   ),
                 ),
@@ -488,11 +488,13 @@ class _ReportView extends StatelessWidget {
                     );
                     if (!ok && context.mounted) {
                       await WhatsAppHelper.copyMessage(message);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('WhatsApp indisponible — texte copié'),
-                        ),
-                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('WhatsApp indisponible — texte copié'),
+                          ),
+                        );
+                      }
                     }
                   },
                   style: ElevatedButton.styleFrom(

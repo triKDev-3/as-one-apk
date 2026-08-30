@@ -81,13 +81,13 @@ class PointagesHistoryScreen extends ConsumerWidget {
         ),
         data: (pointages) {
           if (pointages.isEmpty) {
-            return Center(
+            return const Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.assignment_late_outlined, size: 56, color: AppColors.textTertiary),
-                  const SizedBox(height: 16),
-                  const Text(
+                  SizedBox(height: 16),
+                  Text(
                     'Aucun pointage enregistré',
                     style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
                   ),
@@ -178,7 +178,7 @@ class _PointageTile extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: AppColors.accent.withOpacity(0.1),
+                color: AppColors.accent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
@@ -207,7 +207,7 @@ class _PointageTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: (isArrivee ? AppColors.accent : AppColors.primary).withOpacity(0.1),
+                color: (isArrivee ? AppColors.accent : AppColors.primary).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(

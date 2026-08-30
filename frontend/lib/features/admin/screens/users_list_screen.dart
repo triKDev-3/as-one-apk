@@ -158,14 +158,14 @@ class UsersListScreen extends ConsumerWidget {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: active ? AppColors.border : AppColors.danger.withOpacity(0.4),
+                      color: active ? AppColors.border : AppColors.danger.withValues(alpha: 0.4),
                     ),
                   ),
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundColor: active
-                          ? AppColors.primary.withOpacity(0.12)
-                          : AppColors.danger.withOpacity(0.12),
+                          ? AppColors.primary.withValues(alpha: 0.12)
+                          : AppColors.danger.withValues(alpha: 0.12),
                       child: Text(
                         name.isNotEmpty ? name[0].toUpperCase() : '?',
                         style: TextStyle(

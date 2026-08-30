@@ -134,18 +134,20 @@ class _MaterialReturnScreenState extends ConsumerState<MaterialReturnScreen> {
           itemsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Text(e.toString()),
-            data: (items) => Column(
-              children: items
-                  .map(
-                    (item) => RadioListTile<MaterialItem>(
-                      value: item,
-                      groupValue: _item,
-                      title: Text(item.name),
-                      subtitle: Text(item.category),
-                      onChanged: (v) => setState(() => _item = v),
-                    ),
-                  )
-                  .toList(),
+            data: (items) => RadioGroup<MaterialItem>(
+              groupValue: _item,
+              onChanged: (v) => setState(() => _item = v),
+              child: Column(
+                children: items
+                    .map(
+                      (item) => RadioListTile<MaterialItem>(
+                        value: item,
+                        title: Text(item.name),
+                        subtitle: Text(item.category),
+                      ),
+                    )
+                    .toList(),
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -187,17 +189,21 @@ class _MaterialReturnScreenState extends ConsumerState<MaterialReturnScreen> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
-            RadioListTile<String>(
-              value: 'ONE_AGENT',
+            RadioGroup<String>(
               groupValue: _retentionTarget,
-              title: const Text('Un seul agent'),
               onChanged: (v) => setState(() => _retentionTarget = v),
-            ),
-            RadioListTile<String>(
-              value: 'WHOLE_GROUP',
-              groupValue: _retentionTarget,
-              title: const Text('Tout le groupe (prix divisé)'),
-              onChanged: (v) => setState(() => _retentionTarget = v),
+              child: const Column(
+                children: [
+                  RadioListTile<String>(
+                    value: 'ONE_AGENT',
+                    title: Text('Un seul agent'),
+                  ),
+                  RadioListTile<String>(
+                    value: 'WHOLE_GROUP',
+                    title: Text('Tout le groupe (prix divisé)'),
+                  ),
+                ],
+              ),
             ),
           ],
           const SizedBox(height: 28),

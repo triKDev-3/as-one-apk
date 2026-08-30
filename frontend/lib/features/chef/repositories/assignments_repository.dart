@@ -126,6 +126,9 @@ class AssignmentsRepository {
     required String agentId,
     required String startDate,
     String? endDate,
+    String? missionType,
+    List<int>? routineDays,
+    double? fixedSalary,
   }) async {
     try {
       final data = {
@@ -133,6 +136,9 @@ class AssignmentsRepository {
         'agentId': agentId,
         'startDate': startDate,
         if (endDate != null) 'endDate': endDate,
+        if (missionType != null) 'missionType': missionType,
+        if (routineDays != null) 'routineDays': routineDays,
+        if (fixedSalary != null) 'fixedSalary': fixedSalary,
       };
       final response = await _api.dio.post('/assignments', data: data);
       return AssignmentModel.fromJson(response.data as Map<String, dynamic>);

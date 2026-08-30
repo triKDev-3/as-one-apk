@@ -123,20 +123,22 @@ class _MaterialOutScreenState extends ConsumerState<MaterialOutScreen> {
           itemsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Text(e.toString()),
-            data: (items) => Column(
-              children: items
-                  .map(
-                    (item) => RadioListTile<MaterialItem>(
-                      value: item,
-                      groupValue: _item,
-                      title: Text(item.name),
-                      subtitle: Text(
-                        '${item.category} · ${item.unitPrice.toStringAsFixed(0)} FCFA',
+            data: (items) => RadioGroup<MaterialItem>(
+              groupValue: _item,
+              onChanged: (v) => setState(() => _item = v),
+              child: Column(
+                children: items
+                    .map(
+                      (item) => RadioListTile<MaterialItem>(
+                        value: item,
+                        title: Text(item.name),
+                        subtitle: Text(
+                          '${item.category} · ${item.unitPrice.toStringAsFixed(0)} FCFA',
+                        ),
                       ),
-                      onChanged: (v) => setState(() => _item = v),
-                    ),
-                  )
-                  .toList(),
+                    )
+                    .toList(),
+              ),
             ),
           ),
           const SizedBox(height: 16),

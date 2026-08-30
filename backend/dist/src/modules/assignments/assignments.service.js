@@ -51,6 +51,9 @@ let AssignmentsService = class AssignmentsService {
                     ? client_1.AssignmentStatus.PENDING_CONFIRMATION
                     : client_1.AssignmentStatus.CONFIRMED,
                 isLocked: true,
+                missionType: dto.missionType || 'TEMPORAIRE',
+                routineDays: dto.routineDays ? dto.routineDays : client_1.Prisma.JsonNull,
+                fixedSalary: dto.fixedSalary || null,
             },
             include: {
                 agent: { select: { id: true, firstName: true, lastName: true, phone: true } },
@@ -226,7 +229,9 @@ let AssignmentsService = class AssignmentsService {
                 ? ratings.reduce((sum, r) => sum + r.score, 0) / ratings.length
                 : null;
             const daysWorked = new Set(a.pointages.map(p => p.notedAt.toDateString())).size;
-            const isLockedElsewhere = a.assignments.some((asgn) => siteId && asgn.siteId !== siteId);
+            const todayStr = new Date().toDateString();
+            const hasPointedToday = a.pointages.some(p => p.notedAt.toDateString() === todayStr);
+            const isLockedElsewhere = a.assignments.some((asgn) => siteId && asgn.siteId !== siteId) && !hasPointedToday;
             return {
                 id: a.id,
                 firstName: a.firstName,

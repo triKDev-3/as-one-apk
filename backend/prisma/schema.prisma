@@ -193,6 +193,10 @@ model Assignment {
   endDate     DateTime?        // null si permanence ou multi-jours en cours
   isLocked    Boolean          @default(false) // reste verrouillé jusqu'à fin chantier
 
+  missionType String?          @default("TEMPORAIRE") // TEMPORAIRE, PERMANENTE, ROUTINE
+  routineDays Json?
+  fixedSalary Decimal?         @db.Decimal(10, 2)
+
   confirmedAt DateTime?
   refusedAt   DateTime?
   createdAt   DateTime         @default(now())

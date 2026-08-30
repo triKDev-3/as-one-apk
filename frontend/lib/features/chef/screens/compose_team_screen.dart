@@ -27,6 +27,10 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
   final Set<String> _assigningIds = {};
   DateTime _startDate = DateTime.now().add(const Duration(days: 1));
   DateTime? _endDate;
+  String _missionType = 'TEMPORAIRE';
+  final Set<int> _routineDays = {};
+  final _salaryCtrl = TextEditingController();
+
   // Filters & sort
   String _contractFilter = 'ALL'; // ALL | PERMANENT | TEMPORAIRE
   String _sortMode = 'score'; // score | days
@@ -59,6 +63,9 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
           agentId: agent.id,
           startDate: startStr,
           endDate: endStr,
+          missionType: _missionType,
+          routineDays: _missionType == 'ROUTINE' ? _routineDays.toList() : null,
+          fixedSalary: _missionType == 'PERMANENTE' ? double.tryParse(_salaryCtrl.text) : null,
         );
         success++;
         assignedAgents.add(agent);
@@ -129,6 +136,8 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                   siteName: siteName,
                   startDate: startStr,
                   endDate: endStr,
+                  missionType: _missionType,
+                  routineDays: _missionType == 'ROUTINE' ? _routineDays.toList() : null,
                 );
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -163,7 +172,7 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                         tooltip: 'Copier',
                         onPressed: () async {
                           await WhatsAppHelper.copyMessage(msg);
-                          if (context.mounted) {
+                          if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('Message pour ${agent.fullName} copié'),
@@ -189,12 +198,14 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
   }
 
 
+  // ignore: unused_element
   Future<void> _requestTransfer(AssignmentModel assignment) async {
     try {
       final chefs = await ref.read(assignmentsRepositoryProvider).listChefs();
       final myId = ref.read(authProvider).user?.id;
       final others = chefs.where((c) => c['id'] != myId).toList();
-      if (!mounted || others.isEmpty) {
+      if (!mounted) return;
+      if (others.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Aucun autre chef disponible')),
         );
@@ -283,30 +294,103 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
       ),
       body: Column(
         children: [
-          // Dates
+          // Paramètres d'affectation
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            padding: const EdgeInsets.all(16),
             color: Colors.white,
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: _DateChip(
-                    label: 'Début',
-                    value: DateFormat('dd/MM/yyyy').format(_startDate),
-                    onTap: _pickStartDate,
-                  ),
+                DropdownButtonFormField<String>(
+                  initialValue: _missionType,
+                  decoration: const InputDecoration(labelText: 'Type de mission'),
+                  items: const [
+                    DropdownMenuItem(value: 'TEMPORAIRE', child: Text('Chantier / Temporaire')),
+                    DropdownMenuItem(value: 'ROUTINE', child: Text('Routine (ex: chaque mardi)')),
+                    DropdownMenuItem(value: 'PERMANENTE', child: Text('Permanence')),
+                  ],
+                  onChanged: (v) => setState(() {
+                    _missionType = v ?? 'TEMPORAIRE';
+                  }),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _DateChip(
-                    label: 'Fin (optionnel)',
-                    value: _endDate != null
-                        ? DateFormat('dd/MM/yyyy').format(_endDate!)
-                        : '—',
-                    onTap: _pickEndDate,
+                const SizedBox(height: 12),
+                
+                if (_missionType == 'TEMPORAIRE')
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _DateChip(
+                          label: 'Début',
+                          value: DateFormat('dd/MM/yyyy').format(_startDate),
+                          onTap: _pickStartDate,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _DateChip(
+                          label: 'Fin (optionnel)',
+                          value: _endDate != null
+                              ? DateFormat('dd/MM/yyyy').format(_endDate!)
+                              : '—',
+                          onTap: _pickEndDate,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+
+                if (_missionType == 'ROUTINE')
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Jours de la semaine', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: [1, 2, 3, 4, 5, 6, 7].map((day) {
+                          final isSelected = _routineDays.contains(day);
+                          final labels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+                          return ChoiceChip(
+                            label: Text(labels[day - 1]),
+                            selected: isSelected,
+                            onSelected: (val) {
+                              setState(() {
+                                if (val) {
+                                  _routineDays.add(day);
+                                } else {
+                                  _routineDays.remove(day);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+
+                if (_missionType == 'PERMANENTE')
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _DateChip(
+                          label: 'Date de début',
+                          value: DateFormat('dd/MM/yyyy').format(_startDate),
+                          onTap: _pickStartDate,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _salaryCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Salaire Fixe',
+                            suffixText: 'FCFA',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -374,75 +458,79 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
             error: (_, __) => const SizedBox.shrink(),
             data: (current) {
               if (current.isEmpty) return const SizedBox.shrink();
-              return Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                color: AppColors.accent.withOpacity(0.06),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+              return Theme(
+                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                child: Container(
+                  width: double.infinity,
+                  color: AppColors.accent.withValues(alpha: 0.06),
+                  child: ExpansionTile(
+                    initiallyExpanded: true,
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+                    childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                    title: Text(
                       'Équipe actuelle (${current.length})',
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         color: AppColors.accent,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: current
-                          .map((a) => ActionChip(
-                                label: Text(a.agentName),
-                                backgroundColor: Colors.white,
-                                side: const BorderSide(color: AppColors.border),
-                                visualDensity: VisualDensity.compact,
-                                avatar: const Icon(Icons.person_remove_outlined, size: 16, color: AppColors.danger),
-                                onPressed: () async {
-                                  final confirm = await showDialog<bool>(
-                                    context: context,
-                                    builder: (_) => AlertDialog(
-                                      title: const Text('Libérer l\'agent ?'),
-                                      content: Text(
-                                        'Libérer ${a.agentName} de ce chantier. '
-                                        'Il devra être reconvoqué pour revenir.',
+                    children: [
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: current
+                            .map((a) => ActionChip(
+                                  label: Text(a.agentName),
+                                  backgroundColor: Colors.white,
+                                  side: const BorderSide(color: AppColors.border),
+                                  visualDensity: VisualDensity.compact,
+                                  avatar: const Icon(Icons.person_remove_outlined, size: 16, color: AppColors.danger),
+                                  onPressed: () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (_) => AlertDialog(
+                                        title: const Text('Libérer l\'agent ?'),
+                                        content: Text(
+                                          'Libérer ${a.agentName} de ce chantier. '
+                                          'Il devra être reconvoqué pour revenir.',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context, false),
+                                            child: const Text('Annuler'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context, true),
+                                            child: const Text('Libérer', style: TextStyle(color: AppColors.danger)),
+                                          ),
+                                        ],
                                       ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(context, false),
-                                          child: const Text('Annuler'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(context, true),
-                                          child: const Text('Libérer', style: TextStyle(color: AppColors.danger)),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                  if (confirm == true && mounted) {
-                                    try {
-                                      await ref.read(assignmentsRepositoryProvider).releaseAgent(a.id);
-                                      ref.invalidate(siteAssignmentsProvider(widget.siteId));
-                                      ref.invalidate(availableAgentsProvider(widget.siteId));
-                                    } catch (e) {
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text(e.toString()), backgroundColor: AppColors.danger),
-                                        );
+                                    );
+                                    if (confirm == true && context.mounted) {
+                                      try {
+                                        await ref.read(assignmentsRepositoryProvider).releaseAgent(a.id);
+                                        ref.invalidate(siteAssignmentsProvider(widget.siteId));
+                                        ref.invalidate(availableAgentsProvider(widget.siteId));
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text(e.toString()), backgroundColor: AppColors.danger),
+                                          );
+                                        }
                                       }
                                     }
-                                  }
-                                },
-                              ))
-                          .toList(),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Appuyez sur un agent pour le libérer (indisponible). Appui long = transfert.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
+                                  },
+                                ))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Appuyez sur un agent pour le libérer (indisponible). Appui long = transfert.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -630,7 +718,7 @@ class _AgentTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: selected
-            ? AppColors.accent.withOpacity(0.08)
+            ? AppColors.accent.withValues(alpha: 0.08)
             : Colors.white,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
@@ -649,7 +737,7 @@ class _AgentTile extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: AppColors.primary.withOpacity(0.12),
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
                   child: Text(
                     agent.firstName.isNotEmpty
                         ? agent.firstName[0].toUpperCase()
@@ -749,7 +837,7 @@ class _FilterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? color.withOpacity(0.15) : Colors.transparent,
+          color: selected ? color.withValues(alpha: 0.15) : Colors.transparent,
           border: Border.all(color: selected ? color : AppColors.border),
           borderRadius: BorderRadius.circular(20),
         ),
@@ -777,7 +865,7 @@ class _Badge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(

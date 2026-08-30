@@ -109,14 +109,14 @@ class AdminHomeScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              AppColors.warning.withOpacity(0.2),
-                              AppColors.warning.withOpacity(0.05),
+                              AppColors.warning.withValues(alpha: 0.2),
+                              AppColors.warning.withValues(alpha: 0.05),
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.warning.withOpacity(0.3), width: 1),
+                          border: Border.all(color: AppColors.warning.withValues(alpha: 0.3), width: 1),
                         ),
                         child: const Icon(Icons.leaderboard_rounded, color: AppColors.warning, size: 26),
                       ),

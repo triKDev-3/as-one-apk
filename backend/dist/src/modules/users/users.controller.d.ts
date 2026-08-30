@@ -80,4 +80,8 @@ export declare class UsersController {
     changePassword(req: any, dto: ChangePasswordDto): Promise<{
         ok: boolean;
     }>;
+    resetPassword(id: string): Promise<{
+        ok: boolean;
+        message: string;
+    }>;
 }

@@ -32,7 +32,7 @@ class HeroBanner extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryDark.withOpacity(0.3),
+            color: AppColors.primaryDark.withValues(alpha: 0.3),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),
@@ -78,9 +78,9 @@ class HeroBanner extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
+                              color: Colors.white.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
                             ),
                             child: Text(
                               roleName.toUpperCase(),
@@ -110,7 +110,7 @@ class HeroBanner extends StatelessWidget {
                   else if (onLogout != null)
                     IconButton.filledTonal(
                       style: IconButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.12),
+                        backgroundColor: Colors.white.withValues(alpha: 0.12),
                         foregroundColor: Colors.white,
                       ),
                       icon: const Icon(Icons.logout_rounded, size: 20),
@@ -122,7 +122,7 @@ class HeroBanner extends StatelessWidget {
               Text(
                 subtitle,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.85),
+                  color: Colors.white.withValues(alpha: 0.85),
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
                   height: 1.3,

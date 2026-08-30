@@ -125,7 +125,7 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen>
               children: [
                 IconButton.filledTonal(
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.12),
+                    backgroundColor: Colors.white.withValues(alpha: 0.12),
                     foregroundColor: Colors.white,
                   ),
                   icon: const Icon(Icons.person_rounded, size: 20),
@@ -134,7 +134,7 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen>
                 const SizedBox(width: 8),
                 IconButton.filledTonal(
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.12),
+                    backgroundColor: Colors.white.withValues(alpha: 0.12),
                     foregroundColor: Colors.white,
                   ),
                   icon: const Icon(Icons.logout_rounded, size: 20),
@@ -146,10 +146,10 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen>
               ],
             ),
             bottomContent: CustomCard(
-              backgroundColor: Colors.white.withOpacity(0.12),
+              backgroundColor: Colors.white.withValues(alpha: 0.12),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               borderRadius: 16,
-              border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
               onTap: () => context.push('/chef/select-site'),
               child: Row(
                 children: [
@@ -204,7 +204,7 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen>
                   onChanged: (val) {
                     ref.read(viewAllProvider.notifier).state = val;
                   },
-                  activeColor: AppColors.accent,
+                  activeThumbColor: AppColors.accent,
                 ),
               ],
             ),
@@ -402,7 +402,7 @@ class _EquipesTab extends ConsumerWidget {
                   border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: color.withOpacity(0.06),
+                      color: color.withValues(alpha: 0.06),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
@@ -418,7 +418,7 @@ class _EquipesTab extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: color.withOpacity(0.12),
+                              color: color.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
@@ -445,7 +445,7 @@ class _EquipesTab extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
-                              color: color.withOpacity(0.12),
+                              color: color.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
@@ -480,7 +480,7 @@ class _EquipesTab extends ConsumerWidget {
                           dense: true,
                           leading: CircleAvatar(
                             radius: 16,
-                            backgroundColor: color.withOpacity(0.1),
+                            backgroundColor: color.withValues(alpha: 0.1),
                             child: Text(
                               name.isNotEmpty ? name[0].toUpperCase() : '?',
                               style: TextStyle(
@@ -497,7 +497,7 @@ class _EquipesTab extends ConsumerWidget {
                           trailing: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                             decoration: BoxDecoration(
-                              color: AppColors.accent.withOpacity(0.12),
+                              color: AppColors.accent.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: const Text(
@@ -570,7 +570,7 @@ class _ActionCard extends StatelessWidget {
             border: Border.all(color: AppColors.border),
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.06),
+                color: color.withValues(alpha: 0.06),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -582,7 +582,7 @@ class _ActionCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: color, size: 22),
@@ -627,15 +627,15 @@ class _TransferCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      AppColors.secondary.withOpacity(0.2),
-                      AppColors.secondary.withOpacity(0.05),
+                      AppColors.secondary.withValues(alpha: 0.2),
+                      AppColors.secondary.withValues(alpha: 0.05),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppColors.secondary.withOpacity(0.25),
+                    color: AppColors.secondary.withValues(alpha: 0.25),
                     width: 1,
                   ),
                 ),
@@ -712,7 +712,7 @@ class _LiveDotState extends State<_LiveDot> with SingleTickerProviderStateMixin 
             height: 8,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: color.withOpacity(0.4 + 0.6 * _ctrl.value),
+              color: color.withValues(alpha: 0.4 + 0.6 * _ctrl.value),
             ),
           ),
         ),
@@ -781,7 +781,7 @@ class _LiveStatsGrid extends StatelessWidget {
               icon: Icons.pending_actions_rounded,
               label: 'En attente',
               value: '${stats.pendingAssignments}',
-              color: AppColors.primary.withOpacity(0.7),
+              color: AppColors.primary.withValues(alpha: 0.7),
               onTap: () => context.push('/chef/stats-details/pending_assignments'),
             ),
             const SizedBox(width: 10),
@@ -845,7 +845,7 @@ class _StatTile extends StatelessWidget {
               border: Border.all(color: AppColors.border),
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(0.06),
+                  color: color.withValues(alpha: 0.06),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -856,7 +856,7 @@ class _StatTile extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.12),
+                    color: color.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, color: color, size: 20),
@@ -933,7 +933,7 @@ class _SkeletonBox extends StatelessWidget {
         ),
       )
           .animate(onPlay: (c) => c.repeat())
-          .shimmer(duration: 1200.ms, color: Colors.white.withOpacity(0.4)),
+          .shimmer(duration: 1200.ms, color: Colors.white.withValues(alpha: 0.4)),
     );
   }
 }

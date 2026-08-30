@@ -10,7 +10,7 @@ import '../agent_home_screen.dart';
 import 'package:dio/dio.dart';
 
 // ─── Models ──────────────────────────────────────────────────────────────────
-enum DayStatus { worked, unavailable, availableMarked, normal }
+enum DayStatus { worked, unavailable, availableMarked, routine, normal }
 
 class AgentCalendarDay {
   final DateTime date;
@@ -47,6 +47,9 @@ final agentCalendarProvider = FutureProvider.autoDispose.family<
           break;
         case 'available_marked':
           status = DayStatus.availableMarked;
+          break;
+        case 'routine':
+          status = DayStatus.routine;
           break;
         default:
           status = DayStatus.normal;
@@ -205,12 +208,15 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            child: const Wrap(
+              alignment: WrapAlignment.spaceEvenly,
+              spacing: 12,
+              runSpacing: 4,
               children: [
                 _LegendItem(color: Color(0xFF10B981), label: 'Jour travaillé'),
                 _LegendItem(color: AppColors.danger, label: 'Indisponible'),
                 _LegendItem(color: AppColors.primary, label: 'Dispo marquée'),
+                _LegendItem(color: Color(0xFFF59E0B), label: 'Routine'),
               ],
             ),
           ),
@@ -258,7 +264,7 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
                 calendarStyle: CalendarStyle(
                   outsideDaysVisible: false,
                   todayDecoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.3),
+                    color: AppColors.primary.withValues(alpha: 0.3),
                     shape: BoxShape.circle,
                   ),
                   selectedDecoration: const BoxDecoration(
@@ -294,6 +300,10 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
                         break;
                       case DayStatus.availableMarked:
                         bgColor = AppColors.primary;
+                        textColor = Colors.white;
+                        break;
+                      case DayStatus.routine:
+                        bgColor = const Color(0xFFF59E0B); // amber
                         textColor = Colors.white;
                         break;
                       case DayStatus.normal:
@@ -346,12 +356,16 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
                             ? Icons.check_circle_rounded
                             : info.status == DayStatus.unavailable
                                 ? Icons.cancel_rounded
-                                : Icons.event_available_rounded,
+                                : info.status == DayStatus.routine
+                                    ? Icons.repeat_rounded
+                                    : Icons.event_available_rounded,
                         color: info.status == DayStatus.worked
                             ? const Color(0xFF10B981)
                             : info.status == DayStatus.unavailable
                                 ? AppColors.danger
-                                : AppColors.primary,
+                                : info.status == DayStatus.routine
+                                    ? const Color(0xFFF59E0B)
+                                    : AppColors.primary,
                       ),
                       const SizedBox(width: 12),
                       Expanded(

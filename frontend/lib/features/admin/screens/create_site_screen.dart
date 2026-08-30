@@ -133,7 +133,7 @@ class _CreateSiteScreenState extends ConsumerState<CreateSiteScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _type,
+              initialValue: _type,
               decoration: const InputDecoration(labelText: 'Type de site'),
               items: const [
                 DropdownMenuItem(value: 'CHANTIER', child: Text('Chantier')),

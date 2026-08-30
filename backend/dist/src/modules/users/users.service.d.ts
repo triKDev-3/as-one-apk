@@ -77,4 +77,8 @@ export declare class UsersService {
     changePassword(userId: string, dto: ChangePasswordDto): Promise<{
         ok: boolean;
     }>;
+    adminResetPassword(userId: string): Promise<{
+        ok: boolean;
+        message: string;
+    }>;
 }

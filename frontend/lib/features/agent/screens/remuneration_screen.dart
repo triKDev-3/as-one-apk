@@ -154,13 +154,13 @@ class _RemunerationScreenState extends ConsumerState<RemunerationScreen> {
         ),
         data: (months) {
           if (months.isEmpty) {
-            return Center(
+            return const Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.account_balance_wallet_outlined, size: 56, color: AppColors.textTertiary),
-                  const SizedBox(height: 16),
-                  const Text(
+                  SizedBox(height: 16),
+                  Text(
                     'Aucune donnée de rémunération',
                     style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
                   ),
@@ -208,7 +208,7 @@ class _RemunerationScreenState extends ConsumerState<RemunerationScreen> {
                       const SizedBox(height: 4),
                       Text(
                         '${months.where((m) => !m.isPaid).length} mois en attente',
-                        style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
                       ),
                     ],
                   ),
@@ -262,7 +262,7 @@ class _MonthCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isPaid ? AppColors.accent.withOpacity(0.3) : AppColors.border,
+          color: isPaid ? AppColors.accent.withValues(alpha: 0.3) : AppColors.border,
         ),
       ),
       child: Padding(
@@ -287,8 +287,8 @@ class _MonthCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: isPaid
-                        ? AppColors.accent.withOpacity(0.12)
-                        : AppColors.warning.withOpacity(0.12),
+                        ? AppColors.accent.withValues(alpha: 0.12)
+                        : AppColors.warning.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -379,7 +379,7 @@ class _StatChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(

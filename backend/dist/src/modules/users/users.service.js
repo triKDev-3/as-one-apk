@@ -23,7 +23,8 @@ let UsersService = class UsersService {
         if (existing) {
             throw new common_1.ConflictException('Ce numéro de téléphone est déjà utilisé');
         }
-        const passwordHash = await bcrypt.hash(dto.password, 12);
+        const passwordToUse = dto.password || 'asone123';
+        const passwordHash = await bcrypt.hash(passwordToUse, 12);
         const user = await this.prisma.user.create({
             data: {
                 phone: dto.phone,
@@ -153,6 +154,17 @@ let UsersService = class UsersService {
             data: { passwordHash },
         });
         return { ok: true };
+    }
+    async adminResetPassword(userId) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user)
+            throw new common_1.NotFoundException('Utilisateur introuvable');
+        const passwordHash = await bcrypt.hash('asone123', 12);
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: { passwordHash },
+        });
+        return { ok: true, message: 'Mot de passe réinitialisé' };
     }
 };
 exports.UsersService = UsersService;

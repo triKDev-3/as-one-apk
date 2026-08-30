@@ -28,26 +28,97 @@ class _ReportIncidentScreenState extends ConsumerState<ReportIncidentScreen> {
   Future<void> _pickSite() async {
     final sites = await ref.read(sitesRepositoryProvider).getSites();
     if (!mounted) return;
+    final myId = ref.read(authProvider).user?.id ?? '';
+
+    // Trier pour mettre "Mes sites" en premier
+    sites.sort((a, b) {
+      final aMine = a.chefIds.contains(myId);
+      final bMine = b.chefIds.contains(myId);
+      if (aMine && !bMine) return -1;
+      if (!aMine && bMine) return 1;
+      return a.name.compareTo(b.name);
+    });
+
     final selected = await showModalBottomSheet<SiteModel>(
       context: context,
       isScrollControlled: true,
+      backgroundColor: AppColors.background,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.55,
-        builder: (_, scroll) => ListView.builder(
-          controller: scroll,
-          itemCount: sites.length,
-          itemBuilder: (_, i) {
-            final s = sites[i];
-            return ListTile(
-              title: Text(s.name),
-              subtitle: Text(s.typeLabel),
-              onTap: () => Navigator.pop(ctx, s),
-            );
-          },
+        initialChildSize: 0.6,
+        maxChildSize: 0.9,
+        builder: (_, scroll) => Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'Sélectionner un site',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                controller: scroll,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: sites.length,
+                itemBuilder: (_, i) {
+                  final s = sites[i];
+                  final isMine = s.chefIds.contains(myId);
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isMine ? AppColors.primary : AppColors.border,
+                        width: isMine ? 1.5 : 1,
+                      ),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      title: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              s.name,
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          if (isMine)
+                            Container(
+                              margin: const EdgeInsets.only(left: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text(
+                                'Mon site',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      subtitle: Text(s.typeLabel),
+                      trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                      onTap: () => Navigator.pop(ctx, s),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -175,7 +246,7 @@ class _ReportIncidentScreenState extends ConsumerState<ReportIncidentScreen> {
                   label: Text(s.$2),
                   selected: _severity == s.$1,
                   selectedColor: s.$1 == 'HAUTE'
-                      ? AppColors.danger.withOpacity(0.2)
+                      ? AppColors.danger.withValues(alpha: 0.2)
                       : null,
                   onSelected: (_) => setState(() => _severity = s.$1),
                 ),

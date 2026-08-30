@@ -1,4 +1,4 @@
-import { IsString, IsDateString, IsOptional } from 'class-validator';
+import { IsString, IsDateString, IsOptional, IsArray, IsNumber } from 'class-validator';
 
 export class CreateAssignmentDto {
   @IsString()
@@ -13,4 +13,16 @@ export class CreateAssignmentDto {
   @IsOptional()
   @IsDateString()
   endDate?: string;
+
+  @IsOptional()
+  @IsString()
+  missionType?: string;
+
+  @IsOptional()
+  @IsArray()
+  routineDays?: number[];
+
+  @IsOptional()
+  @IsNumber()
+  fixedSalary?: number;
 }

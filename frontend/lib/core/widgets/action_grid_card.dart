@@ -38,14 +38,14 @@ class ActionGridCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      accentColor.withOpacity(0.18),
-                      accentColor.withOpacity(0.06),
+                      accentColor.withValues(alpha: 0.18),
+                      accentColor.withValues(alpha: 0.06),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: accentColor.withOpacity(0.2), width: 1),
+                  border: Border.all(color: accentColor.withValues(alpha: 0.2), width: 1),
                 ),
                 child: Icon(icon, color: accentColor, size: 24),
               ),
@@ -66,7 +66,7 @@ class ActionGridCard extends StatelessWidget {
                   ),
                 )
               else
-                Icon(
+                const Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 14,
                   color: AppColors.textTertiary,

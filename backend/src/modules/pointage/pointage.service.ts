@@ -29,9 +29,10 @@ export class PointageService {
     for (const agentId of dto.agentIds) {
       // Vérifier double pointage ARRIVEE le même jour
       if (dto.type === PointageType.ARRIVEE || dto.type === PointageType.PRESENCE_PERMANENCE) {
-        const startOfDay = new Date();
+        const pointageDate = dto.notedAt ? new Date(dto.notedAt) : new Date();
+        const startOfDay = new Date(pointageDate);
         startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date();
+        const endOfDay = new Date(pointageDate);
         endOfDay.setHours(23, 59, 59, 999);
 
         const existing = await this.prisma.pointage.findFirst({
@@ -69,6 +70,14 @@ export class PointageService {
         orderBy: { createdAt: 'desc' },
       });
 
+      if (assignment && assignment.status === AssignmentStatus.PENDING_CONFIRMATION) {
+        await this.prisma.assignment.update({
+          where: { id: assignment.id },
+          data: { status: AssignmentStatus.CONFIRMED },
+        });
+        assignment.status = AssignmentStatus.CONFIRMED;
+      }
+
       const pointage = await this.prisma.pointage.create({
         data: {
           siteId: dto.siteId,
@@ -79,6 +88,7 @@ export class PointageService {
           latitude: dto.latitude,
           longitude: dto.longitude,
           createdById,
+          notedAt: dto.notedAt ? new Date(dto.notedAt) : undefined,
         },
         include: {
           agent: {

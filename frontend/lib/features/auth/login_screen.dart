@@ -122,7 +122,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               height: 220,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.secondary.withOpacity(0.18),
+                color: AppColors.secondary.withValues(alpha: 0.18),
               ),
             ),
           ),
@@ -134,7 +134,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               height: 260,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withOpacity(0.12),
+                color: AppColors.primary.withValues(alpha: 0.12),
               ),
             ),
           ),
@@ -185,9 +185,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.accent.withOpacity(0.12),
+                        color: AppColors.accent.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.accent.withOpacity(0.25), width: 1),
+                        border: Border.all(color: AppColors.accent.withValues(alpha: 0.25), width: 1),
                       ),
                       child: const Text(
                         'FACILITY MANAGEMENT',
@@ -230,7 +230,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           // Phone field with country code selector
                           Container(
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withValues(alpha: 0.8),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: AppColors.border),
                             ),
@@ -266,7 +266,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   },
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                                    decoration: BoxDecoration(
+                                    decoration: const BoxDecoration(
                                       border: Border(right: BorderSide(color: AppColors.border)),
                                     ),
                                     child: Row(
@@ -308,7 +308,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               labelText: 'Mot de passe',
                               prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.primary),
                               filled: true,
-                              fillColor: Colors.white.withOpacity(0.8),
+                              fillColor: Colors.white.withValues(alpha: 0.8),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded,
@@ -377,7 +377,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         Icon(
                           Icons.verified_user_outlined,
                           size: 16,
-                          color: AppColors.textSecondary.withOpacity(0.7),
+                          color: AppColors.textSecondary.withValues(alpha: 0.7),
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -385,7 +385,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.textSecondary.withOpacity(0.8),
+                            color: AppColors.textSecondary.withValues(alpha: 0.8),
                           ),
                         ),
                       ],

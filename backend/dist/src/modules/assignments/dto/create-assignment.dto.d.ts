@@ -3,4 +3,7 @@ export declare class CreateAssignmentDto {
     agentId: string;
     startDate: string;
     endDate?: string;
+    missionType?: string;
+    routineDays?: number[];
+    fixedSalary?: number;
 }

@@ -22,6 +22,10 @@ export class CreatePointageDto {
 
   @IsOptional()
   @IsString()
+  notedAt?: string;
+
+  @IsOptional()
+  @IsString()
   photoUrl?: string;
 
   @IsOptional()

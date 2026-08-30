@@ -37,7 +37,7 @@ class SiteModel {
   });
 
   factory SiteModel.fromJson(Map<String, dynamic> json) {
-    double? _toDouble(dynamic v) {
+    double? toDouble(dynamic v) {
       if (v == null) return null;
       if (v is num) return v.toDouble();
       return double.tryParse(v.toString());
@@ -56,12 +56,12 @@ class SiteModel {
               ?.map((c) => c['chefId'] as String)
               .toList() ??
           [],
-      dailyRate: _toDouble(json['dailyRate']),
-      nightRate: _toDouble(json['nightRate']),
-      sundayRate: _toDouble(json['sundayRate']),
-      bonusAmount: _toDouble(json['bonusAmount']),
-      monthlySalary: _toDouble(json['monthlySalary']),
-      fixedAmount: _toDouble(json['fixedAmount']),
+      dailyRate: toDouble(json['dailyRate']),
+      nightRate: toDouble(json['nightRate']),
+      sundayRate: toDouble(json['sundayRate']),
+      bonusAmount: toDouble(json['bonusAmount']),
+      monthlySalary: toDouble(json['monthlySalary']),
+      fixedAmount: toDouble(json['fixedAmount']),
     );
   }
 

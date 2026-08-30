@@ -4,32 +4,7 @@ import { RespondAssignmentDto } from './dto/respond-assignment.dto';
 export declare class AssignmentsController {
     private readonly service;
     constructor(service: AssignmentsService);
-    create(dto: CreateAssignmentDto, req: any): Promise<{
-        site: {
-            id: string;
-            name: string;
-            type: import(".prisma/client").$Enums.SiteType;
-        };
-        agent: {
-            id: string;
-            phone: string;
-            firstName: string;
-            lastName: string;
-        };
-    } & {
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        startDate: Date;
-        endDate: Date | null;
-        createdById: string;
-        siteId: string;
-        agentId: string;
-        status: import(".prisma/client").$Enums.AssignmentStatus;
-        isLocked: boolean;
-        confirmedAt: Date | null;
-        refusedAt: Date | null;
-    }>;
+    create(dto: CreateAssignmentDto, req: any): Promise<any>;
     pendingTransfers(req: any): Promise<({
         assignment: {
             site: {
@@ -51,6 +26,9 @@ export declare class AssignmentsController {
             createdById: string;
             siteId: string;
             agentId: string;
+            missionType: string | null;
+            routineDays: import("@prisma/client/runtime/library").JsonValue | null;
+            fixedSalary: import("@prisma/client/runtime/library").Decimal | null;
             status: import(".prisma/client").$Enums.AssignmentStatus;
             isLocked: boolean;
             confirmedAt: Date | null;
@@ -98,6 +76,9 @@ export declare class AssignmentsController {
         createdById: string;
         siteId: string;
         agentId: string;
+        missionType: string | null;
+        routineDays: import("@prisma/client/runtime/library").JsonValue | null;
+        fixedSalary: import("@prisma/client/runtime/library").Decimal | null;
         status: import(".prisma/client").$Enums.AssignmentStatus;
         isLocked: boolean;
         confirmedAt: Date | null;
@@ -124,6 +105,9 @@ export declare class AssignmentsController {
         createdById: string;
         siteId: string;
         agentId: string;
+        missionType: string | null;
+        routineDays: import("@prisma/client/runtime/library").JsonValue | null;
+        fixedSalary: import("@prisma/client/runtime/library").Decimal | null;
         status: import(".prisma/client").$Enums.AssignmentStatus;
         isLocked: boolean;
         confirmedAt: Date | null;
@@ -147,6 +131,9 @@ export declare class AssignmentsController {
         createdById: string;
         siteId: string;
         agentId: string;
+        missionType: string | null;
+        routineDays: import("@prisma/client/runtime/library").JsonValue | null;
+        fixedSalary: import("@prisma/client/runtime/library").Decimal | null;
         status: import(".prisma/client").$Enums.AssignmentStatus;
         isLocked: boolean;
         confirmedAt: Date | null;

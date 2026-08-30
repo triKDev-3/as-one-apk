@@ -198,12 +198,12 @@ class TransfersScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: isIncoming
-                          ? AppColors.primary.withOpacity(0.3)
+                          ? AppColors.primary.withValues(alpha: 0.3)
                           : AppColors.border,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primary.withOpacity(0.04),
+                        color: AppColors.primary.withValues(alpha: 0.04),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
@@ -218,8 +218,8 @@ class TransfersScreen extends ConsumerWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color: isIncoming
-                                  ? AppColors.primary.withOpacity(0.1)
-                                  : AppColors.textTertiary.withOpacity(0.1),
+                                  ? AppColors.primary.withValues(alpha: 0.1)
+                                  : AppColors.textTertiary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(

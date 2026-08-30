@@ -13,7 +13,7 @@ class RealtimeService {
   void connect({required String userId}) {
     disconnect();
 
-    final url = ApiConfig.baseUrl;
+    const url = ApiConfig.baseUrl;
     _socket = io.io(
       '$url/realtime',
       io.OptionBuilder()

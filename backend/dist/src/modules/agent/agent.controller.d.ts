@@ -34,6 +34,9 @@ export declare class AgentController {
             createdById: string;
             siteId: string;
             agentId: string;
+            missionType: string | null;
+            routineDays: import("@prisma/client/runtime/library").JsonValue | null;
+            fixedSalary: import("@prisma/client/runtime/library").Decimal | null;
             status: import(".prisma/client").$Enums.AssignmentStatus;
             isLocked: boolean;
             confirmedAt: Date | null;

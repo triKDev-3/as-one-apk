@@ -102,7 +102,7 @@ class MagasinierHomeScreen extends ConsumerWidget {
                 CustomCard(
                   onTap: () => context.push('/magasinier/alerts'),
                   padding: const EdgeInsets.all(18),
-                  border: Border.all(color: AppColors.warning.withOpacity(0.4), width: 1.2),
+                  border: Border.all(color: AppColors.warning.withValues(alpha: 0.4), width: 1.2),
                   child: Row(
                     children: [
                       Container(
@@ -110,14 +110,14 @@ class MagasinierHomeScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              AppColors.warning.withOpacity(0.2),
-                              AppColors.warning.withOpacity(0.05),
+                              AppColors.warning.withValues(alpha: 0.2),
+                              AppColors.warning.withValues(alpha: 0.05),
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.warning.withOpacity(0.3), width: 1),
+                          border: Border.all(color: AppColors.warning.withValues(alpha: 0.3), width: 1),
                         ),
                         child: const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 26),
                       ),
