@@ -16,20 +16,20 @@ export declare class AssignmentsService {
         };
     } & {
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        startDate: Date;
-        endDate: Date | null;
-        createdById: string;
         siteId: string;
         agentId: string;
+        createdById: string;
+        status: import(".prisma/client").$Enums.AssignmentStatus;
+        startDate: Date;
+        endDate: Date | null;
+        isLocked: boolean;
         missionType: string | null;
         routineDays: Prisma.JsonValue | null;
         fixedSalary: Prisma.Decimal | null;
-        status: import(".prisma/client").$Enums.AssignmentStatus;
-        isLocked: boolean;
         confirmedAt: Date | null;
         refusedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     getBySite(siteId: string): Promise<({
         agent: {
@@ -41,25 +41,25 @@ export declare class AssignmentsService {
         };
     } & {
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        startDate: Date;
-        endDate: Date | null;
-        createdById: string;
         siteId: string;
         agentId: string;
+        createdById: string;
+        status: import(".prisma/client").$Enums.AssignmentStatus;
+        startDate: Date;
+        endDate: Date | null;
+        isLocked: boolean;
         missionType: string | null;
         routineDays: Prisma.JsonValue | null;
         fixedSalary: Prisma.Decimal | null;
-        status: import(".prisma/client").$Enums.AssignmentStatus;
-        isLocked: boolean;
         confirmedAt: Date | null;
         refusedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     })[]>;
     requestTransfer(assignmentId: string, fromChefId: string, toChefId: string): Promise<{
         id: string;
-        createdAt: Date;
         status: string;
+        createdAt: Date;
         resolvedAt: Date | null;
         assignmentId: string;
         fromChefId: string;
@@ -79,20 +79,20 @@ export declare class AssignmentsService {
             };
         } & {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            startDate: Date;
-            endDate: Date | null;
-            createdById: string;
             siteId: string;
             agentId: string;
+            createdById: string;
+            status: import(".prisma/client").$Enums.AssignmentStatus;
+            startDate: Date;
+            endDate: Date | null;
+            isLocked: boolean;
             missionType: string | null;
             routineDays: Prisma.JsonValue | null;
             fixedSalary: Prisma.Decimal | null;
-            status: import(".prisma/client").$Enums.AssignmentStatus;
-            isLocked: boolean;
             confirmedAt: Date | null;
             refusedAt: Date | null;
+            createdAt: Date;
+            updatedAt: Date;
         };
         fromChef: {
             id: string;
@@ -106,8 +106,8 @@ export declare class AssignmentsService {
         };
     } & {
         id: string;
-        createdAt: Date;
         status: string;
+        createdAt: Date;
         resolvedAt: Date | null;
         assignmentId: string;
         fromChefId: string;
@@ -137,19 +137,19 @@ export declare class AssignmentsService {
     }[]>;
     releaseAgent(assignmentId: string, chefId: string): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        startDate: Date;
-        endDate: Date | null;
-        createdById: string;
         siteId: string;
         agentId: string;
+        createdById: string;
+        status: import(".prisma/client").$Enums.AssignmentStatus;
+        startDate: Date;
+        endDate: Date | null;
+        isLocked: boolean;
         missionType: string | null;
         routineDays: Prisma.JsonValue | null;
         fixedSalary: Prisma.Decimal | null;
-        status: import(".prisma/client").$Enums.AssignmentStatus;
-        isLocked: boolean;
         confirmedAt: Date | null;
         refusedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
 }

@@ -26,10 +26,11 @@ import '../../features/admin/screens/create_site_screen.dart';
 import '../../features/admin/screens/users_list_screen.dart';
 import '../../features/admin/screens/admin_sites_screen.dart';
 import '../../features/shared/ranking_screen.dart';
+import '../../features/shared/pointages_log_screen.dart';
+import '../../features/shared/incidents_list_screen.dart';
 import '../../features/agent/screens/planning_screen.dart';
 import '../../features/agent/screens/pointages_history_screen.dart';
 import '../../features/agent/screens/remuneration_screen.dart';
-
 import '../../features/chef/screens/site_details_screen.dart';
 
 class AppRouter {
@@ -74,18 +75,14 @@ class AppRouter {
               site: state.extra as SiteModel?,
             ),
           ),
+          GoRoute(path: 'ranking', builder: (_, __) => const RankingScreen()),
+          GoRoute(path: 'transfers', builder: (_, __) => const TransfersScreen()),
           GoRoute(
-            path: 'ranking',
-            builder: (_, __) => const RankingScreen(),
+            path: 'incidents',
+            builder: (_, __) => const IncidentsListScreen(),
           ),
-          GoRoute(
-            path: 'transfers',
-            builder: (_, __) => const TransfersScreen(),
-          ),
-          GoRoute(
-            path: 'incident',
-            builder: (_, __) => const ReportIncidentScreen(),
-          ),
+          GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
+          GoRoute(path: 'pointages', builder: (_, __) => const PointagesLogScreen()),
           GoRoute(
             path: 'tasks/:siteId',
             builder: (_, state) => SiteTasksScreen(
@@ -113,10 +110,7 @@ class AppRouter {
               statType: state.pathParameters['type']!,
             ),
           ),
-          GoRoute(
-            path: 'profile',
-            builder: (_, __) => const ChefProfileScreen(),
-          ),
+          GoRoute(path: 'profile', builder: (_, __) => const ChefProfileScreen()),
         ],
       ),
       GoRoute(
@@ -125,14 +119,16 @@ class AppRouter {
         routes: [
           GoRoute(path: 'out', builder: (_, __) => const MaterialOutScreen()),
           GoRoute(path: 'return', builder: (_, __) => const MaterialReturnScreen()),
+          GoRoute(path: 'catalog', builder: (_, __) => const _PlaceholderScreen(title: 'Catalogue')),
+          GoRoute(path: 'alerts', builder: (_, __) => const _PlaceholderScreen(title: 'Alertes véhicules')),
+          GoRoute(path: 'pointages', builder: (_, __) => const PointagesLogScreen()),
           GoRoute(
-            path: 'catalog',
-            builder: (_, __) => const _PlaceholderScreen(title: 'Catalogue'),
+            path: 'incidents',
+            builder: (_, __) => const IncidentsListScreen(
+              canApplyPenalty: true,
+            ),
           ),
-          GoRoute(
-            path: 'alerts',
-            builder: (_, __) => const _PlaceholderScreen(title: 'Alertes véhicules'),
-          ),
+          GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
         ],
       ),
       GoRoute(
@@ -145,6 +141,14 @@ class AppRouter {
               periodId: state.pathParameters['id']!,
             ),
           ),
+          GoRoute(path: 'pointages', builder: (_, __) => const PointagesLogScreen()),
+          GoRoute(
+            path: 'incidents',
+            builder: (_, __) => const IncidentsListScreen(
+              canCreate: false,
+              canResolve: false,
+            ),
+          ),
         ],
       ),
       GoRoute(
@@ -152,23 +156,16 @@ class AppRouter {
         builder: (_, __) => const AdminHomeScreen(),
         routes: [
           GoRoute(path: 'users', builder: (_, __) => const UsersListScreen()),
+          GoRoute(path: 'users/create', builder: (_, __) => const CreateUserScreen()),
+          GoRoute(path: 'sites/create', builder: (_, __) => const CreateSiteScreen()),
+          GoRoute(path: 'sites', builder: (_, __) => const AdminSitesScreen()),
+          GoRoute(path: 'ranking', builder: (_, __) => const RankingScreen()),
+          GoRoute(path: 'pointages', builder: (_, __) => const PointagesLogScreen()),
           GoRoute(
-            path: 'users/create',
-            builder: (_, __) => const CreateUserScreen(),
+            path: 'incidents',
+            builder: (_, __) => const IncidentsListScreen(),
           ),
-          GoRoute(
-            path: 'sites/create',
-            builder: (_, __) => const CreateSiteScreen(),
-          ),
-          GoRoute(
-            path: 'sites',
-            builder: (_, __) => const AdminSitesScreen(),
-          ),
-          GoRoute(
-            path: 'ranking',
-            builder: (_, __) =>
-                const RankingScreen(),
-          ),
+          GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
         ],
       ),
     ],
@@ -189,9 +186,7 @@ class _PlaceholderScreen extends StatelessWidget {
           onPressed: () => context.pop(),
         ),
       ),
-      body: Center(
-        child: Text('Écran $title — à venir'),
-      ),
+      body: Center(child: Text('Écran $title — à venir')),
     );
   }
 }

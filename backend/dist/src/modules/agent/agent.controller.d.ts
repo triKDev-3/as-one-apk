@@ -27,35 +27,35 @@ export declare class AgentController {
             };
         } & {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            startDate: Date;
-            endDate: Date | null;
-            createdById: string;
             siteId: string;
             agentId: string;
+            createdById: string;
+            status: import(".prisma/client").$Enums.AssignmentStatus;
+            startDate: Date;
+            endDate: Date | null;
+            isLocked: boolean;
             missionType: string | null;
             routineDays: import("@prisma/client/runtime/library").JsonValue | null;
             fixedSalary: import("@prisma/client/runtime/library").Decimal | null;
-            status: import(".prisma/client").$Enums.AssignmentStatus;
-            isLocked: boolean;
             confirmedAt: Date | null;
             refusedAt: Date | null;
+            createdAt: Date;
+            updatedAt: Date;
         })[];
         recentPayroll: ({
             period: {
                 id: string;
-                createdAt: Date;
-                startDate: Date;
-                endDate: Date;
                 createdById: string;
                 status: import(".prisma/client").$Enums.PayrollStatus;
+                startDate: Date;
+                endDate: Date;
+                createdAt: Date;
                 validatedAt: Date | null;
             };
         } & {
             id: string;
-            createdAt: Date;
             agentId: string;
+            createdAt: Date;
             periodId: string;
             baseAmount: import("@prisma/client/runtime/library").Decimal;
             primes: import("@prisma/client/runtime/library").Decimal;

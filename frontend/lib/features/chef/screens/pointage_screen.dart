@@ -22,11 +22,7 @@ class PointageScreen extends ConsumerStatefulWidget {
   final String siteId;
   final SiteModel? site;
 
-  const PointageScreen({
-    super.key,
-    required this.siteId,
-    this.site,
-  });
+  const PointageScreen({super.key, required this.siteId, this.site});
 
   @override
   ConsumerState<PointageScreen> createState() => _PointageScreenState();
@@ -34,7 +30,9 @@ class PointageScreen extends ConsumerStatefulWidget {
 
 class _PointageScreenState extends ConsumerState<PointageScreen> {
   final Set<String> _selected = {};
+  final Set<String> _hiddenIds = {};
   bool _submitting = false;
+<<<<<<< HEAD
   final String _type = 'DEPART'; // ARRIVEE | DEPART | PRESENCE_PERMANENCE
   File? _photo;
   final _picker = ImagePicker();
@@ -43,53 +41,161 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
   DateTime _selectedDate = DateTime.now();
   final List<Map<String, dynamic>> _extraAgents = [];
 
+=======
+  File? _photo;
+  final _picker = ImagePicker();
+  List<dynamic> _today = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadToday();
+  }
+
+  Future<void> _loadToday() async {
+    try {
+      final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final list = await ref.read(pointageRepositoryProvider).getBySite(
+            widget.siteId,
+            date: date,
+          );
+      if (mounted) setState(() => _today = list);
+    } catch (_) {}
+  }
+
+  Set<String> get _alreadyDone {
+    return _today
+        .where((e) {
+          final t = (e as Map)['type'] as String? ?? '';
+          return t == 'DEPART' || t == 'ABSENT';
+        })
+        .map((e) => (e as Map)['agentId'] as String? ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet();
+  }
+>>>>>>> 51b4f09b50968039e245b160ef0c0599e4abb71b
 
   Future<void> _pickPhoto(ImageSource source) async {
-    final permission = source == ImageSource.camera ? Permission.camera : Permission.photos;
+    final permission =
+        source == ImageSource.camera ? Permission.camera : Permission.photos;
     final status = await permission.request();
     if (status.isPermanentlyDenied) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Veuillez autoriser l\'accès dans les paramètres.')),
-        );
-        openAppSettings();
-      }
+      if (mounted) openAppSettings();
       return;
     }
-    // Storage permission might not be explicitly granted but available via picker in some Android versions.
-    // However, handling it gracefully:
     if (source == ImageSource.camera && !status.isGranted) return;
-
     final x = await _picker.pickImage(
-      source: source,
-      maxWidth: 1600,
-      imageQuality: 75,
-    );
+        source: source, maxWidth: 1600, imageQuality: 75);
     if (x != null) setState(() => _photo = File(x.path));
   }
 
-  Future<void> _submit() async {
+  Future<String?> _confirmSwipe(AssignmentModel a) async {
+    return showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(a.agentName,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 16)),
+              const SizedBox(height: 6),
+              const Text(
+                'Glissement confirmé — que voulez-vous faire ?',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.person_off_outlined,
+                    color: AppColors.warning),
+                title: const Text('Marquer absent'),
+                subtitle: const Text('Ne sera pas payé pour aujourd\'hui'),
+                onTap: () => Navigator.pop(ctx, 'absent'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.remove_circle_outline,
+                    color: AppColors.danger),
+                title: const Text('Retirer de la liste'),
+                subtitle: const Text('Libère l\'agent de ce chantier'),
+                onTap: () => Navigator.pop(ctx, 'remove'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Annuler'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _onSwipe(AssignmentModel a) async {
+    final action = await _confirmSwipe(a);
+    if (action == null) return false;
+    try {
+      if (action == 'absent') {
+        await ref.read(pointageRepositoryProvider).createPointage(
+              siteId: widget.siteId,
+              agentIds: [a.agentId],
+              type: 'ABSENT',
+            );
+      } else {
+        await ref.read(assignmentsRepositoryProvider).releaseAgent(a.id);
+      }
+      setState(() {
+        _hiddenIds.add(a.agentId);
+        _selected.remove(a.agentId);
+      });
+      await _loadToday();
+      ref.invalidate(siteAssignmentsProvider(widget.siteId));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(action == 'absent'
+              ? '${a.agentName} marqué absent'
+              : '${a.agentName} retiré de l\'équipe'),
+          backgroundColor: AppColors.accent,
+        ));
+      }
+      return true;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.danger,
+        ));
+      }
+      return false;
+    }
+  }
+
+  Future<void> _submitDepart() async {
     if (_selected.isEmpty) return;
     setState(() => _submitting = true);
     try {
       String? photoUrl;
       if (_photo != null) {
-        photoUrl = await ref
-            .read(pointageRepositoryProvider)
-            .uploadPhoto(_photo!);
+        photoUrl =
+            await ref.read(pointageRepositoryProvider).uploadPhoto(_photo!);
       }
       final result = await ref.read(pointageRepositoryProvider).createPointage(
             siteId: widget.siteId,
             agentIds: _selected.toList(),
-            type: _type,
+            type: 'DEPART',
             photoUrl: photoUrl,
             notedAt: DateFormat('yyyy-MM-dd').format(_selectedDate),
           );
-
       if (!mounted) return;
-
       final success = result['successCount'] ?? 0;
       final skipped = result['skippedCount'] ?? 0;
+<<<<<<< HEAD
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -114,14 +220,21 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
       ref.invalidate(pointagesByDateProvider('${widget.siteId}|$dateStr'));
       ref.invalidate(siteAssignmentsProvider(widget.siteId));
+=======
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            'Départs : $success OK${skipped > 0 ? ', $skipped déjà pointé(s)' : ''}'),
+        backgroundColor: AppColors.accent,
+      ));
+      setState(() => _selected.clear());
+      await _loadToday();
+>>>>>>> 51b4f09b50968039e245b160ef0c0599e4abb71b
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: AppColors.danger,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.danger,
+        ));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -155,13 +268,18 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
   @override
   Widget build(BuildContext context) {
     final siteName = widget.site?.name ?? 'Site';
+<<<<<<< HEAD
     final assignmentsAsync =
         ref.watch(siteAssignmentsProvider(widget.siteId));
+=======
+    final assignmentsAsync = ref.watch(siteAssignmentsProvider(widget.siteId));
+    final done = _alreadyDone;
+>>>>>>> 51b4f09b50968039e245b160ef0c0599e4abb71b
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Pointage — $siteName'),
+        title: Text('Départ — $siteName'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -169,6 +287,7 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
       ),
       body: Column(
         children: [
+<<<<<<< HEAD
           // Photo & Date
           if (_photo != null)
             Stack(
@@ -192,6 +311,8 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
                 ),
               ],
             ),
+=======
+>>>>>>> 51b4f09b50968039e245b160ef0c0599e4abb71b
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -199,6 +320,7 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+<<<<<<< HEAD
                 GestureDetector(
                   onTap: () async {
                     final date = await showDatePicker(
@@ -227,6 +349,37 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
                       ),
                     ],
                   ),
+=======
+                Text(
+                  'Heure de départ · ${DateFormat('dd/MM/yyyy').format(DateTime.now())}',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Glissez vers la droite pour retirer ou marquer absent.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    if (_photo != null) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(_photo!,
+                            width: 56, height: 56, fit: BoxFit.cover),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        onPressed: () => setState(() => _photo = null),
+                      ),
+                    ],
+                    OutlinedButton.icon(
+                      onPressed: () => _pickPhoto(ImageSource.camera),
+                      icon: const Icon(Icons.camera_alt, size: 18),
+                      label: const Text('Photo'),
+                    ),
+                  ],
+>>>>>>> 51b4f09b50968039e245b160ef0c0599e4abb71b
                 ),
                 if (_photo == null)
                   Row(
@@ -249,14 +402,12 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
             ),
           ),
           const Divider(height: 1),
-
-          // Liste des agents de l'équipe
           Expanded(
             child: assignmentsAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, _) => Center(child: Text(err.toString())),
               data: (assignments) {
+<<<<<<< HEAD
                 final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
                 final active = assignments
                     .where((a) =>
@@ -277,10 +428,19 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
                     active.add(extra);
                   }
                 }
+=======
+                final active = assignments.where((a) {
+                  if (_hiddenIds.contains(a.agentId)) return false;
+                  if (done.contains(a.agentId)) return false;
+                  return a.status == 'CONFIRMED' ||
+                      a.status == 'LOCKED' ||
+                      a.status == 'PENDING_CONFIRMATION';
+                }).toList();
+>>>>>>> 51b4f09b50968039e245b160ef0c0599e4abb71b
 
                 if (active.isEmpty) {
                   return const Center(
-                    child: Text('Aucun agent assigné sur ce site'),
+                    child: Text('Tous les départs / absences sont enregistrés'),
                   );
                 }
 
@@ -293,6 +453,7 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
                   itemCount: active.length,
                   itemBuilder: (context, index) {
                     final a = active[index];
+<<<<<<< HEAD
                     final isAlreadyPointed = pointesIds.contains(a['agentId']);
                     final isSelected = _selected.contains(a['agentId']);
                     final isConfirmed = a['status'] == 'CONFIRMED' || a['status'] == 'LOCKED';
@@ -381,6 +542,95 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
                                         : AppColors.textSecondary,
                                   ),
                               ],
+=======
+                    final selected = _selected.contains(a.agentId);
+                    return Dismissible(
+                      key: ValueKey(a.id),
+                      direction: DismissDirection.startToEnd,
+                      confirmDismiss: (_) => _onSwipe(a),
+                      background: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.warning.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.only(left: 20),
+                        child: const Icon(Icons.swipe_right_alt,
+                            color: AppColors.warning),
+                      ),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: Material(
+                          color: selected
+                              ? AppColors.accent.withOpacity(0.08)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () {
+                              setState(() {
+                                if (selected) {
+                                  _selected.remove(a.agentId);
+                                } else {
+                                  _selected.add(a.agentId);
+                                }
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: selected
+                                      ? AppColors.accent
+                                      : AppColors.border,
+                                  width: selected ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 18,
+                                    backgroundColor:
+                                        AppColors.primary.withOpacity(0.12),
+                                    child: Text(
+                                      a.agentName.isNotEmpty
+                                          ? a.agentName[0].toUpperCase()
+                                          : '?',
+                                      style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(a.agentName,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w600)),
+                                        Text(a.agentPhone,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    selected
+                                        ? Icons.check_circle
+                                        : Icons.radio_button_unchecked,
+                                    color: selected
+                                        ? AppColors.accent
+                                        : AppColors.textSecondary,
+                                  ),
+                                ],
+                              ),
+>>>>>>> 51b4f09b50968039e245b160ef0c0599e4abb71b
                             ),
                           ),
                         ),
@@ -443,14 +693,24 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
               },
             ),
           ),
-
-          // Actions
+          if (_today.isNotEmpty)
+            Container(
+              width: double.infinity,
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text(
+                'Aujourd\'hui : ${_today.length} enregistrement(s)',
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+<<<<<<< HEAD
                   if (_lastPointedAgents != null) ...[
                     SizedBox(
                       width: double.infinity,
@@ -483,6 +743,41 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
                         icon: const Icon(Icons.share),
                         label: const Text('Partager le rapport WhatsApp', style: TextStyle(fontSize: 16)),
                       ),
+=======
+                  TextButton(
+                    onPressed: () {
+                      final assignments = ref
+                          .read(siteAssignmentsProvider(widget.siteId))
+                          .valueOrNull;
+                      if (assignments == null) return;
+                      setState(() {
+                        _selected
+                          ..clear()
+                          ..addAll(assignments
+                              .where((a) =>
+                                  !_hiddenIds.contains(a.agentId) &&
+                                  !done.contains(a.agentId))
+                              .map((a) => a.agentId));
+                      });
+                    },
+                    child: const Text('Tout sélectionner'),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed:
+                          _selected.isEmpty || _submitting ? null : _submitDepart,
+                      child: _submitting
+                          ? const SizedBox(
+                              height: 22,
+                              width: 22,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2.5, color: Colors.white),
+                            )
+                          : Text(
+                              'Enregistrer les départs${_selected.isEmpty ? '' : ' (${_selected.length})'}',
+                            ),
+>>>>>>> 51b4f09b50968039e245b160ef0c0599e4abb71b
                     ),
                     const SizedBox(height: 12),
                   ],
@@ -547,6 +842,7 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
     );
   }
 }
+<<<<<<< HEAD
 
 
 class _AddAgentModal extends ConsumerStatefulWidget {
@@ -625,3 +921,5 @@ class _AddAgentModalState extends ConsumerState<_AddAgentModal> {
     );
   }
 }
+=======
+>>>>>>> 51b4f09b50968039e245b160ef0c0599e4abb71b

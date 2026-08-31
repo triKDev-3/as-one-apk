@@ -1,5 +1,5 @@
 // AS ONE — Prisma Schema
-// Version 1.0 — Aligné sur le Cahier des Charges v6
+// Version 1.1 — Pointage départ + absent
 
 generator client {
   provider = "prisma-client-js"
@@ -9,10 +9,6 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
-
-// ============================================================
-// ENUMS
-// ============================================================
 
 enum Role {
   ADMIN
@@ -34,10 +30,10 @@ enum SiteType {
 }
 
 enum AssignmentStatus {
-  PENDING_CONFIRMATION // agent doit confirmer / peut refuser jusqu'à 22h
+  PENDING_CONFIRMATION
   CONFIRMED
   REFUSED
-  LOCKED               // chantier multi-jours en cours
+  LOCKED
   COMPLETED
   CANCELLED
 }
@@ -45,7 +41,8 @@ enum AssignmentStatus {
 enum PointageType {
   ARRIVEE
   DEPART
-  PRESENCE_PERMANENCE  // liste de présence (optionnelle photo)
+  PRESENCE_PERMANENCE
+  ABSENT
 }
 
 enum MaterialState {
@@ -66,10 +63,6 @@ enum PayrollStatus {
   PAID
 }
 
-// ============================================================
-// USERS & AUTH
-// ============================================================
-
 model User {
   id            String    @id @default(cuid())
   email         String?   @unique
@@ -82,13 +75,9 @@ model User {
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-
-  // Agent specific
   agentType     AgentType?
-  mobileMoneyOperator String?  // détecté auto
-  rankingScore  Float     @default(0) // moyenne des notes
-
-  // Relations
+  mobileMoneyOperator String?
+  rankingScore  Float     @default(0)
   agentProfile  AgentProfile?
   chefSites     SiteChef[]
   assignments   Assignment[]  @relation("AgentAssignments")
@@ -99,14 +88,14 @@ model User {
   ratingsGiven  Rating[]      @relation("RatedBy")
   ratingsReceived Rating[]    @relation("RatedAgent")
   materialRetentions MaterialRetention[]
+  incidentPenalties IncidentPenalty[] @relation("PenaltyAgent")
+  penaltiesApplied IncidentPenalty[] @relation("PenaltyAppliedBy")
   payrollLines  PayrollLine[]
   auditLogs     AuditLog[]
-
-  @@index([role, isActive])
   incidentsReported Incident[]
   siteTasksCreated  SiteTask[]
   siteReportsCreated SiteReport[]
-
+  @@index([role, isActive])
   @@index([phone])
 }
 
@@ -114,14 +103,11 @@ model AgentProfile {
   id              String   @id @default(cuid())
   userId          String   @unique
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  isAvailable     Boolean  @default(true) // gros bouton
-  availableUntil  DateTime? // null = continue
+  isAvailable     Boolean  @default(true)
+  availableUntil  DateTime?
   lastAvailabilityChange DateTime @default(now())
-  paidMonths      Json?    // pour marquer les mois payés: { "2023-10": "date" }
-  unavailableDates Json?   // dates futures marquées indispo: ["2025-01-10", ...]
-
-  // Historique simple des disponibilités (optionnel pour audit léger)
+  paidMonths      Json?
+  unavailableDates Json?
   availabilityLogs AvailabilityLog[]
 }
 
@@ -133,32 +119,24 @@ model AvailabilityLog {
   changedAt DateTime @default(now())
 }
 
-// ============================================================
-// SITES (Chantiers & Permanences)
-// ============================================================
-
 model Site {
   id          String    @id @default(cuid())
   name        String
   type        SiteType
   address     String?
-  location    String?   // GPS ou description
+  location    String?
   startDate   DateTime?
-  endDate     DateTime? // null = permanence ouverte
+  endDate     DateTime?
   isActive    Boolean   @default(true)
-
-  // Tarification
   dailyRate         Decimal? @db.Decimal(10, 2)
-  nightRate         Decimal? @db.Decimal(10, 2) @default(4500) // Tarif de nuit
-  sundayRate        Decimal? @db.Decimal(10, 2) @default(5000) // Tarif dimanche
+  nightRate         Decimal? @db.Decimal(10, 2) @default(4500)
+  sundayRate        Decimal? @db.Decimal(10, 2) @default(5000)
   bonusAmount       Decimal? @db.Decimal(10, 2)
-  monthlySalary     Decimal? @db.Decimal(10, 2) // Pour sites PERMANENCE
-  fixedAmount       Decimal? @db.Decimal(10, 2) // Forfait fixe pour CHANTIER
-
+  monthlySalary     Decimal? @db.Decimal(10, 2)
+  fixedAmount       Decimal? @db.Decimal(10, 2)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   createdById String?
-
   chefs       SiteChef[]
   assignments Assignment[]
   materials   MaterialMovement[]
@@ -174,22 +152,17 @@ model SiteChef {
   chefId    String
   site      Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
   chef      User   @relation(fields: [chefId], references: [id], onDelete: Cascade)
-
   @@unique([siteId, chefId])
 }
-
-// ============================================================
-// ASSIGNMENTS (Attribution d'équipe)
-// ============================================================
 
 model Assignment {
   id          String           @id @default(cuid())
   siteId      String
   agentId     String
-  createdById String           // chef qui a créé
+  createdById String
   status      AssignmentStatus @default(PENDING_CONFIRMATION)
-
   startDate   DateTime
+<<<<<<< HEAD
   endDate     DateTime?        // null si permanence ou multi-jours en cours
   isLocked    Boolean          @default(false) // reste verrouillé jusqu'à fin chantier
 
@@ -197,19 +170,20 @@ model Assignment {
   routineDays Json?
   fixedSalary Decimal?         @db.Decimal(10, 2)
 
+=======
+  endDate     DateTime?
+  isLocked    Boolean          @default(false)
+>>>>>>> 51b4f09b50968039e245b160ef0c0599e4abb71b
   confirmedAt DateTime?
   refusedAt   DateTime?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
-
   site        Site             @relation(fields: [siteId], references: [id])
   agent       User             @relation("AgentAssignments", fields: [agentId], references: [id])
   createdBy   User             @relation("CreatedByChef", fields: [createdById], references: [id])
-
   transferRequests TransferRequest[]
   pointages   Pointage[]
   ratings     Rating[]
-
   @@index([agentId, status])
   @@index([siteId, startDate])
   @@index([status, isLocked])
@@ -220,18 +194,13 @@ model TransferRequest {
   assignmentId    String
   fromChefId      String
   toChefId        String
-  status          String   @default("PENDING") // PENDING | ACCEPTED | REJECTED
+  status          String   @default("PENDING")
   createdAt       DateTime @default(now())
   resolvedAt      DateTime?
-
   assignment      Assignment @relation(fields: [assignmentId], references: [id])
   fromChef        User       @relation("FromChef", fields: [fromChefId], references: [id])
   toChef          User       @relation("ToChef", fields: [toChefId], references: [id])
 }
-
-// ============================================================
-// POINTAGE
-// ============================================================
 
 model Pointage {
   id            String       @id @default(cuid())
@@ -239,53 +208,40 @@ model Pointage {
   siteId        String
   agentId       String
   type          PointageType
-  photoUrl      String?      // optionnel
+  photoUrl      String?
   latitude      Float?
   longitude     Float?
   notedAt       DateTime     @default(now())
-  createdById   String?      // chef qui a pointé
-
+  createdById   String?
   assignment    Assignment?  @relation(fields: [assignmentId], references: [id])
   site          Site         @relation(fields: [siteId], references: [id])
   agent         User         @relation(fields: [agentId], references: [id])
-
   @@index([agentId, notedAt])
   @@index([siteId, notedAt])
 }
-
-// ============================================================
-// NOTATION & CLASSEMENT
-// ============================================================
 
 model Rating {
   id            String   @id @default(cuid())
   assignmentId  String
   agentId       String
-  ratedById     String   // chef
-  score         Int      // 1 à 5
+  ratedById     String
+  score         Int
   comment       String?
   createdAt     DateTime @default(now())
-
   assignment    Assignment @relation(fields: [assignmentId], references: [id])
   agent         User       @relation("RatedAgent", fields: [agentId], references: [id])
   ratedBy       User       @relation("RatedBy", fields: [ratedById], references: [id])
-
   @@index([assignmentId])
   @@index([assignmentId, agentId])
 }
 
-// ============================================================
-// MATÉRIEL
-// ============================================================
-
 model MaterialItem {
   id          String   @id @default(cuid())
   name        String
-  category    String   // consignable | consommable
+  category    String
   unitPrice   Decimal  @db.Decimal(10, 2)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
-
   movements   MaterialMovement[]
 }
 
@@ -294,13 +250,12 @@ model MaterialMovement {
   siteId        String
   itemId        String
   quantity      Int
-  type          String         // OUT | RETURN
-  state         MaterialState? // uniquement sur RETURN
+  type          String
+  state         MaterialState?
   notes         String?
-  createdById   String         // magasinier
+  createdById   String
   createdAt     DateTime       @default(now())
-  printableRef  String?        // référence imprimable
-
+  printableRef  String?
   site          Site           @relation(fields: [siteId], references: [id])
   item          MaterialItem   @relation(fields: [itemId], references: [id])
   retention     MaterialRetention?
@@ -310,18 +265,13 @@ model MaterialRetention {
   id              String          @id @default(cuid())
   movementId      String          @unique
   target          RetentionTarget
-  agentId         String?         // si ONE_AGENT
-  amount          Decimal         @db.Decimal(10, 2) // montant total ou part
-  isApplied       Boolean         @default(true) // créé immédiatement
+  agentId         String?
+  amount          Decimal         @db.Decimal(10, 2)
+  isApplied       Boolean         @default(true)
   createdAt       DateTime        @default(now())
-
   movement        MaterialMovement @relation(fields: [movementId], references: [id])
   agent           User?            @relation(fields: [agentId], references: [id])
 }
-
-// ============================================================
-// INCIDENTS
-// ============================================================
 
 model Incident {
   id           String   @id @default(cuid())
@@ -329,35 +279,41 @@ model Incident {
   reportedById String
   description  String
   photoUrl     String?
-  /// DEGAT | MATERIEL | SECURITE | AUTRE
   type         String   @default("AUTRE")
-  /// BASSE | MOYENNE | HAUTE
   severity     String   @default("MOYENNE")
-  status       String   @default("OUVERT") // OUVERT | EN_COURS | RESOLU
+  status       String   @default("OUVERT")
   createdAt    DateTime @default(now())
   resolvedAt   DateTime?
-
   site         Site     @relation(fields: [siteId], references: [id])
   reportedBy   User     @relation(fields: [reportedById], references: [id])
+  penalties    IncidentPenalty[]
 }
 
-
-// ============================================================
-// TÂCHES & RAPPORT FIN DE CHANTIER
-// ============================================================
+model IncidentPenalty {
+  id          String   @id @default(cuid())
+  incidentId  String
+  agentId     String?
+  target      RetentionTarget
+  amount      Decimal  @db.Decimal(10, 2)
+  reason      String?
+  appliedById String
+  createdAt   DateTime @default(now())
+  incident    Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  agent       User?    @relation("PenaltyAgent", fields: [agentId], references: [id])
+  appliedBy   User     @relation("PenaltyAppliedBy", fields: [appliedById], references: [id])
+  @@index([agentId, createdAt])
+  @@index([incidentId])
+}
 
 model SiteTask {
   id          String   @id @default(cuid())
   siteId      String
   description String
-  /// Date réelle d'exécution de la tâche
   performedAt DateTime @default(now())
   createdById String
   createdAt   DateTime @default(now())
-
   site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
   createdBy   User     @relation(fields: [createdById], references: [id])
-
   @@index([siteId, performedAt])
 }
 
@@ -366,24 +322,16 @@ model SiteReport {
   siteId      String
   startDate   DateTime
   endDate     DateTime
-  /// Résumé libre du chef
   summary     String?
-  /// Snapshot JSON : tâches, équipe, pointages, matériel, incidents
   details     Json
-  status      String   @default("FINAL") // DRAFT | FINAL
+  status      String   @default("FINAL")
   createdById String
   closedAt    DateTime @default(now())
   createdAt   DateTime @default(now())
-
   site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
   createdBy   User     @relation(fields: [createdById], references: [id])
-
   @@index([siteId])
 }
-
-// ============================================================
-// PAIE
-// ============================================================
 
 model PayrollPeriod {
   id          String        @id @default(cuid())
@@ -393,7 +341,6 @@ model PayrollPeriod {
   createdById String
   validatedAt DateTime?
   createdAt   DateTime      @default(now())
-
   lines       PayrollLine[]
 }
 
@@ -405,33 +352,23 @@ model PayrollLine {
   primes          Decimal  @db.Decimal(12, 2) @default(0)
   retenues        Decimal  @db.Decimal(12, 2) @default(0)
   netAmount       Decimal  @db.Decimal(12, 2)
-  details         Json?    // détail des calculs
+  details         Json?
   createdAt       DateTime @default(now())
-
   period          PayrollPeriod @relation(fields: [periodId], references: [id])
   agent           User          @relation(fields: [agentId], references: [id])
-
   @@index([agentId, periodId])
 }
-
-// ============================================================
-// ALERTES VÉHICULES & AUTRES
-// ============================================================
 
 model VehicleAlert {
   id            String   @id @default(cuid())
   vehicleName   String
-  alertType     String   // ASSURANCE | VIDANGE | OTHER
+  alertType     String
   lastDate      DateTime
   validityDays  Int
   nextDueDate   DateTime
   isResolved    Boolean  @default(false)
   createdAt     DateTime @default(now())
 }
-
-// ============================================================
-// AUDIT
-// ============================================================
 
 model AuditLog {
   id          String   @id @default(cuid())
@@ -441,6 +378,5 @@ model AuditLog {
   entityId    String?
   metadata    Json?
   createdAt   DateTime @default(now())
-
   user        User?    @relation(fields: [userId], references: [id])
 }

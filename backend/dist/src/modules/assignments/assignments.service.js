@@ -91,7 +91,8 @@ let AssignmentsService = class AssignmentsService {
         if (assignment.status !== client_1.AssignmentStatus.PENDING_CONFIRMATION) {
             throw new common_1.BadRequestException('Cette affectation ne peut plus être modifiée');
         }
-        if (new Date().getHours() >= 22) {
+        const hourTogo = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Lome', hour: 'numeric', hour12: false }).format(new Date()));
+        if ((hourTogo === 24 ? 0 : hourTogo) >= 22) {
             throw new common_1.BadRequestException('Il est trop tard pour confirmer ou refuser (après 22h)');
         }
         const updated = await this.prisma.assignment.update({
@@ -184,10 +185,21 @@ let AssignmentsService = class AssignmentsService {
             throw new common_1.ForbiddenException('Seul le chef destinataire peut répondre');
         }
         if (accept) {
-            await this.prisma.transferRequest.update({
-                where: { id: transferId },
-                data: { status: 'ACCEPTED', resolvedAt: new Date() },
-            });
+            await this.prisma.$transaction([
+                this.prisma.transferRequest.update({
+                    where: { id: transferId },
+                    data: { status: 'ACCEPTED', resolvedAt: new Date() },
+                }),
+                this.prisma.assignment.update({
+                    where: { id: tr.assignmentId },
+                    data: { createdById: chefId },
+                }),
+                this.prisma.siteChef.upsert({
+                    where: { siteId_chefId: { siteId: tr.assignment.siteId, chefId } },
+                    create: { siteId: tr.assignment.siteId, chefId },
+                    update: {},
+                }),
+            ]);
             return { ok: true, status: 'ACCEPTED' };
         }
         await this.prisma.transferRequest.update({
@@ -260,7 +272,7 @@ let AssignmentsService = class AssignmentsService {
             throw new common_1.ForbiddenException('Action non autorisée');
         const updated = await this.prisma.assignment.update({
             where: { id: assignmentId },
-            data: { isLocked: false, status: client_1.AssignmentStatus.REFUSED },
+            data: { isLocked: false, status: client_1.AssignmentStatus.CANCELLED },
         });
         this.notifications.notifyAssignment(assignment.agentId, {
             id: assignmentId,

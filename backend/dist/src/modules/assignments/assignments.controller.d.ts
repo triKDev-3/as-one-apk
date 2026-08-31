@@ -19,20 +19,20 @@ export declare class AssignmentsController {
             };
         } & {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            startDate: Date;
-            endDate: Date | null;
-            createdById: string;
             siteId: string;
             agentId: string;
+            createdById: string;
+            status: import(".prisma/client").$Enums.AssignmentStatus;
+            startDate: Date;
+            endDate: Date | null;
+            isLocked: boolean;
             missionType: string | null;
             routineDays: import("@prisma/client/runtime/library").JsonValue | null;
             fixedSalary: import("@prisma/client/runtime/library").Decimal | null;
-            status: import(".prisma/client").$Enums.AssignmentStatus;
-            isLocked: boolean;
             confirmedAt: Date | null;
             refusedAt: Date | null;
+            createdAt: Date;
+            updatedAt: Date;
         };
         fromChef: {
             id: string;
@@ -46,8 +46,8 @@ export declare class AssignmentsController {
         };
     } & {
         id: string;
-        createdAt: Date;
         status: string;
+        createdAt: Date;
         resolvedAt: Date | null;
         assignmentId: string;
         fromChefId: string;
@@ -69,20 +69,20 @@ export declare class AssignmentsController {
         };
     } & {
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        startDate: Date;
-        endDate: Date | null;
-        createdById: string;
         siteId: string;
         agentId: string;
+        createdById: string;
+        status: import(".prisma/client").$Enums.AssignmentStatus;
+        startDate: Date;
+        endDate: Date | null;
+        isLocked: boolean;
         missionType: string | null;
         routineDays: import("@prisma/client/runtime/library").JsonValue | null;
         fixedSalary: import("@prisma/client/runtime/library").Decimal | null;
-        status: import(".prisma/client").$Enums.AssignmentStatus;
-        isLocked: boolean;
         confirmedAt: Date | null;
         refusedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     })[]>;
     getAvailableAgents(siteId?: string): Promise<{
         id: string;
@@ -98,20 +98,20 @@ export declare class AssignmentsController {
     }[]>;
     releaseAgent(id: string, req: any): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        startDate: Date;
-        endDate: Date | null;
-        createdById: string;
         siteId: string;
         agentId: string;
+        createdById: string;
+        status: import(".prisma/client").$Enums.AssignmentStatus;
+        startDate: Date;
+        endDate: Date | null;
+        isLocked: boolean;
         missionType: string | null;
         routineDays: import("@prisma/client/runtime/library").JsonValue | null;
         fixedSalary: import("@prisma/client/runtime/library").Decimal | null;
-        status: import(".prisma/client").$Enums.AssignmentStatus;
-        isLocked: boolean;
         confirmedAt: Date | null;
         refusedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     resolveTransfer(id: string, accept: boolean, req: any): Promise<{
         ok: boolean;
@@ -124,25 +124,25 @@ export declare class AssignmentsController {
         };
     } & {
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        startDate: Date;
-        endDate: Date | null;
-        createdById: string;
         siteId: string;
         agentId: string;
+        createdById: string;
+        status: import(".prisma/client").$Enums.AssignmentStatus;
+        startDate: Date;
+        endDate: Date | null;
+        isLocked: boolean;
         missionType: string | null;
         routineDays: import("@prisma/client/runtime/library").JsonValue | null;
         fixedSalary: import("@prisma/client/runtime/library").Decimal | null;
-        status: import(".prisma/client").$Enums.AssignmentStatus;
-        isLocked: boolean;
         confirmedAt: Date | null;
         refusedAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     requestTransfer(id: string, toChefId: string, req: any): Promise<{
         id: string;
-        createdAt: Date;
         status: string;
+        createdAt: Date;
         resolvedAt: Date | null;
         assignmentId: string;
         fromChefId: string;

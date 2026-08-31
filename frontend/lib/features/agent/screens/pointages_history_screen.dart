@@ -162,7 +162,11 @@ class _PointageTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isArrivee = record.type == 'ARRIVEE';
+    String label = 'Départ';
+    Color c = AppColors.accent;
+    if (record.type == 'ABSENT') { label = 'Absent'; c = AppColors.danger; }
+    else if (record.type == 'ARRIVEE') { label = 'Arrivée'; c = AppColors.primary; }
+    else if (record.type == 'PRESENCE_PERMANENCE') { label = 'Présence'; c = AppColors.primary; }
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(

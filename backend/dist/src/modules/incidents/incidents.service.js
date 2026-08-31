@@ -65,10 +65,60 @@ let IncidentsService = class IncidentsService {
                 reportedBy: {
                     select: { id: true, firstName: true, lastName: true, role: true },
                 },
+                penalties: {
+                    include: {
+                        agent: { select: { id: true, firstName: true, lastName: true } },
+                    },
+                },
             },
             orderBy: { createdAt: 'desc' },
             take: 100,
         });
+    }
+    async applyPenalty(incidentId, dto, appliedById) {
+        const incident = await this.prisma.incident.findUnique({ where: { id: incidentId } });
+        if (!incident)
+            throw new common_1.NotFoundException('Incident introuvable');
+        if (dto.target === client_1.RetentionTarget.ONE_AGENT) {
+            if (!dto.agentId)
+                throw new common_1.BadRequestException('agentId obligatoire');
+            return this.prisma.incidentPenalty.create({
+                data: {
+                    incidentId,
+                    agentId: dto.agentId,
+                    target: client_1.RetentionTarget.ONE_AGENT,
+                    amount: dto.amount,
+                    reason: dto.reason,
+                    appliedById,
+                },
+                include: {
+                    agent: { select: { id: true, firstName: true, lastName: true } },
+                },
+            });
+        }
+        const assignments = await this.prisma.assignment.findMany({
+            where: {
+                siteId: incident.siteId,
+                status: { in: [client_1.AssignmentStatus.CONFIRMED, client_1.AssignmentStatus.LOCKED] },
+            },
+            select: { agentId: true },
+        });
+        const ids = [...new Set(assignments.map((a) => a.agentId))];
+        if (ids.length === 0) {
+            throw new common_1.BadRequestException('Aucun agent affecté sur ce site pour répartir la pénalité');
+        }
+        const share = Math.round((dto.amount / ids.length) * 100) / 100;
+        await this.prisma.incidentPenalty.createMany({
+            data: ids.map((agentId) => ({
+                incidentId,
+                agentId,
+                target: client_1.RetentionTarget.WHOLE_GROUP,
+                amount: share,
+                reason: dto.reason,
+                appliedById,
+            })),
+        });
+        return { ok: true, agents: ids.length, amountEach: share };
     }
     async resolve(id, userId, role) {
         if (role !== client_1.Role.ADMIN && role !== client_1.Role.CHEF) {

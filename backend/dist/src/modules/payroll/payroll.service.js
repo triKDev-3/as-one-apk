@@ -50,7 +50,7 @@ let PayrollService = class PayrollService {
                 where: {
                     agentId: agent.id,
                     notedAt: { gte: period.startDate, lte: period.endDate },
-                    type: { in: ['ARRIVEE', 'PRESENCE_PERMANENCE'] },
+                    type: { in: ['DEPART', 'PRESENCE_PERMANENCE'] },
                 },
                 include: {
                     site: true,
@@ -82,9 +82,15 @@ let PayrollService = class PayrollService {
                 dailyRate,
                 amount: baseAmount,
             });
+            const penalties = await this.prisma.incidentPenalty.findMany({
+                where: {
+                    agentId: agent.id,
+                    createdAt: { gte: period.startDate, lte: period.endDate },
+                },
+            });
             let totalRetenues = 0;
             for (const r of retenues) {
-                if (r.agentId === agent.id || r.target === 'ONE_AGENT') {
+                if (r.agentId === agent.id) {
                     totalRetenues += Number(r.amount);
                     details.push({
                         type: 'retenue_materiel',
@@ -92,6 +98,14 @@ let PayrollService = class PayrollService {
                         item: r.movement?.item?.name,
                     });
                 }
+            }
+            for (const pen of penalties) {
+                totalRetenues += Number(pen.amount);
+                details.push({
+                    type: 'penalite_incident',
+                    amount: Number(pen.amount),
+                    reason: pen.reason,
+                });
             }
             const net = baseAmount - totalRetenues;
             const line = await this.prisma.payrollLine.create({

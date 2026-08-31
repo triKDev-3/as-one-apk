@@ -110,8 +110,8 @@ export class AssignmentsService {
       throw new BadRequestException('Cette affectation ne peut plus être modifiée');
     }
 
-    // Règle 22h
-    if (new Date().getHours() >= 22) {
+    const hourTogo = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Lome', hour: 'numeric', hour12: false }).format(new Date()));
+    if ((hourTogo === 24 ? 0 : hourTogo) >= 22) {
       throw new BadRequestException('Il est trop tard pour confirmer ou refuser (après 22h)');
     }
 
@@ -217,11 +217,21 @@ export class AssignmentsService {
     }
 
     if (accept) {
-      // Le chef destinataire "prend" le suivi (audit via transfer status)
-      await this.prisma.transferRequest.update({
-        where: { id: transferId },
-        data: { status: 'ACCEPTED', resolvedAt: new Date() },
-      });
+      await this.prisma.$transaction([
+        this.prisma.transferRequest.update({
+          where: { id: transferId },
+          data: { status: 'ACCEPTED', resolvedAt: new Date() },
+        }),
+        this.prisma.assignment.update({
+          where: { id: tr.assignmentId },
+          data: { createdById: chefId },
+        }),
+        this.prisma.siteChef.upsert({
+          where: { siteId_chefId: { siteId: tr.assignment.siteId, chefId } },
+          create: { siteId: tr.assignment.siteId, chefId },
+          update: {},
+        }),
+      ]);
       return { ok: true, status: 'ACCEPTED' };
     }
 
@@ -313,7 +323,7 @@ export class AssignmentsService {
 
     const updated = await this.prisma.assignment.update({
       where: { id: assignmentId },
-      data: { isLocked: false, status: AssignmentStatus.REFUSED },
+      data: { isLocked: false, status: AssignmentStatus.CANCELLED },
     });
 
     // Notifier l'agent

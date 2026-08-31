@@ -100,6 +100,64 @@ class MagasinierHomeScreen extends ConsumerWidget {
 
                 // Vehicle Maintenance Alert Hero Card
                 CustomCard(
+                  onTap: () => context.push('/magasinier/pointages'),
+                  padding: const EdgeInsets.all(18),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(Icons.fingerprint_rounded, color: AppColors.accent, size: 26),
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Historique pointages', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                            SizedBox(height: 3),
+                            Text('Départs enregistrés sur les chantiers', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textTertiary, size: 14),
+                    ],
+                  ),
+                ).animate().fadeIn(delay: 280.ms).slideY(begin: 0.1, end: 0),
+                const SizedBox(height: 12),
+                CustomCard(
+                  onTap: () => context.push('/magasinier/incidents'),
+                  padding: const EdgeInsets.all(18),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.danger.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(Icons.warning_amber_rounded, color: AppColors.danger, size: 26),
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Incidents', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                            SizedBox(height: 3),
+                            Text('Consulter et appliquer les pénalités', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textTertiary, size: 14),
+                    ],
+                  ),
+                ).animate().fadeIn(delay: 320.ms).slideY(begin: 0.1, end: 0),
+                const SizedBox(height: 12),
+                CustomCard(
                   onTap: () => context.push('/magasinier/alerts'),
                   padding: const EdgeInsets.all(18),
                   border: Border.all(color: AppColors.warning.withValues(alpha: 0.4), width: 1.2),

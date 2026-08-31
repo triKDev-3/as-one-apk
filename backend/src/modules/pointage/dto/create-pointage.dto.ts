@@ -17,8 +17,10 @@ export class CreatePointageDto {
   @IsString({ each: true })
   agentIds: string[];
 
+  /** Défaut métier : DEPART (heures de départ). ABSENT pour une absence confirmée. */
+  @IsOptional()
   @IsEnum(PointageType)
-  type: PointageType;
+  type?: PointageType;
 
   @IsOptional()
   @IsString()

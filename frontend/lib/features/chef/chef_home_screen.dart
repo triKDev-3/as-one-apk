@@ -322,7 +322,7 @@ class _DashboardTab extends StatelessWidget {
               title: 'Incidents',
               subtitle: 'Signaler ou consulter',
               color: AppColors.danger,
-              onTap: () => context.push('/chef/incident'),
+              onTap: () => context.push('/chef/incidents'),
             ),
             _ActionCard(
               icon: Icons.apartment_rounded,
@@ -790,7 +790,7 @@ class _LiveStatsGrid extends StatelessWidget {
               label: 'Incidents ouverts',
               value: '${stats.openIncidents}',
               color: AppColors.danger,
-              onTap: () => context.push('/chef/incident'),
+              onTap: () => context.push('/chef/incidents'),
             ),
           ],
         ),

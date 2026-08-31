@@ -42,7 +42,11 @@ frontend/coverage/
 frontend/.idea/
 *.iml
 
+<<<<<<< HEAD
 # Android / iOS générés (garder le code, pas les builds)
+=======
+# Android / iOS (builds, pas le projet) ---
+>>>>>>> 51b4f09b50968039e245b160ef0c0599e4abb71b
 frontend/android/.gradle/
 frontend/android/local.properties
 frontend/android/app/debug/
@@ -55,7 +59,11 @@ frontend/ios/Flutter/Flutter.framework
 frontend/ios/Flutter/Flutter.podspec
 frontend/ios/Flutter/.last_build_id
 
+<<<<<<< HEAD
 # --- Logs / crash JVM (Android Studio) ---
+=======
+# --- Logs / crash JVM ---
+>>>>>>> 51b4f09b50968039e245b160ef0c0599e4abb71b
 *.log
 hs_err_pid*.log
 replay_pid*.log
@@ -67,4 +75,8 @@ Thumbs.db
 .idea/
 
 # --- Submodule accidentel ---
+<<<<<<< HEAD
 as-one-apk
+=======
+as-one-apk
+>>>>>>> 51b4f09b50968039e245b160ef0c0599e4abb71b

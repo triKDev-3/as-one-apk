@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards, Request } from '@nestjs/common';
 import { IncidentsService } from './incidents.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
+import { ApplyPenaltyDto } from './dto/apply-penalty.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -26,8 +27,18 @@ export class IncidentsController {
     return this.service.list({ siteId, status });
   }
 
+  @Post(':id/penalty')
+  @Roles(Role.MAGASINIER)
+  applyPenalty(
+    @Param('id') id: string,
+    @Body() dto: ApplyPenaltyDto,
+    @Request() req: any,
+  ) {
+    return this.service.applyPenalty(id, dto, req.user.id);
+  }
+
   @Patch(':id/resolve')
-  @Roles(Role.CHEF, Role.ADMIN)
+  @Roles(Role.ADMIN)
   resolve(@Param('id') id: string, @Request() req: any) {
     return this.service.resolve(id, req.user.id, req.user.role);
   }

@@ -10,7 +10,7 @@ class PointageRepository {
   Future<Map<String, dynamic>> createPointage({
     required String siteId,
     required List<String> agentIds,
-    required String type, // ARRIVEE | DEPART | PRESENCE_PERMANENCE
+    String type = 'DEPART',
     String? photoUrl,
     String? notedAt,
   }) async {
@@ -26,6 +26,22 @@ class PointageRepository {
         },
       );
       return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw ApiClient.extractError(e);
+    }
+  }
+
+  Future<List<dynamic>> list({String? siteId, String? date, String? type}) async {
+    try {
+      final response = await _api.dio.get(
+        '/pointages',
+        queryParameters: {
+          if (siteId != null) 'siteId': siteId,
+          if (date != null) 'date': date,
+          if (type != null) 'type': type,
+        },
+      );
+      return response.data as List<dynamic>;
     } on DioException catch (e) {
       throw ApiClient.extractError(e);
     }

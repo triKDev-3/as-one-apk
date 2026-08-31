@@ -100,6 +100,64 @@ class AdminHomeScreen extends ConsumerWidget {
 
                 // Performance Ranking Hero Card
                 CustomCard(
+                  onTap: () => context.push('/admin/pointages'),
+                  padding: const EdgeInsets.all(18),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(Icons.fingerprint_rounded, color: AppColors.accent, size: 26),
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Historique pointages', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                            SizedBox(height: 3),
+                            Text('Départs et absences de tous les sites', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textTertiary, size: 14),
+                    ],
+                  ),
+                ).animate().fadeIn(delay: 250.ms).slideY(begin: 0.1, end: 0),
+                const SizedBox(height: 12),
+                CustomCard(
+                  onTap: () => context.push('/admin/incidents'),
+                  padding: const EdgeInsets.all(18),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.danger.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(Icons.warning_amber_rounded, color: AppColors.danger, size: 26),
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Incidents', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                            SizedBox(height: 3),
+                            Text('Consultation des signalements', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textTertiary, size: 14),
+                    ],
+                  ),
+                ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1, end: 0),
+                const SizedBox(height: 12),
+                CustomCard(
                   onTap: () => context.push('/admin/ranking'),
                   padding: const EdgeInsets.all(18),
                   child: Row(

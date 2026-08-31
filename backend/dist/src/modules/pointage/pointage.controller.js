@@ -27,6 +27,9 @@ let PointageController = class PointageController {
     create(dto, req) {
         return this.service.create(dto, req.user.id);
     }
+    list(siteId, date, type) {
+        return this.service.list({ siteId, date, type });
+    }
     getBySite(siteId, date) {
         return this.service.getBySite(siteId, date);
     }
@@ -45,8 +48,18 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PointageController.prototype, "create", null);
 __decorate([
+    (0, common_1.Get)(),
+    (0, roles_decorator_1.Roles)(client_1.Role.CHEF, client_1.Role.ADMIN, client_1.Role.COMPTABLE, client_1.Role.MAGASINIER),
+    __param(0, (0, common_1.Query)('siteId')),
+    __param(1, (0, common_1.Query)('date')),
+    __param(2, (0, common_1.Query)('type')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", void 0)
+], PointageController.prototype, "list", null);
+__decorate([
     (0, common_1.Get)('site/:siteId'),
-    (0, roles_decorator_1.Roles)(client_1.Role.CHEF, client_1.Role.ADMIN, client_1.Role.COMPTABLE),
+    (0, roles_decorator_1.Roles)(client_1.Role.CHEF, client_1.Role.ADMIN, client_1.Role.COMPTABLE, client_1.Role.MAGASINIER),
     __param(0, (0, common_1.Param)('siteId')),
     __param(1, (0, common_1.Query)('date')),
     __metadata("design:type", Function),

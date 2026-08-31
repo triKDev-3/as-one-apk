@@ -291,6 +291,42 @@ class _ComptableHomeScreenState extends ConsumerState<ComptableHomeScreen> {
                     ],
                   ).animate().fadeIn().slideX(begin: -0.05, end: 0),
                   const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CustomCard(
+                          onTap: () => context.push('/comptable/pointages'),
+                          padding: const EdgeInsets.all(14),
+                          child: const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.fingerprint_rounded, color: AppColors.accent),
+                              SizedBox(height: 8),
+                              Text('Pointages', style: TextStyle(fontWeight: FontWeight.w800)),
+                              Text('Historique départs', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: CustomCard(
+                          onTap: () => context.push('/comptable/incidents'),
+                          padding: const EdgeInsets.all(14),
+                          child: const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.warning_amber_rounded, color: AppColors.danger),
+                              SizedBox(height: 8),
+                              Text('Incidents', style: TextStyle(fontWeight: FontWeight.w800)),
+                              Text('Consultation', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
                   periodsAsync.when(
                     loading: () => const Center(
                       child: Padding(

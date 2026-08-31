@@ -80,7 +80,7 @@ __decorate([
 ], AssignmentsController.prototype, "listChefs", null);
 __decorate([
     (0, common_1.Get)('site/:siteId'),
-    (0, roles_decorator_1.Roles)(client_1.Role.CHEF, client_1.Role.ADMIN, client_1.Role.COMPTABLE),
+    (0, roles_decorator_1.Roles)(client_1.Role.CHEF, client_1.Role.ADMIN, client_1.Role.COMPTABLE, client_1.Role.MAGASINIER),
     __param(0, (0, common_1.Param)('siteId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),

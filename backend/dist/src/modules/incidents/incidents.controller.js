@@ -16,6 +16,7 @@ exports.IncidentsController = void 0;
 const common_1 = require("@nestjs/common");
 const incidents_service_1 = require("./incidents.service");
 const create_incident_dto_1 = require("./dto/create-incident.dto");
+const apply_penalty_dto_1 = require("./dto/apply-penalty.dto");
 const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
 const roles_guard_1 = require("../../common/guards/roles.guard");
 const roles_decorator_1 = require("../../common/decorators/roles.decorator");
@@ -29,6 +30,9 @@ let IncidentsController = class IncidentsController {
     }
     list(siteId, status) {
         return this.service.list({ siteId, status });
+    }
+    applyPenalty(id, dto, req) {
+        return this.service.applyPenalty(id, dto, req.user.id);
     }
     resolve(id, req) {
         return this.service.resolve(id, req.user.id, req.user.role);
@@ -54,8 +58,18 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], IncidentsController.prototype, "list", null);
 __decorate([
+    (0, common_1.Post)(':id/penalty'),
+    (0, roles_decorator_1.Roles)(client_1.Role.MAGASINIER),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, apply_penalty_dto_1.ApplyPenaltyDto, Object]),
+    __metadata("design:returntype", void 0)
+], IncidentsController.prototype, "applyPenalty", null);
+__decorate([
     (0, common_1.Patch)(':id/resolve'),
-    (0, roles_decorator_1.Roles)(client_1.Role.CHEF, client_1.Role.ADMIN),
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),

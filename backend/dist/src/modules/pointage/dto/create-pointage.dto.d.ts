@@ -2,7 +2,7 @@ import { PointageType } from '@prisma/client';
 export declare class CreatePointageDto {
     siteId: string;
     agentIds: string[];
-    type: PointageType;
+    type?: PointageType;
     notedAt?: string;
     photoUrl?: string;
     latitude?: number;
