@@ -1,6 +1,62 @@
 import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
 
+class SiteChefInfo {
+  final String id;
+  final String firstName;
+  final String lastName;
+  final String? phone;
+
+  SiteChefInfo({
+    required this.id,
+    required this.firstName,
+    required this.lastName,
+    this.phone,
+  });
+
+  String get fullName => '$firstName $lastName'.trim();
+
+  factory SiteChefInfo.fromJson(Map<String, dynamic> json) {
+    // chefs: [{ chefId, chef: { id, firstName, ... } }]
+    final chef = json['chef'] as Map<String, dynamic>? ?? json;
+    return SiteChefInfo(
+      id: (chef['id'] ?? json['chefId']) as String? ?? '',
+      firstName: chef['firstName'] as String? ?? '',
+      lastName: chef['lastName'] as String? ?? '',
+      phone: chef['phone'] as String?,
+    );
+  }
+}
+
+class SiteActiveAssignment {
+  final String id;
+  final String status;
+  final String agentName;
+  final String agentId;
+  final String? startDate;
+  final String? endDate;
+
+  SiteActiveAssignment({
+    required this.id,
+    required this.status,
+    required this.agentName,
+    required this.agentId,
+    this.startDate,
+    this.endDate,
+  });
+
+  factory SiteActiveAssignment.fromJson(Map<String, dynamic> json) {
+    return SiteActiveAssignment(
+      id: json['id'] as String? ?? '',
+      status: json['status'] as String? ?? '',
+      agentName: json['agentName'] as String? ?? '',
+      agentId: json['agentId'] as String? ?? '',
+      startDate: json['startDate'] as String?,
+      endDate: json['endDate'] as String?,
+    );
+  }
+}
+
 class SiteModel {
   final String id;
   final String name;
@@ -11,6 +67,9 @@ class SiteModel {
   final String? endDate;
   final bool isActive;
   final List<String> chefIds;
+  final List<SiteChefInfo> chefs;
+  final int activeAgentsCount;
+  final List<SiteActiveAssignment> activeAssignments;
   final double? dailyRate;
   final double? nightRate;
   final double? sundayRate;
@@ -28,6 +87,9 @@ class SiteModel {
     this.endDate,
     this.isActive = true,
     this.chefIds = const [],
+    this.chefs = const [],
+    this.activeAgentsCount = 0,
+    this.activeAssignments = const [],
     this.dailyRate,
     this.nightRate,
     this.sundayRate,
@@ -43,6 +105,17 @@ class SiteModel {
       return double.tryParse(v.toString());
     }
 
+    final chefsRaw = (json['chefs'] as List<dynamic>?) ?? [];
+    final chefs = chefsRaw
+        .map((c) => SiteChefInfo.fromJson(c as Map<String, dynamic>))
+        .where((c) => c.id.isNotEmpty)
+        .toList();
+
+    final activeRaw = (json['activeAssignments'] as List<dynamic>?) ?? [];
+    final active = activeRaw
+        .map((a) => SiteActiveAssignment.fromJson(a as Map<String, dynamic>))
+        .toList();
+
     return SiteModel(
       id: json['id'] as String,
       name: json['name'] as String? ?? '',
@@ -52,10 +125,11 @@ class SiteModel {
       startDate: json['startDate'] as String?,
       endDate: json['endDate'] as String?,
       isActive: json['isActive'] as bool? ?? true,
-      chefIds: (json['chefs'] as List<dynamic>?)
-              ?.map((c) => c['chefId'] as String)
-              .toList() ??
-          [],
+      chefIds: chefs.map((c) => c.id).toList(),
+      chefs: chefs,
+      activeAgentsCount:
+          (json['activeAgentsCount'] as num?)?.toInt() ?? active.length,
+      activeAssignments: active,
       dailyRate: toDouble(json['dailyRate']),
       nightRate: toDouble(json['nightRate']),
       sundayRate: toDouble(json['sundayRate']),
@@ -68,12 +142,23 @@ class SiteModel {
   bool get isPermanence => type == 'PERMANENCE';
   bool get isChantier => type == 'CHANTIER';
   bool get isRoutine => type == 'ROUTINE';
+  bool get hasChefs => chefs.isNotEmpty;
+  bool get hasOperations => activeAgentsCount > 0;
+
+  String get chefsLabel {
+    if (chefs.isEmpty) return 'Aucun chef assigné';
+    if (chefs.length == 1) return chefs.first.fullName;
+    return '${chefs.length} chefs : ${chefs.map((c) => c.fullName).join(', ')}';
+  }
 
   String get typeLabel {
     switch (type) {
-      case 'PERMANENCE': return 'Permanence';
-      case 'ROUTINE': return 'Routine';
-      default: return 'Chantier';
+      case 'PERMANENCE':
+        return 'Permanence';
+      case 'ROUTINE':
+        return 'Routine';
+      default:
+        return 'Chantier';
     }
   }
 }
@@ -89,7 +174,7 @@ class SitesRepository {
         if (type != null) 'type': type,
         if (all) 'all': 'true',
       };
-      
+
       final response = await _api.dio.get(
         '/sites',
         queryParameters: query.isNotEmpty ? query : null,
@@ -107,6 +192,22 @@ class SitesRepository {
     try {
       final response = await _api.dio.get('/sites/$id');
       return SiteModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.extractError(e);
+    }
+  }
+
+  Future<void> assignChef(String siteId, String chefId) async {
+    try {
+      await _api.dio.post('/sites/$siteId/chefs/$chefId');
+    } on DioException catch (e) {
+      throw ApiClient.extractError(e);
+    }
+  }
+
+  Future<void> removeChef(String siteId, String chefId) async {
+    try {
+      await _api.dio.delete('/sites/$siteId/chefs/$chefId');
     } on DioException catch (e) {
       throw ApiClient.extractError(e);
     }

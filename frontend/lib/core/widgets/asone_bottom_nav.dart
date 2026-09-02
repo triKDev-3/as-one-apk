@@ -42,7 +42,7 @@ class AsOneBottomNav extends StatelessWidget {
         return const [
           _NavItem(Icons.dashboard_rounded, 'Accueil', '/admin'),
           _NavItem(Icons.calendar_month_rounded, 'Agenda', '/admin/calendar'),
-          _NavItem(Icons.people_rounded, 'Équipe', '/admin/users'),
+          _NavItem(Icons.badge_rounded, 'Utilisateurs', '/admin/users'),
           _NavItem(Icons.notifications_rounded, 'Notifs', '/admin/notifications'),
           _NavItem(Icons.domain_rounded, 'Sites', '/admin/sites'),
         ];
