@@ -19,13 +19,7 @@ export class AssignmentsService {
     private readonly whatsapp: WhatsappService,
   ) {}
 
-  /**
-   * Attribution d'un agent à un site.
-   * - Vérifie que l'agent n'est pas déjà verrouillé.
-   * - Statut PENDING_CONFIRMATION si l'agent était indisponible ou pour laisser le droit de refuser jusqu'à 22h.
-   */
   async create(dto: CreateAssignmentDto, chefId: string) {
-    // Vérifier que l'agent n'est pas déjà pris / verrouillé
     const existingLocked = await this.prisma.assignment.findFirst({
       where: {
         agentId: dto.agentId,
@@ -47,8 +41,13 @@ export class AssignmentsService {
       throw new NotFoundException('Agent introuvable');
     }
 
+    // Toujours confirmation jusqu'à 22h — encore plus si indisponible global ou jour marqué
+    const unavailableDates: string[] =
+      (agent.agentProfile?.unavailableDates as string[]) || [];
+    const startKey = new Date(dto.startDate).toISOString().slice(0, 10);
+    const dayUnavailable = unavailableDates.includes(startKey);
     const needsConfirmation =
-      !agent.agentProfile?.isAvailable || true; // toujours permettre refus jusqu'à 22h
+      !agent.agentProfile?.isAvailable || dayUnavailable || true;
 
     const assignment = await this.prisma.assignment.create({
       data: {
@@ -60,9 +59,11 @@ export class AssignmentsService {
         status: needsConfirmation
           ? AssignmentStatus.PENDING_CONFIRMATION
           : AssignmentStatus.CONFIRMED,
-        isLocked: true, // always locked until released or site is closed
+        isLocked: true,
         missionType: dto.missionType || 'TEMPORAIRE',
-        routineDays: dto.routineDays ? (dto.routineDays as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+        routineDays: dto.routineDays
+          ? (dto.routineDays as unknown as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
         fixedSalary: dto.fixedSalary || null,
       },
       include: {
@@ -77,10 +78,11 @@ export class AssignmentsService {
       startDate: assignment.startDate,
       endDate: assignment.endDate,
       status: assignment.status,
-      message: 'Nouvelle affectation — confirmez avant 22h',
+      message: dayUnavailable
+        ? 'Affectation sur un jour que vous aviez marqué indisponible — confirmez avant 22h'
+        : 'Nouvelle affectation — confirmez avant 22h',
     });
 
-    // Envoyer le message WhatsApp de convocation si le numéro est disponible
     if (assignment.agent?.phone) {
       const siteName = assignment.site?.name || 'chantier';
       const date = assignment.startDate
@@ -110,7 +112,13 @@ export class AssignmentsService {
       throw new BadRequestException('Cette affectation ne peut plus être modifiée');
     }
 
-    const hourTogo = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Lome', hour: 'numeric', hour12: false }).format(new Date()));
+    const hourTogo = Number(
+      new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Africa/Lome',
+        hour: 'numeric',
+        hour12: false,
+      }).format(new Date()),
+    );
     if ((hourTogo === 24 ? 0 : hourTogo) >= 22) {
       throw new BadRequestException('Il est trop tard pour confirmer ou refuser (après 22h)');
     }
@@ -146,7 +154,13 @@ export class AssignmentsService {
     return this.prisma.assignment.findMany({
       where: {
         siteId,
-        status: { in: [AssignmentStatus.CONFIRMED, AssignmentStatus.LOCKED, AssignmentStatus.PENDING_CONFIRMATION] },
+        status: {
+          in: [
+            AssignmentStatus.CONFIRMED,
+            AssignmentStatus.LOCKED,
+            AssignmentStatus.PENDING_CONFIRMATION,
+          ],
+        },
       },
       include: {
         agent: {
@@ -156,6 +170,9 @@ export class AssignmentsService {
             lastName: true,
             phone: true,
             rankingScore: true,
+            agentProfile: {
+              select: { isAvailable: true, unavailableDates: true },
+            },
           },
         },
       },
@@ -163,9 +180,6 @@ export class AssignmentsService {
     });
   }
 
-  /**
-   * Demande de transfert (non atomique).
-   */
   async requestTransfer(assignmentId: string, fromChefId: string, toChefId: string) {
     const assignment = await this.prisma.assignment.findUnique({
       where: { id: assignmentId },
@@ -176,11 +190,7 @@ export class AssignmentsService {
     }
 
     return this.prisma.transferRequest.create({
-      data: {
-        assignmentId,
-        fromChefId,
-        toChefId,
-      },
+      data: { assignmentId, fromChefId, toChefId },
     });
   }
 
@@ -193,7 +203,9 @@ export class AssignmentsService {
       include: {
         assignment: {
           include: {
-            agent: { select: { id: true, firstName: true, lastName: true, phone: true } },
+            agent: {
+              select: { id: true, firstName: true, lastName: true, phone: true },
+            },
             site: { select: { id: true, name: true } },
           },
         },
@@ -251,24 +263,27 @@ export class AssignmentsService {
   }
 
   /**
-   * Liste des agents disponibles pour composition d'équipe.
-   * Inclut : contractType, score moyen (rating), jours travaillés (pointages ARRIVEE)
+   * Pool agents pour composition : disponibilité globale + jours indispos + jours travaillés (DEPART).
+   * Le chef VOIT les jours marqués indisponibles mais peut quand même assigner / pointer.
    */
   async getAvailableAgents(siteId?: string) {
     const agents = await this.prisma.user.findMany({
       where: { role: Role.AGENT, isActive: true },
       include: {
-        agentProfile: { select: { isAvailable: true } },
-        ratingsReceived: {
-          select: { score: true },
+        agentProfile: {
+          select: { isAvailable: true, unavailableDates: true },
         },
+        ratingsReceived: { select: { score: true } },
         pointages: {
+          where: { type: { in: ['DEPART', 'PRESENCE_PERMANENCE'] } },
           select: { notedAt: true },
         },
         assignments: {
           where: {
             isLocked: true,
-            status: { in: [AssignmentStatus.CONFIRMED, AssignmentStatus.LOCKED] },
+            status: {
+              in: [AssignmentStatus.CONFIRMED, AssignmentStatus.LOCKED],
+            },
           },
           select: { id: true, siteId: true },
         },
@@ -279,15 +294,24 @@ export class AssignmentsService {
       const ratings = a.ratingsReceived;
       const avgScore =
         ratings.length > 0
-          ? ratings.reduce((sum: number, r: { score: number }) => sum + r.score, 0) / ratings.length
+          ? ratings.reduce((sum: number, r: { score: number }) => sum + r.score, 0) /
+            ratings.length
           : null;
-      const daysWorked = new Set(a.pointages.map(p => p.notedAt.toDateString())).size;
-      const todayStr = new Date().toDateString();
-      const hasPointedToday = a.pointages.some(p => p.notedAt.toDateString() === todayStr);
-      
-      const isLockedElsewhere = a.assignments.some(
-        (asgn: { siteId: string }) => siteId && asgn.siteId !== siteId,
-      ) && !hasPointedToday;
+      const daysWorked = new Set(
+        a.pointages.map((p) => p.notedAt.toISOString().slice(0, 10)),
+      ).size;
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const hasPointedToday = a.pointages.some(
+        (p) => p.notedAt.toISOString().slice(0, 10) === todayStr,
+      );
+      const isLockedElsewhere =
+        a.assignments.some(
+          (asgn: { siteId: string }) => siteId && asgn.siteId !== siteId,
+        ) && !hasPointedToday;
+
+      const unavailableDates: string[] =
+        (a.agentProfile?.unavailableDates as string[]) || [];
+
       return {
         id: a.id,
         firstName: a.firstName,
@@ -299,15 +323,13 @@ export class AssignmentsService {
         daysWorked,
         isAvailable: a.agentProfile?.isAvailable ?? true,
         isLockedElsewhere,
+        unavailableDates,
+        /** true si le jour calendaire d'aujourd'hui est marqué indispo */
+        isUnavailableToday: unavailableDates.includes(todayStr),
       };
     });
   }
 
-  /**
-   * Un chef libère temporairement un agent (indisponibilité en cours de chantier).
-   * L'agent est libéré (isLocked=false) mais l'assignment n'est pas supprimé.
-   * Il ne peut revenir que via une nouvelle convocation.
-   */
   async releaseAgent(assignmentId: string, chefId: string) {
     const assignment = await this.prisma.assignment.findUnique({
       where: { id: assignmentId },
@@ -326,7 +348,6 @@ export class AssignmentsService {
       data: { isLocked: false, status: AssignmentStatus.CANCELLED },
     });
 
-    // Notifier l'agent
     this.notifications.notifyAssignment(assignment.agentId, {
       id: assignmentId,
       status: updated.status,
