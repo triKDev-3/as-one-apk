@@ -35,6 +35,8 @@ import '../../features/agent/screens/pointages_history_screen.dart';
 import '../../features/agent/screens/remuneration_screen.dart';
 import '../../features/chef/screens/site_details_screen.dart';
 
+String? _qDate(GoRouterState state) => state.uri.queryParameters['date'];
+
 class AppRouter {
   static final router = GoRouter(
     initialLocation: '/login',
@@ -81,9 +83,15 @@ class AppRouter {
           GoRoute(path: 'calendar', builder: (_, __) => const ChefCalendarScreen()),
           GoRoute(path: 'ranking', builder: (_, __) => const RankingScreen()),
           GoRoute(path: 'transfers', builder: (_, __) => const TransfersScreen()),
-          GoRoute(path: 'incidents', builder: (_, __) => const IncidentsListScreen()),
+          GoRoute(
+            path: 'incidents',
+            builder: (_, state) => IncidentsListScreen(date: _qDate(state)),
+          ),
           GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
-          GoRoute(path: 'pointages', builder: (_, __) => const PointagesLogScreen()),
+          GoRoute(
+            path: 'pointages',
+            builder: (_, state) => PointagesLogScreen(date: _qDate(state)),
+          ),
           GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
           GoRoute(
             path: 'tasks/:siteId',
@@ -123,10 +131,16 @@ class AppRouter {
           GoRoute(path: 'return', builder: (_, __) => const MaterialReturnScreen()),
           GoRoute(path: 'catalog', builder: (_, __) => const _PlaceholderScreen(title: 'Catalogue')),
           GoRoute(path: 'alerts', builder: (_, __) => const _PlaceholderScreen(title: 'Alertes véhicules')),
-          GoRoute(path: 'pointages', builder: (_, __) => const PointagesLogScreen()),
+          GoRoute(
+            path: 'pointages',
+            builder: (_, state) => PointagesLogScreen(date: _qDate(state)),
+          ),
           GoRoute(
             path: 'incidents',
-            builder: (_, __) => const IncidentsListScreen(canApplyPenalty: true),
+            builder: (_, state) => IncidentsListScreen(
+              canApplyPenalty: true,
+              date: _qDate(state),
+            ),
           ),
           GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
           GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
@@ -142,12 +156,16 @@ class AppRouter {
               periodId: state.pathParameters['id']!,
             ),
           ),
-          GoRoute(path: 'pointages', builder: (_, __) => const PointagesLogScreen()),
+          GoRoute(
+            path: 'pointages',
+            builder: (_, state) => PointagesLogScreen(date: _qDate(state)),
+          ),
           GoRoute(
             path: 'incidents',
-            builder: (_, __) => const IncidentsListScreen(
+            builder: (_, state) => IncidentsListScreen(
               canCreate: false,
               canResolve: false,
+              date: _qDate(state),
             ),
           ),
           GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
@@ -162,8 +180,14 @@ class AppRouter {
           GoRoute(path: 'sites/create', builder: (_, __) => const CreateSiteScreen()),
           GoRoute(path: 'sites', builder: (_, __) => const AdminSitesScreen()),
           GoRoute(path: 'ranking', builder: (_, __) => const RankingScreen()),
-          GoRoute(path: 'pointages', builder: (_, __) => const PointagesLogScreen()),
-          GoRoute(path: 'incidents', builder: (_, __) => const IncidentsListScreen()),
+          GoRoute(
+            path: 'pointages',
+            builder: (_, state) => PointagesLogScreen(date: _qDate(state)),
+          ),
+          GoRoute(
+            path: 'incidents',
+            builder: (_, state) => IncidentsListScreen(date: _qDate(state)),
+          ),
           GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
           GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
           GoRoute(path: 'calendar', builder: (_, __) => const ChefCalendarScreen()),

@@ -28,7 +28,8 @@ class ChefCalendarScreen extends ConsumerStatefulWidget {
   const ChefCalendarScreen({super.key});
 
   @override
-  ConsumerState<ChefCalendarScreen> createState() => _ChefCalendarScreenState();
+  ConsumerState<ChefCalendarScreen> createState() =>
+      _ChefCalendarScreenState();
 }
 
 class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
@@ -37,21 +38,31 @@ class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
 
   String get _monthKey => DateFormat('yyyy-MM').format(_focused);
 
+  /// Préfixe de route selon le rôle (admin / chef / …)
+  String _basePath(BuildContext context) {
+    final path = GoRouterState.of(context).uri.path;
+    if (path.startsWith('/admin')) return '/admin';
+    if (path.startsWith('/comptable')) return '/comptable';
+    if (path.startsWith('/magasinier')) return '/magasinier';
+    return '/chef';
+  }
+
   @override
   Widget build(BuildContext context) {
     final calAsync = ref.watch(chefCalendarProvider(_monthKey));
+    final base = _basePath(context);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Calendrier activités'),
+        title: const Text('Agenda'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             tooltip: 'Notifications',
             icon: const Icon(Icons.notifications_outlined),
-            onPressed: () => context.push('/chef/notifications'),
+            onPressed: () => context.push('$base/notifications'),
           ),
         ],
       ),
@@ -83,7 +94,6 @@ class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
             data: (data) {
               final summary =
                   (data['summary'] as Map<String, dynamic>?) ?? {};
-              final days = (data['days'] as Map<String, dynamic>?) ?? {};
 
               return TableCalendar(
                 locale: 'fr_FR',
@@ -188,22 +198,24 @@ class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
                               ),
                             ),
                           const SizedBox(height: 12),
-                          // Actions du jour (même page)
+                          // Actions → historiques filtrés sur ce jour
                           Row(
                             children: [
                               Expanded(
                                 child: OutlinedButton.icon(
-                                  onPressed: () =>
-                                      context.push('/chef/select-site'),
+                                  onPressed: () => context.push(
+                                    '$base/pointages?date=$key',
+                                  ),
                                   icon: const Icon(Icons.fingerprint),
-                                  label: const Text('Pointer'),
+                                  label: const Text('Pointages'),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: OutlinedButton.icon(
-                                  onPressed: () =>
-                                      context.push('/chef/incidents'),
+                                  onPressed: () => context.push(
+                                    '$base/incidents?date=$key',
+                                  ),
                                   icon: const Icon(Icons.warning_amber),
                                   label: const Text('Incidents'),
                                 ),

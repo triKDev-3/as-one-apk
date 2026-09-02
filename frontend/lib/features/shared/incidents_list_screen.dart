@@ -23,6 +23,8 @@ class IncidentsListScreen extends ConsumerWidget {
   final bool canResolve;
   final bool canApplyPenalty;
   final String reportRoute;
+  /// yyyy-MM-dd — filtre le jour (côté client)
+  final String? date;
 
   const IncidentsListScreen({
     super.key,
@@ -30,15 +32,27 @@ class IncidentsListScreen extends ConsumerWidget {
     this.canResolve = false,
     this.canApplyPenalty = false,
     this.reportRoute = '/chef/incident',
+    this.date,
   });
+
+  bool _matchesDate(Map<String, dynamic> p, String day) {
+    final created = DateTime.tryParse(p['createdAt'] as String? ?? '');
+    if (created == null) return false;
+    final key = DateFormat('yyyy-MM-dd').format(created.toLocal());
+    return key == day;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(incidentsListProvider);
+    final title = date == null
+        ? 'Incidents'
+        : 'Incidents du ${DateFormat('dd/MM/yyyy').format(DateTime.parse(date!))}';
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Incidents'),
+        title: Text(title),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -69,20 +83,75 @@ class IncidentsListScreen extends ConsumerWidget {
           ),
         ),
         data: (rows) {
-          if (rows.isEmpty) {
-            return const Center(child: Text('Aucun incident'));
+          var filtered = rows
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+          if (date != null) {
+            filtered =
+                filtered.where((p) => _matchesDate(p, date!)).toList();
           }
+
+          if (filtered.isEmpty) {
+            return Center(
+              child: Text(date == null
+                  ? 'Aucun incident'
+                  : 'Aucun incident pour cette journée'),
+            );
+          }
+
+          // Regroupement par site
+          final Map<String, List<Map<String, dynamic>>> bySite = {};
+          for (final p in filtered) {
+            final site = p['site'] as Map<String, dynamic>? ?? {};
+            final siteName = site['name'] as String? ?? 'Site inconnu';
+            bySite.putIfAbsent(siteName, () => []).add(p);
+          }
+          final siteNames = bySite.keys.toList()..sort();
+
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(incidentsListProvider),
             child: ListView.builder(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
-              itemCount: rows.length,
+              itemCount: siteNames.length,
               itemBuilder: (_, i) {
-                final p = rows[i] as Map<String, dynamic>;
-                return _IncidentCard(
-                  data: p,
-                  canResolve: canResolve,
-                  canApplyPenalty: canApplyPenalty,
+                final siteName = siteNames[i];
+                final list = bySite[siteName]!;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8, top: 4),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              color: AppColors.danger,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '$siteName · ${list.length}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ...list.map(
+                      (p) => _IncidentCard(
+                        data: p,
+                        canResolve: canResolve,
+                        canApplyPenalty: canApplyPenalty,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                 );
               },
             ),
@@ -227,9 +296,8 @@ class _IncidentCard extends ConsumerWidget {
     final amountCtrl = TextEditingController();
     final reasonCtrl = TextEditingController();
     String target = 'ONE_AGENT';
-    String? agentId = agents.isNotEmpty
-        ? (agents.first.agentId as String)
-        : null;
+    String? agentId =
+        agents.isNotEmpty ? (agents.first.agentId as String) : null;
 
     final ok = await showModalBottomSheet<bool>(
       context: context,
@@ -254,8 +322,8 @@ class _IncidentCard extends ConsumerWidget {
                 children: [
                   const Text(
                     'Appliquer une pénalité',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w800, fontSize: 16),
+                    style:
+                        TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
                   ),
                   const SizedBox(height: 12),
                   Wrap(
@@ -264,8 +332,7 @@ class _IncidentCard extends ConsumerWidget {
                       ChoiceChip(
                         label: const Text('Un agent'),
                         selected: target == 'ONE_AGENT',
-                        onSelected: (_) =>
-                            setSt(() => target = 'ONE_AGENT'),
+                        onSelected: (_) => setSt(() => target = 'ONE_AGENT'),
                       ),
                       ChoiceChip(
                         label: const Text('Toute l’équipe'),
@@ -302,9 +369,7 @@ class _IncidentCard extends ConsumerWidget {
                   const SizedBox(height: 8),
                   TextField(
                     controller: reasonCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Motif',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Motif'),
                   ),
                   const SizedBox(height: 16),
                   SizedBox(
