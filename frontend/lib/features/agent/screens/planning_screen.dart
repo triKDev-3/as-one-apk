@@ -9,8 +9,15 @@ import '../../../core/services/google_calendar_service.dart';
 import '../agent_home_screen.dart';
 import 'package:dio/dio.dart';
 
-// ─── Models ──────────────────────────────────────────────────────────────────
-enum DayStatus { worked, unavailable, availableMarked, routine, normal }
+enum DayStatus {
+  worked,
+  unavailable,
+  availableMarked,
+  routine,
+  assigned,
+  assignedPending,
+  normal,
+}
 
 class AgentCalendarDay {
   final DateTime date;
@@ -24,18 +31,17 @@ class AgentCalendarDay {
   });
 }
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
-final agentCalendarProvider = FutureProvider.autoDispose.family<
-    Map<String, AgentCalendarDay>, String>((ref, monthKey) async {
+final agentCalendarProvider = FutureProvider.autoDispose
+    .family<Map<String, AgentCalendarDay>, String>((ref, monthKey) async {
   final api = ref.watch(apiClientProvider);
   try {
-    final res = await api.dio.get('/agent/calendar', queryParameters: {'month': monthKey});
+    final res =
+        await api.dio.get('/agent/calendar', queryParameters: {'month': monthKey});
     final data = res.data as Map<String, dynamic>;
     final Map<String, AgentCalendarDay> result = {};
     for (final entry in data.entries) {
       final d = entry.value as Map<String, dynamic>;
-      final dateStr = entry.key;
-      final date = DateTime.tryParse(dateStr);
+      final date = DateTime.tryParse(entry.key);
       if (date == null) continue;
       DayStatus status;
       switch (d['status'] as String? ?? 'normal') {
@@ -51,10 +57,16 @@ final agentCalendarProvider = FutureProvider.autoDispose.family<
         case 'routine':
           status = DayStatus.routine;
           break;
+        case 'assigned':
+          status = DayStatus.assigned;
+          break;
+        case 'assigned_pending':
+          status = DayStatus.assignedPending;
+          break;
         default:
           status = DayStatus.normal;
       }
-      result[dateStr] = AgentCalendarDay(
+      result[entry.key] = AgentCalendarDay(
         date: date,
         status: status,
         siteName: d['siteName'] as String?,
@@ -66,7 +78,6 @@ final agentCalendarProvider = FutureProvider.autoDispose.family<
   }
 });
 
-// ─── Screen ──────────────────────────────────────────────────────────────────
 class PlanningScreen extends ConsumerStatefulWidget {
   const PlanningScreen({super.key});
 
@@ -78,39 +89,44 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
   DateTime _focusedDay = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime? _selectedDay;
+  bool _syncing = false;
 
   String get _monthKey => DateFormat('yyyy-MM').format(_focusedDay);
 
-  Future<void> _toggleDayAvailability(DateTime day, Map<String, AgentCalendarDay> calDays) async {
+  Future<void> _toggleDayAvailability(
+    DateTime day,
+    Map<String, AgentCalendarDay> calDays,
+  ) async {
     final key = DateFormat('yyyy-MM-dd').format(day);
     final existing = calDays[key];
 
-    // Only allow toggling future days
     if (!day.isAfter(DateTime.now().subtract(const Duration(days: 1)))) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vous ne pouvez modifier que les jours à venir')),
+        const SnackBar(
+            content: Text('Vous ne pouvez modifier que les jours à venir')),
       );
       return;
     }
 
-    final isCurrentlyMarkedUnavailable = existing?.status == DayStatus.unavailable;
-    final confirmText = isCurrentlyMarkedUnavailable
-        ? 'Marquer ce jour comme DISPONIBLE ?'
-        : 'Marquer ce jour comme INDISPONIBLE ?';
-
+    final isUnavailable = existing?.status == DayStatus.unavailable;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: Text(DateFormat('EEEE d MMMM yyyy', 'fr').format(day)),
-        content: Text(confirmText),
+        content: Text(isUnavailable
+            ? 'Marquer ce jour comme DISPONIBLE ?'
+            : 'Marquer ce jour comme INDISPONIBLE ?\n\nLe chef pourra toujours vous pointer si vous êtes présent.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: isCurrentlyMarkedUnavailable ? AppColors.accent : AppColors.danger,
+              backgroundColor:
+                  isUnavailable ? AppColors.accent : AppColors.danger,
             ),
-            child: Text(isCurrentlyMarkedUnavailable ? 'Disponible' : 'Indisponible'),
+            child: Text(isUnavailable ? 'Disponible' : 'Indisponible'),
           ),
         ],
       ),
@@ -122,16 +138,17 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
       final api = ref.read(apiClientProvider);
       await api.dio.post('/agent/availability-mark', data: {
         'date': key,
-        'available': isCurrentlyMarkedUnavailable,
+        'available': isUnavailable,
       });
       ref.invalidate(agentCalendarProvider(_monthKey));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isCurrentlyMarkedUnavailable
+            content: Text(isUnavailable
                 ? 'Jour marqué disponible'
                 : 'Jour marqué indisponible'),
-            backgroundColor: isCurrentlyMarkedUnavailable ? AppColors.accent : AppColors.danger,
+            backgroundColor:
+                isUnavailable ? AppColors.accent : AppColors.danger,
           ),
         );
       }
@@ -144,14 +161,13 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
     }
   }
 
-  bool _syncing = false;
-
   Future<void> _syncToCalendar() async {
     setState(() => _syncing = true);
     try {
       final dashboard = await ref.read(agentDashboardProvider.future);
       final service = GoogleCalendarService();
-      await service.syncPlanningToCalendar(dashboard.assignments.cast<Map<String, dynamic>>());
+      await service
+          .syncPlanningToCalendar(dashboard.assignments.cast<Map<String, dynamic>>());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -171,6 +187,25 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
     }
   }
 
+  Color? _bg(DayStatus s) {
+    switch (s) {
+      case DayStatus.worked:
+        return const Color(0xFF10B981);
+      case DayStatus.unavailable:
+        return AppColors.danger;
+      case DayStatus.availableMarked:
+        return AppColors.primary;
+      case DayStatus.routine:
+        return const Color(0xFFF59E0B);
+      case DayStatus.assigned:
+        return AppColors.secondary;
+      case DayStatus.assignedPending:
+        return AppColors.warning;
+      case DayStatus.normal:
+        return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final calAsync = ref.watch(agentCalendarProvider(_monthKey));
@@ -185,26 +220,26 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
         actions: [
           if (_syncing)
             const Padding(
-              padding: EdgeInsets.only(right: 16.0),
+              padding: EdgeInsets.only(right: 16),
               child: Center(
                 child: SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2),
                 ),
               ),
             )
           else
             IconButton(
               icon: const Icon(Icons.sync_rounded),
-              tooltip: 'Synchroniser avec Google Agenda',
+              tooltip: 'Synchroniser Google Agenda',
               onPressed: _syncToCalendar,
             ),
         ],
       ),
       body: Column(
         children: [
-          // Legend
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -213,16 +248,15 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
               spacing: 12,
               runSpacing: 4,
               children: [
-                _LegendItem(color: Color(0xFF10B981), label: 'Jour travaillé'),
+                _LegendItem(color: Color(0xFF10B981), label: 'Travaillé'),
+                _LegendItem(color: AppColors.secondary, label: 'Affecté'),
+                _LegendItem(color: AppColors.warning, label: 'À confirmer'),
                 _LegendItem(color: AppColors.danger, label: 'Indisponible'),
-                _LegendItem(color: AppColors.primary, label: 'Dispo marquée'),
                 _LegendItem(color: Color(0xFFF59E0B), label: 'Routine'),
               ],
             ),
           ),
           const Divider(height: 1),
-
-          // Calendar
           calAsync.when(
             loading: () => const Padding(
               padding: EdgeInsets.all(32),
@@ -233,9 +267,9 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
               child: Column(
                 children: [
                   Text(e.toString(), style: const TextStyle(color: AppColors.danger)),
-                  const SizedBox(height: 12),
                   ElevatedButton(
-                    onPressed: () => ref.invalidate(agentCalendarProvider(_monthKey)),
+                    onPressed: () =>
+                        ref.invalidate(agentCalendarProvider(_monthKey)),
                     child: const Text('Réessayer'),
                   ),
                 ],
@@ -257,9 +291,7 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
                   });
                   _toggleDayAvailability(selected, calDays);
                 },
-                onPageChanged: (focused) {
-                  setState(() => _focusedDay = focused);
-                },
+                onPageChanged: (focused) => setState(() => _focusedDay = focused),
                 onFormatChanged: (f) => setState(() => _calendarFormat = f),
                 calendarStyle: CalendarStyle(
                   outsideDaysVisible: false,
@@ -286,32 +318,8 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
                     final key = DateFormat('yyyy-MM-dd').format(day);
                     final info = calDays[key];
                     if (info == null) return null;
-
-                    Color? bgColor;
-                    Color textColor = AppColors.textPrimary;
-                    switch (info.status) {
-                      case DayStatus.worked:
-                        bgColor = const Color(0xFF10B981);
-                        textColor = Colors.white;
-                        break;
-                      case DayStatus.unavailable:
-                        bgColor = AppColors.danger;
-                        textColor = Colors.white;
-                        break;
-                      case DayStatus.availableMarked:
-                        bgColor = AppColors.primary;
-                        textColor = Colors.white;
-                        break;
-                      case DayStatus.routine:
-                        bgColor = const Color(0xFFF59E0B); // amber
-                        textColor = Colors.white;
-                        break;
-                      case DayStatus.normal:
-                        break;
-                    }
-
+                    final bgColor = _bg(info.status);
                     if (bgColor == null) return null;
-
                     return Container(
                       margin: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
@@ -321,8 +329,8 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
                       alignment: Alignment.center,
                       child: Text(
                         '${day.day}',
-                        style: TextStyle(
-                          color: textColor,
+                        style: const TextStyle(
+                          color: Colors.white,
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
                         ),
@@ -333,14 +341,14 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
               );
             },
           ),
-
-          // Selected day detail
           if (_selectedDay != null)
             calAsync.maybeWhen(
               data: (calDays) {
                 final key = DateFormat('yyyy-MM-dd').format(_selectedDay!);
                 final info = calDays[key];
-                if (info == null || info.status == DayStatus.normal) return const SizedBox.shrink();
+                if (info == null || info.status == DayStatus.normal) {
+                  return const SizedBox.shrink();
+                }
                 return Container(
                   margin: const EdgeInsets.all(16),
                   padding: const EdgeInsets.all(14),
@@ -356,16 +364,10 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
                             ? Icons.check_circle_rounded
                             : info.status == DayStatus.unavailable
                                 ? Icons.cancel_rounded
-                                : info.status == DayStatus.routine
-                                    ? Icons.repeat_rounded
-                                    : Icons.event_available_rounded,
-                        color: info.status == DayStatus.worked
-                            ? const Color(0xFF10B981)
-                            : info.status == DayStatus.unavailable
-                                ? AppColors.danger
-                                : info.status == DayStatus.routine
-                                    ? const Color(0xFFF59E0B)
-                                    : AppColors.primary,
+                                : info.status == DayStatus.assigned
+                                    ? Icons.event_available_rounded
+                                    : Icons.event_rounded,
+                        color: _bg(info.status),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -373,19 +375,16 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              DateFormat('EEEE d MMMM', 'fr').format(_selectedDay!),
-                              style: const TextStyle(fontWeight: FontWeight.w700),
+                              DateFormat('EEEE d MMMM', 'fr')
+                                  .format(_selectedDay!),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700),
                             ),
-                            if (info.siteName != null) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                info.siteName!,
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
+                            if (info.siteName != null)
+                              Text(info.siteName!,
+                                  style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 13)),
                           ],
                         ),
                       ),
@@ -395,11 +394,10 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
               },
               orElse: () => const SizedBox.shrink(),
             ),
-
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
-              'Appuyez sur un jour futur pour marquer votre disponibilité ou indisponibilité.',
+              'Appuyez sur un jour futur pour déclarer une indisponibilité.\nLes dimanches ne sont pas planifiés. Le chef peut toujours vous pointer si vous êtes présent.',
               style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
@@ -413,7 +411,6 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
 class _LegendItem extends StatelessWidget {
   final Color color;
   final String label;
-
   const _LegendItem({required this.color, required this.label});
 
   @override
@@ -427,7 +424,8 @@ class _LegendItem extends StatelessWidget {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 5),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+        Text(label,
+            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
       ],
     );
   }
