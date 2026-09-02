@@ -25,19 +25,24 @@ class PointageRecord {
   factory PointageRecord.fromJson(Map<String, dynamic> j) => PointageRecord(
         id: j['id'] as String,
         notedAt: DateTime.parse((j['date'] ?? j['notedAt']) as String),
-        type: j['type'] as String? ?? 'PRESENCE',
-        siteName: (j['siteName'] as String?) ?? 'Chantier',
-        siteType: '', // not returned currently by backend for this route, keep empty
+        type: j['type'] as String? ?? 'DEPART',
+        siteName: (j['siteName'] as String?) ??
+            (j['site'] is Map ? (j['site']['name'] as String?) : null) ??
+            'Chantier',
+        siteType: '',
       );
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────
-final agentPointagesProvider = FutureProvider.autoDispose<List<PointageRecord>>((ref) async {
+final agentPointagesProvider =
+    FutureProvider.autoDispose<List<PointageRecord>>((ref) async {
   final api = ref.watch(apiClientProvider);
   try {
     final res = await api.dio.get('/agent/pointages');
     final list = res.data as List<dynamic>;
-    return list.map((e) => PointageRecord.fromJson(e as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => PointageRecord.fromJson(e as Map<String, dynamic>))
+        .toList();
   } on DioException catch (e) {
     throw ApiClient.extractError(e);
   }
@@ -67,7 +72,8 @@ class PointagesHistoryScreen extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline, color: AppColors.danger, size: 40),
+                const Icon(Icons.error_outline,
+                    color: AppColors.danger, size: 40),
                 const SizedBox(height: 12),
                 Text(e.toString(), textAlign: TextAlign.center),
                 const SizedBox(height: 16),
@@ -85,18 +91,19 @@ class PointagesHistoryScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.assignment_late_outlined, size: 56, color: AppColors.textTertiary),
+                  Icon(Icons.assignment_late_outlined,
+                      size: 56, color: AppColors.textTertiary),
                   SizedBox(height: 16),
                   Text(
                     'Aucun pointage enregistré',
-                    style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
+                    style: TextStyle(
+                        fontSize: 15, color: AppColors.textSecondary),
                   ),
                 ],
               ),
             );
           }
 
-          // Group by month
           final Map<String, List<PointageRecord>> grouped = {};
           for (final p in pointages) {
             final key = DateFormat('MMMM yyyy', 'fr').format(p.notedAt);
@@ -115,7 +122,6 @@ class PointagesHistoryScreen extends ConsumerWidget {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Month header
                     Padding(
                       padding: const EdgeInsets.only(bottom: 10, top: 8),
                       child: Row(
@@ -141,7 +147,6 @@ class PointagesHistoryScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    // Records
                     ...records.map((p) => _PointageTile(record: p)),
                     const SizedBox(height: 8),
                   ],
@@ -163,10 +168,33 @@ class _PointageTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     String label = 'Départ';
-    Color c = AppColors.accent;
-    if (record.type == 'ABSENT') { label = 'Absent'; c = AppColors.danger; }
-    else if (record.type == 'ARRIVEE') { label = 'Arrivée'; c = AppColors.primary; }
-    else if (record.type == 'PRESENCE_PERMANENCE') { label = 'Présence'; c = AppColors.primary; }
+    Color color = AppColors.accent;
+    IconData icon = Icons.logout_rounded;
+
+    switch (record.type) {
+      case 'ABSENT':
+        label = 'Absent';
+        color = AppColors.danger;
+        icon = Icons.person_off_rounded;
+        break;
+      case 'ARRIVEE':
+        label = 'Arrivée';
+        color = AppColors.primary;
+        icon = Icons.login_rounded;
+        break;
+      case 'PRESENCE_PERMANENCE':
+        label = 'Présence';
+        color = AppColors.primary;
+        icon = Icons.fingerprint_rounded;
+        break;
+      case 'DEPART':
+      default:
+        label = 'Départ';
+        color = AppColors.accent;
+        icon = Icons.logout_rounded;
+        break;
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -182,14 +210,10 @@ class _PointageTile extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(
-                Icons.fingerprint_rounded,
-                color: AppColors.accent,
-                size: 22,
-              ),
+              child: Icon(icon, color: color, size: 22),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -198,28 +222,32 @@ class _PointageTile extends StatelessWidget {
                 children: [
                   Text(
                     record.siteName,
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 14),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    DateFormat('EEEE d MMMM · HH:mm', 'fr').format(record.notedAt.toLocal()),
-                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    DateFormat('EEEE d MMMM · HH:mm', 'fr')
+                        .format(record.notedAt.toLocal()),
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ],
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: (isArrivee ? AppColors.accent : AppColors.primary).withValues(alpha: 0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                isArrivee ? 'Arrivée' : 'Présence',
+                label,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: isArrivee ? AppColors.accent : AppColors.primary,
+                  color: color,
                 ),
               ),
             ),
