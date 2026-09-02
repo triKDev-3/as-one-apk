@@ -41,7 +41,6 @@ export class StatsController {
     );
   }
 
-  /** Calendrier d'activités global (chef / admin / comptable) */
   @Get('calendar')
   @Roles(Role.CHEF, Role.ADMIN, Role.COMPTABLE)
   getCalendar(
@@ -59,5 +58,27 @@ export class StatsController {
       monthKey,
       all === 'true',
     );
+  }
+
+  /** Historique des interventions (affectations) — filtrable */
+  @Get('interventions')
+  @Roles(Role.CHEF, Role.ADMIN, Role.COMPTABLE)
+  getInterventions(
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @Query('siteId') siteId: string,
+    @Query('status') status: string,
+    @Query('all') all: string,
+    @Request() req: any,
+  ) {
+    return this.service.getInterventionsHistory({
+      userId: req.user.id,
+      role: req.user.role,
+      all: all === 'true',
+      from,
+      to,
+      siteId,
+      status,
+    });
   }
 }
