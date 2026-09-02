@@ -35,6 +35,7 @@ import '../../features/agent/screens/planning_screen.dart';
 import '../../features/agent/screens/pointages_history_screen.dart';
 import '../../features/agent/screens/remuneration_screen.dart';
 import '../../features/chef/screens/site_details_screen.dart';
+import '../widgets/role_shell.dart';
 
 String? _qDate(GoRouterState state) => state.uri.queryParameters['date'];
 
@@ -43,167 +44,179 @@ class AppRouter {
     initialLocation: '/login',
     routes: [
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-      GoRoute(
-        path: '/agent',
-        builder: (_, __) => const AgentHomeScreen(),
-        routes: [
-          GoRoute(path: 'ranking', builder: (_, __) => const RankingScreen()),
-          GoRoute(path: 'profile', builder: (_, __) => const AgentProfileScreen()),
-          GoRoute(path: 'planning', builder: (_, __) => const PlanningScreen()),
-          GoRoute(path: 'pointages', builder: (_, __) => const PointagesHistoryScreen()),
-          GoRoute(path: 'remuneration', builder: (_, __) => const RemunerationScreen()),
-          GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
-        ],
-      ),
-      GoRoute(
-        path: '/chef',
-        builder: (_, __) => const ChefHomeScreen(),
-        routes: [
-          GoRoute(path: 'select-site', builder: (_, __) => const SelectSiteScreen()),
-          GoRoute(
-            path: 'site/:siteId',
-            builder: (_, state) => SiteDetailsScreen(
-              siteId: state.pathParameters['siteId']!,
-              site: state.extra as SiteModel,
-            ),
-          ),
-          GoRoute(
-            path: 'compose/:siteId',
-            builder: (_, state) => ComposeTeamScreen(
-              siteId: state.pathParameters['siteId']!,
-              site: state.extra as SiteModel?,
-            ),
-          ),
-          GoRoute(
-            path: 'pointage/:siteId',
-            builder: (_, state) => PointageScreen(
-              siteId: state.pathParameters['siteId']!,
-              site: state.extra as SiteModel?,
-            ),
-          ),
-          GoRoute(path: 'calendar', builder: (_, __) => const ChefCalendarScreen()),
-          GoRoute(path: 'ranking', builder: (_, __) => const RankingScreen()),
-          GoRoute(path: 'transfers', builder: (_, __) => const TransfersScreen()),
-          GoRoute(
-            path: 'incidents',
-            builder: (_, state) => IncidentsListScreen(date: _qDate(state)),
-          ),
-          GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
-          GoRoute(
-            path: 'pointages',
-            builder: (_, state) => PointagesLogScreen(date: _qDate(state)),
-          ),
-          GoRoute(
-            path: 'interventions',
-            builder: (_, __) => const InterventionsHistoryScreen(),
-          ),
-          GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
-          GoRoute(
-            path: 'tasks/:siteId',
-            builder: (_, state) => SiteTasksScreen(
-              siteId: state.pathParameters['siteId']!,
-              site: state.extra as SiteModel?,
-            ),
-          ),
-          GoRoute(
-            path: 'report/:siteId',
-            builder: (_, state) => CloseReportScreen(
-              siteId: state.pathParameters['siteId']!,
-              site: state.extra as SiteModel?,
-            ),
-          ),
-          GoRoute(
-            path: 'rate/:siteId',
-            builder: (_, state) => RateAgentsScreen(
-              siteId: state.pathParameters['siteId']!,
-              site: state.extra as SiteModel?,
-            ),
-          ),
-          GoRoute(
-            path: 'stats-details/:type',
-            builder: (_, state) => StatsDetailsScreen(
-              statType: state.pathParameters['type']!,
-            ),
-          ),
-          GoRoute(path: 'profile', builder: (_, __) => const ChefProfileScreen()),
-        ],
-      ),
-      GoRoute(
-        path: '/magasinier',
-        builder: (_, __) => const MagasinierHomeScreen(),
-        routes: [
-          GoRoute(path: 'out', builder: (_, __) => const MaterialOutScreen()),
-          GoRoute(path: 'return', builder: (_, __) => const MaterialReturnScreen()),
-          GoRoute(path: 'catalog', builder: (_, __) => const _PlaceholderScreen(title: 'Catalogue')),
-          GoRoute(path: 'alerts', builder: (_, __) => const _PlaceholderScreen(title: 'Alertes véhicules')),
-          GoRoute(
-            path: 'pointages',
-            builder: (_, state) => PointagesLogScreen(date: _qDate(state)),
-          ),
-          GoRoute(
-            path: 'incidents',
-            builder: (_, state) => IncidentsListScreen(
-              canApplyPenalty: true,
-              date: _qDate(state),
-            ),
-          ),
-          GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
-          GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
-        ],
-      ),
-      GoRoute(
-        path: '/comptable',
-        builder: (_, __) => const ComptableHomeScreen(),
+
+      /// Coque avec nav bas fixe pour tous les rôles authentifiés
+      ShellRoute(
+        builder: (context, state, child) {
+          return RoleShell(
+            location: state.uri.path,
+            child: child,
+          );
+        },
         routes: [
           GoRoute(
-            path: 'period/:id',
-            builder: (_, state) => PeriodDetailScreen(
-              periodId: state.pathParameters['id']!,
-            ),
+            path: '/agent',
+            builder: (_, __) => const AgentHomeScreen(),
+            routes: [
+              GoRoute(path: 'ranking', builder: (_, __) => const RankingScreen()),
+              GoRoute(path: 'profile', builder: (_, __) => const AgentProfileScreen()),
+              GoRoute(path: 'planning', builder: (_, __) => const PlanningScreen()),
+              GoRoute(path: 'pointages', builder: (_, __) => const PointagesHistoryScreen()),
+              GoRoute(path: 'remuneration', builder: (_, __) => const RemunerationScreen()),
+              GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
+            ],
           ),
           GoRoute(
-            path: 'pointages',
-            builder: (_, state) => PointagesLogScreen(date: _qDate(state)),
+            path: '/chef',
+            builder: (_, __) => const ChefHomeScreen(),
+            routes: [
+              GoRoute(path: 'select-site', builder: (_, __) => const SelectSiteScreen()),
+              GoRoute(
+                path: 'site/:siteId',
+                builder: (_, state) => SiteDetailsScreen(
+                  siteId: state.pathParameters['siteId']!,
+                  site: state.extra as SiteModel,
+                ),
+              ),
+              GoRoute(
+                path: 'compose/:siteId',
+                builder: (_, state) => ComposeTeamScreen(
+                  siteId: state.pathParameters['siteId']!,
+                  site: state.extra as SiteModel?,
+                ),
+              ),
+              GoRoute(
+                path: 'pointage/:siteId',
+                builder: (_, state) => PointageScreen(
+                  siteId: state.pathParameters['siteId']!,
+                  site: state.extra as SiteModel?,
+                ),
+              ),
+              GoRoute(path: 'calendar', builder: (_, __) => const ChefCalendarScreen()),
+              GoRoute(path: 'ranking', builder: (_, __) => const RankingScreen()),
+              GoRoute(path: 'transfers', builder: (_, __) => const TransfersScreen()),
+              GoRoute(
+                path: 'incidents',
+                builder: (_, state) => IncidentsListScreen(date: _qDate(state)),
+              ),
+              GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
+              GoRoute(
+                path: 'pointages',
+                builder: (_, state) => PointagesLogScreen(date: _qDate(state)),
+              ),
+              GoRoute(
+                path: 'interventions',
+                builder: (_, __) => const InterventionsHistoryScreen(),
+              ),
+              GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
+              GoRoute(
+                path: 'tasks/:siteId',
+                builder: (_, state) => SiteTasksScreen(
+                  siteId: state.pathParameters['siteId']!,
+                  site: state.extra as SiteModel?,
+                ),
+              ),
+              GoRoute(
+                path: 'report/:siteId',
+                builder: (_, state) => CloseReportScreen(
+                  siteId: state.pathParameters['siteId']!,
+                  site: state.extra as SiteModel?,
+                ),
+              ),
+              GoRoute(
+                path: 'rate/:siteId',
+                builder: (_, state) => RateAgentsScreen(
+                  siteId: state.pathParameters['siteId']!,
+                  site: state.extra as SiteModel?,
+                ),
+              ),
+              GoRoute(
+                path: 'stats-details/:type',
+                builder: (_, state) => StatsDetailsScreen(
+                  statType: state.pathParameters['type']!,
+                ),
+              ),
+              GoRoute(path: 'profile', builder: (_, __) => const ChefProfileScreen()),
+            ],
           ),
           GoRoute(
-            path: 'incidents',
-            builder: (_, state) => IncidentsListScreen(
-              canCreate: false,
-              canResolve: false,
-              date: _qDate(state),
-            ),
+            path: '/magasinier',
+            builder: (_, __) => const MagasinierHomeScreen(),
+            routes: [
+              GoRoute(path: 'out', builder: (_, __) => const MaterialOutScreen()),
+              GoRoute(path: 'return', builder: (_, __) => const MaterialReturnScreen()),
+              GoRoute(path: 'catalog', builder: (_, __) => const _PlaceholderScreen(title: 'Catalogue')),
+              GoRoute(path: 'alerts', builder: (_, __) => const _PlaceholderScreen(title: 'Alertes véhicules')),
+              GoRoute(
+                path: 'pointages',
+                builder: (_, state) => PointagesLogScreen(date: _qDate(state)),
+              ),
+              GoRoute(
+                path: 'incidents',
+                builder: (_, state) => IncidentsListScreen(
+                  canApplyPenalty: true,
+                  date: _qDate(state),
+                ),
+              ),
+              GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
+              GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
+            ],
           ),
           GoRoute(
-            path: 'interventions',
-            builder: (_, __) => const InterventionsHistoryScreen(),
+            path: '/comptable',
+            builder: (_, __) => const ComptableHomeScreen(),
+            routes: [
+              GoRoute(
+                path: 'period/:id',
+                builder: (_, state) => PeriodDetailScreen(
+                  periodId: state.pathParameters['id']!,
+                ),
+              ),
+              GoRoute(
+                path: 'pointages',
+                builder: (_, state) => PointagesLogScreen(date: _qDate(state)),
+              ),
+              GoRoute(
+                path: 'incidents',
+                builder: (_, state) => IncidentsListScreen(
+                  canCreate: false,
+                  canResolve: false,
+                  date: _qDate(state),
+                ),
+              ),
+              GoRoute(
+                path: 'interventions',
+                builder: (_, __) => const InterventionsHistoryScreen(),
+              ),
+              GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
+            ],
           ),
-          GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
-        ],
-      ),
-      GoRoute(
-        path: '/admin',
-        builder: (_, __) => const AdminHomeScreen(),
-        routes: [
-          GoRoute(path: 'users', builder: (_, __) => const UsersListScreen()),
-          GoRoute(path: 'users/create', builder: (_, __) => const CreateUserScreen()),
-          GoRoute(path: 'sites/create', builder: (_, __) => const CreateSiteScreen()),
-          GoRoute(path: 'sites', builder: (_, __) => const AdminSitesScreen()),
-          GoRoute(path: 'ranking', builder: (_, __) => const RankingScreen()),
           GoRoute(
-            path: 'pointages',
-            builder: (_, state) => PointagesLogScreen(date: _qDate(state)),
+            path: '/admin',
+            builder: (_, __) => const AdminHomeScreen(),
+            routes: [
+              GoRoute(path: 'users', builder: (_, __) => const UsersListScreen()),
+              GoRoute(path: 'users/create', builder: (_, __) => const CreateUserScreen()),
+              GoRoute(path: 'sites/create', builder: (_, __) => const CreateSiteScreen()),
+              GoRoute(path: 'sites', builder: (_, __) => const AdminSitesScreen()),
+              GoRoute(path: 'ranking', builder: (_, __) => const RankingScreen()),
+              GoRoute(
+                path: 'pointages',
+                builder: (_, state) => PointagesLogScreen(date: _qDate(state)),
+              ),
+              GoRoute(
+                path: 'incidents',
+                builder: (_, state) => IncidentsListScreen(date: _qDate(state)),
+              ),
+              GoRoute(
+                path: 'interventions',
+                builder: (_, __) => const InterventionsHistoryScreen(),
+              ),
+              GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
+              GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
+              GoRoute(path: 'calendar', builder: (_, __) => const ChefCalendarScreen()),
+            ],
           ),
-          GoRoute(
-            path: 'incidents',
-            builder: (_, state) => IncidentsListScreen(date: _qDate(state)),
-          ),
-          GoRoute(
-            path: 'interventions',
-            builder: (_, __) => const InterventionsHistoryScreen(),
-          ),
-          GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
-          GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
-          GoRoute(path: 'calendar', builder: (_, __) => const ChefCalendarScreen()),
         ],
       ),
     ],
