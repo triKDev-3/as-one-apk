@@ -23,12 +23,41 @@ export class StatsController {
     @Query('all') all: string,
     @Request() req: any,
   ) {
-    return this.service.getAgentsDetails(type, req.user.id, req.user.role, all === 'true');
+    return this.service.getAgentsDetails(
+      type,
+      req.user.id,
+      req.user.role,
+      all === 'true',
+    );
   }
 
   @Get('agents-by-site')
   @Roles(Role.CHEF, Role.ADMIN, Role.COMPTABLE)
   getAgentsBySite(@Query('all') all: string, @Request() req: any) {
-    return this.service.getAgentsBySite(req.user.id, req.user.role, all === 'true');
+    return this.service.getAgentsBySite(
+      req.user.id,
+      req.user.role,
+      all === 'true',
+    );
+  }
+
+  /** Calendrier d'activités global (chef / admin / comptable) */
+  @Get('calendar')
+  @Roles(Role.CHEF, Role.ADMIN, Role.COMPTABLE)
+  getCalendar(
+    @Query('month') month: string,
+    @Query('all') all: string,
+    @Request() req: any,
+  ) {
+    const monthKey =
+      month && /^\d{4}-\d{2}$/.test(month)
+        ? month
+        : new Date().toISOString().slice(0, 7);
+    return this.service.getChefCalendar(
+      req.user.id,
+      req.user.role,
+      monthKey,
+      all === 'true',
+    );
   }
 }
