@@ -31,9 +31,48 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
   final Set<int> _routineDays = {};
   final _salaryCtrl = TextEditingController();
 
-  // Filters & sort
-  String _contractFilter = 'ALL'; // ALL | PERMANENT | TEMPORAIRE
-  String _sortMode = 'score'; // score | days
+  String _contractFilter = 'ALL';
+  String _sortMode = 'score';
+
+  /// Dialogue conflit multi-sites → force | skip | cancel batch
+  Future<String> _resolveMultiSiteDialog(AvailableAgent agent) async {
+    final sites = agent.lockedSitesLabel.isEmpty
+        ? 'un autre chantier'
+        : agent.lockedSitesLabel;
+
+    return await showDialog<String>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Conflit multi-sites'),
+            content: Text(
+              '${agent.fullName} est déjà affecté sur :\n\n$sites\n\n'
+              '${agent.canForceMultiSite
+                  ? 'Il a un pointage DEPART aujourd\'hui → urgence multi-chantiers possible.'
+                  : 'Sans pointage DEPART ce jour, vous ne pouvez pas forcer.\nLibérez-le d\'abord ou attendez un pointage.'}',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, 'skip'),
+                child: const Text('Ignorer cet agent'),
+              ),
+              if (agent.canForceMultiSite)
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, 'force'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.warning,
+                  ),
+                  child: const Text('Forcer (urgence)'),
+                )
+              else
+                TextButton(
+                  onPressed: () => Navigator.pop(context, 'skip'),
+                  child: const Text('OK', style: TextStyle(color: AppColors.danger)),
+                ),
+            ],
+          ),
+        ) ??
+        'skip';
+  }
 
   Future<void> _assignSelected() async {
     if (_selectedAgentIds.isEmpty) return;
@@ -43,7 +82,6 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
     final endStr =
         _endDate != null ? DateFormat('yyyy-MM-dd').format(_endDate!) : null;
 
-    // Snapshot agents info for WhatsApp after success
     final agentsSnapshot =
         ref.read(availableAgentsProvider(widget.siteId)).valueOrNull ?? [];
     final selectedAgents = agentsSnapshot
@@ -52,10 +90,24 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
 
     int success = 0;
     int failed = 0;
+    int skipped = 0;
     String? lastError;
     final assignedAgents = <AvailableAgent>[];
 
     for (final agent in selectedAgents) {
+      bool force = false;
+
+      // Prévention UI si déjà en conflit connu
+      if (agent.isLockedElsewhere || agent.lockedOnSites.isNotEmpty) {
+        final action = await _resolveMultiSiteDialog(agent);
+        if (action == 'skip') {
+          skipped++;
+          _selectedAgentIds.remove(agent.id);
+          continue;
+        }
+        if (action == 'force') force = true;
+      }
+
       setState(() => _assigningIds.add(agent.id));
       try {
         await repo.createAssignment(
@@ -64,15 +116,60 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
           startDate: startStr,
           endDate: endStr,
           missionType: _missionType,
-          routineDays: _missionType == 'ROUTINE' ? _routineDays.toList() : null,
-          fixedSalary: _missionType == 'PERMANENTE' ? double.tryParse(_salaryCtrl.text) : null,
+          routineDays:
+              _missionType == 'ROUTINE' ? _routineDays.toList() : null,
+          fixedSalary: _missionType == 'PERMANENTE'
+              ? double.tryParse(_salaryCtrl.text)
+              : null,
+          forceMultiSite: force,
         );
         success++;
         assignedAgents.add(agent);
         _selectedAgentIds.remove(agent.id);
       } catch (e) {
-        failed++;
-        lastError = e.toString();
+        final err = e.toString();
+        // Conflit renvoyé par l'API (ex. dates chevauchantes non détectées côté UI)
+        if (err.contains('MULTI_SITE') ||
+            err.toLowerCase().contains('multi-sites') ||
+            err.toLowerCase().contains('verrouillé')) {
+          if (!force && agent.canForceMultiSite && mounted) {
+            final action = await _resolveMultiSiteDialog(agent);
+            if (action == 'force') {
+              try {
+                await repo.createAssignment(
+                  siteId: widget.siteId,
+                  agentId: agent.id,
+                  startDate: startStr,
+                  endDate: endStr,
+                  missionType: _missionType,
+                  routineDays: _missionType == 'ROUTINE'
+                      ? _routineDays.toList()
+                      : null,
+                  fixedSalary: _missionType == 'PERMANENTE'
+                      ? double.tryParse(_salaryCtrl.text)
+                      : null,
+                  forceMultiSite: true,
+                );
+                success++;
+                assignedAgents.add(agent);
+                _selectedAgentIds.remove(agent.id);
+                continue;
+              } catch (e2) {
+                failed++;
+                lastError = e2.toString();
+              }
+            } else {
+              skipped++;
+              _selectedAgentIds.remove(agent.id);
+            }
+          } else {
+            failed++;
+            lastError = err;
+          }
+        } else {
+          failed++;
+          lastError = err;
+        }
       } finally {
         if (mounted) {
           setState(() => _assigningIds.remove(agent.id));
@@ -85,13 +182,16 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
 
     if (!mounted) return;
 
-    final msg = failed == 0
-        ? '$success agent(s) assigné(s) avec succès'
-        : '$success OK, $failed échec${lastError != null ? ' : $lastError' : ''}';
+    final parts = <String>[];
+    if (success > 0) parts.add('$success OK');
+    if (skipped > 0) parts.add('$skipped ignoré(s)');
+    if (failed > 0) {
+      parts.add('$failed échec${lastError != null ? ' : $lastError' : ''}');
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg),
+        content: Text(parts.isEmpty ? 'Aucune action' : parts.join(' · ')),
         backgroundColor: failed == 0 ? AppColors.accent : AppColors.warning,
       ),
     );
@@ -120,15 +220,8 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Notifier les agents',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'WhatsApp / SMS avec message prérempli',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+              Text('Notifier les agents',
+                  style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 12),
               ...agents.map((agent) {
                 final msg = WhatsAppHelper.assignmentMessage(
@@ -137,7 +230,9 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                   startDate: startStr,
                   endDate: endStr,
                   missionType: _missionType,
-                  routineDays: _missionType == 'ROUTINE' ? _routineDays.toList() : null,
+                  routineDays: _missionType == 'ROUTINE'
+                      ? _routineDays.toList()
+                      : null,
                 );
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -148,44 +243,23 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.chat, color: Color(0xFF25D366)),
-                        tooltip: 'WhatsApp',
-                        onPressed: () async {
-                          await WhatsAppHelper.openWhatsApp(
-                            phone: agent.phone,
-                            message: msg,
-                          );
-                        },
+                        onPressed: () => WhatsAppHelper.openWhatsApp(
+                          phone: agent.phone,
+                          message: msg,
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.sms_outlined,
                             color: AppColors.primary),
-                        tooltip: 'SMS',
-                        onPressed: () async {
-                          await WhatsAppHelper.openSms(
-                            phone: agent.phone,
-                            message: msg,
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.copy),
-                        tooltip: 'Copier',
-                        onPressed: () async {
-                          await WhatsAppHelper.copyMessage(msg);
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Message pour ${agent.fullName} copié'),
-                              ),
-                            );
-                          }
-                        },
+                        onPressed: () => WhatsAppHelper.openSms(
+                          phone: agent.phone,
+                          message: msg,
+                        ),
                       ),
                     ],
                   ),
                 );
               }),
-              const SizedBox(height: 8),
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text('Fermer'),
@@ -195,58 +269,6 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
         ),
       ),
     );
-  }
-
-
-  // ignore: unused_element
-  Future<void> _requestTransfer(AssignmentModel assignment) async {
-    try {
-      final chefs = await ref.read(assignmentsRepositoryProvider).listChefs();
-      final myId = ref.read(authProvider).user?.id;
-      final others = chefs.where((c) => c['id'] != myId).toList();
-      if (!mounted) return;
-      if (others.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Aucun autre chef disponible')),
-        );
-        return;
-      }
-      final selected = await showModalBottomSheet<String>(
-        context: context,
-        builder: (ctx) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const ListTile(title: Text('Transférer vers…')),
-              ...others.map((c) => ListTile(
-                    title: Text('${c['firstName']} ${c['lastName']}'),
-                    subtitle: Text('${c['phone'] ?? ''}'),
-                    onTap: () => Navigator.pop(ctx, c['id'] as String),
-                  )),
-            ],
-          ),
-        ),
-      );
-      if (selected == null) return;
-      await ref.read(assignmentsRepositoryProvider).requestTransfer(
-            assignmentId: assignment.id,
-            toChefId: selected,
-          );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Demande de transfert envoyée'),
-            backgroundColor: AppColors.accent,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: AppColors.danger),
-        );
-      }
-    }
   }
 
   Future<void> _pickStartDate() async {
@@ -274,8 +296,8 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
     final siteName = widget.site?.name ?? 'Site';
     final agentsAsync = ref.watch(availableAgentsProvider(widget.siteId));
     final currentAsync = ref.watch(siteAssignmentsProvider(widget.siteId));
+    final startKey = DateFormat('yyyy-MM-dd').format(_startDate);
 
-    // Agents déjà sur ce site → exclus de la sélection
     final alreadyAssignedIds = <String>{};
     currentAsync.whenData((list) {
       for (final a in list) {
@@ -294,7 +316,6 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
       ),
       body: Column(
         children: [
-          // Paramètres d'affectation
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
@@ -304,18 +325,22 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
               children: [
                 DropdownButtonFormField<String>(
                   initialValue: _missionType,
-                  decoration: const InputDecoration(labelText: 'Type de mission'),
+                  decoration:
+                      const InputDecoration(labelText: 'Type de mission'),
                   items: const [
-                    DropdownMenuItem(value: 'TEMPORAIRE', child: Text('Chantier / Temporaire')),
-                    DropdownMenuItem(value: 'ROUTINE', child: Text('Routine (ex: chaque mardi)')),
-                    DropdownMenuItem(value: 'PERMANENTE', child: Text('Permanence')),
+                    DropdownMenuItem(
+                        value: 'TEMPORAIRE',
+                        child: Text('Chantier / Temporaire')),
+                    DropdownMenuItem(
+                        value: 'ROUTINE',
+                        child: Text('Routine (ex: chaque mardi)')),
+                    DropdownMenuItem(
+                        value: 'PERMANENTE', child: Text('Permanence')),
                   ],
-                  onChanged: (v) => setState(() {
-                    _missionType = v ?? 'TEMPORAIRE';
-                  }),
+                  onChanged: (v) =>
+                      setState(() => _missionType = v ?? 'TEMPORAIRE'),
                 ),
                 const SizedBox(height: 12),
-                
                 if (_missionType == 'TEMPORAIRE')
                   Row(
                     children: [
@@ -338,36 +363,34 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                       ),
                     ],
                   ),
-
                 if (_missionType == 'ROUTINE')
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Jours de la semaine', style: TextStyle(fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        children: [1, 2, 3, 4, 5, 6, 7].map((day) {
-                          final isSelected = _routineDays.contains(day);
-                          final labels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-                          return ChoiceChip(
-                            label: Text(labels[day - 1]),
-                            selected: isSelected,
-                            onSelected: (val) {
-                              setState(() {
-                                if (val) {
-                                  _routineDays.add(day);
-                                } else {
-                                  _routineDays.remove(day);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                    ],
+                  Wrap(
+                    spacing: 8,
+                    children: [1, 2, 3, 4, 5, 6, 7].map((day) {
+                      final labels = [
+                        'Lun',
+                        'Mar',
+                        'Mer',
+                        'Jeu',
+                        'Ven',
+                        'Sam',
+                        'Dim'
+                      ];
+                      return ChoiceChip(
+                        label: Text(labels[day - 1]),
+                        selected: _routineDays.contains(day),
+                        onSelected: (val) {
+                          setState(() {
+                            if (val) {
+                              _routineDays.add(day);
+                            } else {
+                              _routineDays.remove(day);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
                   ),
-
                 if (_missionType == 'PERMANENTE')
                   Row(
                     children: [
@@ -394,13 +417,11 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
               ],
             ),
           ),
-          // Filtre + Tri bar
           Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
             child: Row(
               children: [
-                // Contract filter chips
                 Expanded(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -409,183 +430,128 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                         _FilterChip(
                           label: 'Tous',
                           selected: _contractFilter == 'ALL',
-                          onTap: () => setState(() => _contractFilter = 'ALL'),
+                          onTap: () =>
+                              setState(() => _contractFilter = 'ALL'),
                         ),
                         const SizedBox(width: 6),
                         _FilterChip(
                           label: 'Permanents',
                           selected: _contractFilter == 'PERMANENT',
                           color: AppColors.primary,
-                          onTap: () => setState(() => _contractFilter = 'PERMANENT'),
+                          onTap: () =>
+                              setState(() => _contractFilter = 'PERMANENT'),
                         ),
                         const SizedBox(width: 6),
                         _FilterChip(
                           label: 'Temporaires',
                           selected: _contractFilter == 'TEMPORAIRE',
                           color: AppColors.secondary,
-                          onTap: () => setState(() => _contractFilter = 'TEMPORAIRE'),
+                          onTap: () =>
+                              setState(() => _contractFilter = 'TEMPORAIRE'),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                // Sort button
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.sort, color: AppColors.primary),
-                  tooltip: 'Trier',
-                  initialValue: _sortMode,
                   onSelected: (v) => setState(() => _sortMode = v),
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'score',
-                      child: Text('Par classement ★'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'days',
-                      child: Text('Par jours travaillés'),
-                    ),
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'score', child: Text('Par classement')),
+                    PopupMenuItem(
+                        value: 'days', child: Text('Par jours travaillés')),
                   ],
                 ),
               ],
             ),
           ),
           const Divider(height: 1),
-
-          // Équipe actuelle
           currentAsync.when(
             loading: () => const SizedBox.shrink(),
             error: (_, __) => const SizedBox.shrink(),
             data: (current) {
               if (current.isEmpty) return const SizedBox.shrink();
-              return Theme(
-                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                child: Container(
-                  width: double.infinity,
-                  color: AppColors.accent.withValues(alpha: 0.06),
-                  child: ExpansionTile(
-                    initiallyExpanded: true,
-                    tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-                    childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    expandedCrossAxisAlignment: CrossAxisAlignment.start,
-                    title: Text(
-                      'Équipe actuelle (${current.length})',
+              return Container(
+                width: double.infinity,
+                color: AppColors.accent.withValues(alpha: 0.06),
+                child: ExpansionTile(
+                  initiallyExpanded: true,
+                  title: Text('Équipe actuelle (${current.length})',
                       style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.accent,
-                      ),
-                    ),
-                    children: [
-                      Wrap(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.accent)),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                      child: Wrap(
                         spacing: 6,
-                        runSpacing: 6,
                         children: current
                             .map((a) => ActionChip(
                                   label: Text(a.agentName),
-                                  backgroundColor: Colors.white,
-                                  side: const BorderSide(color: AppColors.border),
-                                  visualDensity: VisualDensity.compact,
-                                  avatar: const Icon(Icons.person_remove_outlined, size: 16, color: AppColors.danger),
                                   onPressed: () async {
                                     final confirm = await showDialog<bool>(
                                       context: context,
                                       builder: (_) => AlertDialog(
-                                        title: const Text('Libérer l\'agent ?'),
+                                        title: const Text('Libérer ?'),
                                         content: Text(
-                                          'Libérer ${a.agentName} de ce chantier. '
-                                          'Il devra être reconvoqué pour revenir.',
-                                        ),
+                                            'Libérer ${a.agentName} de ce chantier ?'),
                                         actions: [
                                           TextButton(
-                                            onPressed: () => Navigator.pop(context, false),
-                                            child: const Text('Annuler'),
-                                          ),
+                                              onPressed: () =>
+                                                  Navigator.pop(context, false),
+                                              child: const Text('Annuler')),
                                           TextButton(
-                                            onPressed: () => Navigator.pop(context, true),
-                                            child: const Text('Libérer', style: TextStyle(color: AppColors.danger)),
-                                          ),
+                                              onPressed: () =>
+                                                  Navigator.pop(context, true),
+                                              child: const Text('Libérer',
+                                                  style: TextStyle(
+                                                      color:
+                                                          AppColors.danger))),
                                         ],
                                       ),
                                     );
                                     if (confirm == true && context.mounted) {
-                                      try {
-                                        await ref.read(assignmentsRepositoryProvider).releaseAgent(a.id);
-                                        ref.invalidate(siteAssignmentsProvider(widget.siteId));
-                                        ref.invalidate(availableAgentsProvider(widget.siteId));
-                                      } catch (e) {
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text(e.toString()), backgroundColor: AppColors.danger),
-                                          );
-                                        }
-                                      }
+                                      await ref
+                                          .read(assignmentsRepositoryProvider)
+                                          .releaseAgent(a.id);
+                                      ref.invalidate(
+                                          siteAssignmentsProvider(
+                                              widget.siteId));
+                                      ref.invalidate(
+                                          availableAgentsProvider(
+                                              widget.siteId));
                                     }
                                   },
                                 ))
                             .toList(),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Appuyez sur un agent pour le libérer (indisponible). Appui long = transfert.',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               );
             },
           ),
-
-          // Liste agents disponibles
           Expanded(
             child: agentsAsync.when(
               loading: () =>
                   const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(err.toString(), textAlign: TextAlign.center),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: () =>
-                            ref.invalidate(availableAgentsProvider(widget.siteId)),
-                        child: const Text('Réessayer'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              error: (err, _) => Center(child: Text(err.toString())),
               data: (agents) {
                 var filtered = agents
                     .where((a) => !alreadyAssignedIds.contains(a.id))
                     .toList();
-
-                // Apply contract filter
                 if (_contractFilter != 'ALL') {
                   filtered = filtered
                       .where((a) => a.contractType == _contractFilter)
                       .toList();
                 }
-
-                // Apply sort
                 filtered.sort((a, b) {
                   if (_sortMode == 'days') {
                     return b.daysWorked.compareTo(a.daysWorked);
                   }
-                  // Default: score
-                  final scoreA = a.avgScore ?? a.rankingScore;
-                  final scoreB = b.avgScore ?? b.rankingScore;
-                  return scoreB.compareTo(scoreA);
+                  return (b.avgScore ?? b.rankingScore)
+                      .compareTo(a.avgScore ?? a.rankingScore);
                 });
-
-                if (filtered.isEmpty) {
-                  return const Center(
-                    child: Text('Aucun agent disponible'),
-                  );
-                }
 
                 return RefreshIndicator(
                   onRefresh: () async {
@@ -599,11 +565,13 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                       final agent = filtered[index];
                       final selected = _selectedAgentIds.contains(agent.id);
                       final assigning = _assigningIds.contains(agent.id);
+                      final dayIndispo = agent.isUnavailableOn(startKey);
 
                       return _AgentTile(
                         agent: agent,
                         selected: selected,
                         assigning: assigning,
+                        dayIndispo: dayIndispo,
                         onTap: assigning
                             ? null
                             : () {
@@ -622,8 +590,6 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
               },
             ),
           ),
-
-          // Bouton d'attribution
           if (_selectedAgentIds.isNotEmpty)
             SafeArea(
               child: Padding(
@@ -636,9 +602,7 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                           height: 22,
                           width: 22,
                           child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Colors.white,
-                          ),
+                              strokeWidth: 2.5, color: Colors.white),
                         )
                       : Text(
                           'Attribuer ${_selectedAgentIds.length} agent(s)',
@@ -656,12 +620,8 @@ class _DateChip extends StatelessWidget {
   final String label;
   final String value;
   final VoidCallback onTap;
-
-  const _DateChip({
-    required this.label,
-    required this.value,
-    required this.onTap,
-  });
+  const _DateChip(
+      {required this.label, required this.value, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -677,21 +637,12 @@ class _DateChip extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-            ),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 11, color: AppColors.textSecondary)),
+            Text(value,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
           ],
         ),
       ),
@@ -703,17 +654,22 @@ class _AgentTile extends StatelessWidget {
   final AvailableAgent agent;
   final bool selected;
   final bool assigning;
+  final bool dayIndispo;
   final VoidCallback? onTap;
 
   const _AgentTile({
     required this.agent,
     required this.selected,
     required this.assigning,
+    this.dayIndispo = false,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final multiConflict =
+        agent.isLockedElsewhere || agent.lockedOnSites.isNotEmpty;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Material(
@@ -729,8 +685,10 @@ class _AgentTile extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: selected ? AppColors.accent : AppColors.border,
-                width: selected ? 1.5 : 1,
+                color: multiConflict
+                    ? AppColors.danger
+                    : (selected ? AppColors.accent : AppColors.border),
+                width: selected || multiConflict ? 1.5 : 1,
               ),
             ),
             child: Row(
@@ -743,9 +701,7 @@ class _AgentTile extends StatelessWidget {
                         ? agent.firstName[0].toUpperCase()
                         : '?',
                     style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
+                        color: AppColors.primary, fontWeight: FontWeight.bold),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -753,36 +709,44 @@ class _AgentTile extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        agent.fullName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
-                      ),
+                      Text(agent.fullName,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 15)),
                       const SizedBox(height: 2),
-                      // Badges row
                       Wrap(
                         spacing: 4,
+                        runSpacing: 4,
                         children: [
                           _Badge(
-                            label: agent.contractType == 'PERMANENT' ? 'Permanent' : 'Temp.',
-                            color: agent.contractType == 'PERMANENT' ? AppColors.primary : AppColors.secondary,
+                            label: agent.contractType == 'PERMANENT'
+                                ? 'Permanent'
+                                : 'Temp.',
+                            color: agent.contractType == 'PERMANENT'
+                                ? AppColors.primary
+                                : AppColors.secondary,
                           ),
                           _Badge(
-                            label: '${(agent.avgScore ?? agent.rankingScore).toStringAsFixed(1)} ★',
+                            label:
+                                '${(agent.avgScore ?? agent.rankingScore).toStringAsFixed(1)} ★',
                             color: AppColors.warning,
                           ),
                           _Badge(
-                            label: '${agent.daysWorked}j travaillis',
+                            label: '${agent.daysWorked}j',
                             color: AppColors.accent,
                           ),
-                          if (agent.isLockedElsewhere)
-                            const _Badge(
-                              label: 'Indisponible',
+                          if (multiConflict)
+                            _Badge(
+                              label: agent.canForceMultiSite
+                                  ? 'Multi-sites (force OK)'
+                                  : 'Sur ${agent.lockedSitesLabel}',
                               color: AppColors.danger,
+                            ),
+                          if (dayIndispo)
+                            const _Badge(
+                              label: 'Indispo ce jour',
+                              color: AppColors.warning,
                             )
-                          else if (!agent.isAvailable)
+                          else if (!agent.isAvailable && !multiConflict)
                             const _Badge(
                               label: 'Inactif',
                               color: AppColors.textSecondary,
@@ -833,8 +797,7 @@ class _FilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+      child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: selected ? color.withValues(alpha: 0.15) : Colors.transparent,
@@ -857,7 +820,6 @@ class _FilterChip extends StatelessWidget {
 class _Badge extends StatelessWidget {
   final String label;
   final Color color;
-
   const _Badge({required this.label, required this.color});
 
   @override
@@ -868,14 +830,9 @@ class _Badge extends StatelessWidget {
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          color: color,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+      child: Text(label,
+          style: TextStyle(
+              fontSize: 11, color: color, fontWeight: FontWeight.w600)),
     );
   }
 }
