@@ -9,6 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { AssignmentStatus, Role, Prisma } from '@prisma/client';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class AssignmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsGateway,
+    private readonly notify: NotificationsService,
     private readonly whatsapp: WhatsappService,
   ) {}
 
@@ -41,13 +43,10 @@ export class AssignmentsService {
       throw new NotFoundException('Agent introuvable');
     }
 
-    // Toujours confirmation jusqu'à 22h — encore plus si indisponible global ou jour marqué
     const unavailableDates: string[] =
       (agent.agentProfile?.unavailableDates as string[]) || [];
     const startKey = new Date(dto.startDate).toISOString().slice(0, 10);
     const dayUnavailable = unavailableDates.includes(startKey);
-    const needsConfirmation =
-      !agent.agentProfile?.isAvailable || dayUnavailable || true;
 
     const assignment = await this.prisma.assignment.create({
       data: {
@@ -56,9 +55,7 @@ export class AssignmentsService {
         createdById: chefId,
         startDate: new Date(dto.startDate),
         endDate: dto.endDate ? new Date(dto.endDate) : null,
-        status: needsConfirmation
-          ? AssignmentStatus.PENDING_CONFIRMATION
-          : AssignmentStatus.CONFIRMED,
+        status: AssignmentStatus.PENDING_CONFIRMATION,
         isLocked: true,
         missionType: dto.missionType || 'TEMPORAIRE',
         routineDays: dto.routineDays
@@ -72,19 +69,32 @@ export class AssignmentsService {
       },
     }) as any;
 
+    const siteName = assignment.site?.name || 'chantier';
+    const body = dayUnavailable
+      ? `Affectation sur ${siteName} un jour que vous aviez marqué indisponible — confirmez avant 22h`
+      : `Nouvelle affectation sur ${siteName} — confirmez avant 22h`;
+
+    await this.notify.push(dto.agentId, {
+      title: 'Nouvelle affectation',
+      body,
+      type: 'assignment:new',
+      data: {
+        id: assignment.id,
+        siteId: dto.siteId,
+        dayUnavailable,
+      },
+    });
+
     this.notifications.notifyAssignment(dto.agentId, {
       id: assignment.id,
-      site: (assignment as any).site,
+      site: assignment.site,
       startDate: assignment.startDate,
       endDate: assignment.endDate,
       status: assignment.status,
-      message: dayUnavailable
-        ? 'Affectation sur un jour que vous aviez marqué indisponible — confirmez avant 22h'
-        : 'Nouvelle affectation — confirmez avant 22h',
+      message: body,
     });
 
     if (assignment.agent?.phone) {
-      const siteName = assignment.site?.name || 'chantier';
       const date = assignment.startDate
         ? new Date(assignment.startDate).toLocaleDateString('fr-FR')
         : 'prochainement';
@@ -139,7 +149,15 @@ export class AssignmentsService {
     if (assignment.createdById) {
       const agentName = updated.agent
         ? `${updated.agent.firstName} ${updated.agent.lastName}`
-        : undefined;
+        : 'Un agent';
+      await this.notify.push(assignment.createdById, {
+        title: accept ? 'Affectation confirmée' : 'Affectation refusée',
+        body: accept
+          ? `${agentName} a confirmé l'affectation`
+          : `${agentName} a refusé l'affectation`,
+        type: 'assignment:response',
+        data: { assignmentId, accepted: accept },
+      });
       this.notifications.notifyAssignmentResponse(assignment.createdById, {
         assignmentId,
         accepted: accept,
@@ -189,9 +207,18 @@ export class AssignmentsService {
       throw new BadRequestException('Transfert impossible sur cette affectation');
     }
 
-    return this.prisma.transferRequest.create({
+    const tr = await this.prisma.transferRequest.create({
       data: { assignmentId, fromChefId, toChefId },
     });
+
+    await this.notify.push(toChefId, {
+      title: 'Demande de transfert',
+      body: 'Un chef demande le transfert d\'un agent vers vous',
+      type: 'transfer:request',
+      data: { transferId: tr.id, assignmentId },
+    });
+
+    return tr;
   }
 
   async listPendingTransfers(chefId: string) {
@@ -244,12 +271,24 @@ export class AssignmentsService {
           update: {},
         }),
       ]);
+      await this.notify.push(tr.fromChefId, {
+        title: 'Transfert accepté',
+        body: 'Votre demande de transfert a été acceptée',
+        type: 'transfer:accepted',
+        data: { transferId },
+      });
       return { ok: true, status: 'ACCEPTED' };
     }
 
     await this.prisma.transferRequest.update({
       where: { id: transferId },
       data: { status: 'REJECTED', resolvedAt: new Date() },
+    });
+    await this.notify.push(tr.fromChefId, {
+      title: 'Transfert refusé',
+      body: 'Votre demande de transfert a été refusée',
+      type: 'transfer:rejected',
+      data: { transferId },
     });
     return { ok: true, status: 'REJECTED' };
   }
@@ -262,10 +301,6 @@ export class AssignmentsService {
     });
   }
 
-  /**
-   * Pool agents pour composition : disponibilité globale + jours indispos + jours travaillés (DEPART).
-   * Le chef VOIT les jours marqués indisponibles mais peut quand même assigner / pointer.
-   */
   async getAvailableAgents(siteId?: string) {
     const agents = await this.prisma.user.findMany({
       where: { role: Role.AGENT, isActive: true },
@@ -324,7 +359,6 @@ export class AssignmentsService {
         isAvailable: a.agentProfile?.isAvailable ?? true,
         isLockedElsewhere,
         unavailableDates,
-        /** true si le jour calendaire d'aujourd'hui est marqué indispo */
         isUnavailableToday: unavailableDates.includes(todayStr),
       };
     });
@@ -348,14 +382,21 @@ export class AssignmentsService {
       data: { isLocked: false, status: AssignmentStatus.CANCELLED },
     });
 
+    const siteName = assignment.site?.name || 'chantier';
+    await this.notify.push(assignment.agentId, {
+      title: 'Libération de chantier',
+      body: `Vous avez été libéré(e) de ${siteName}`,
+      type: 'assignment:released',
+      data: { assignmentId },
+    });
+
     this.notifications.notifyAssignment(assignment.agentId, {
       id: assignmentId,
       status: updated.status,
-      message: 'Vous avez été libéré(e) de ce chantier par votre chef.',
+      message: `Vous avez été libéré(e) de ${siteName}`,
     });
 
     if (assignment.agent?.phone) {
-      const siteName = assignment.site?.name || 'chantier';
       const msg =
         `ℹ️ *AS ONE* : Vous avez été libéré(e) du chantier *${siteName}*.\n` +
         `Attendez une nouvelle convocation pour y retourner.`;
