@@ -10,7 +10,6 @@ import '../../core/network/api_client.dart';
 import '../../core/widgets/custom_card.dart';
 import '../../core/widgets/hero_banner.dart';
 
-// ─── Live stats model ─────────────────────────────────────────────────────────
 class LiveStats {
   final int totalAgents;
   final int availableAgents;
@@ -47,7 +46,6 @@ class LiveStats {
       );
 }
 
-// ─── Live stats provider (auto-refreshes every 30 s) ─────────────────────────
 final liveStatsProvider = StreamProvider.autoDispose<LiveStats>((ref) async* {
   final api = ref.watch(apiClientProvider);
   final viewAll = ref.watch(viewAllProvider);
@@ -68,7 +66,6 @@ final liveStatsProvider = StreamProvider.autoDispose<LiveStats>((ref) async* {
   }
 });
 
-// ─── Agents by site provider ──────────────────────────────────────────────────
 final agentsBySiteProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final api = ref.watch(apiClientProvider);
   final viewAll = ref.watch(viewAllProvider);
@@ -80,7 +77,6 @@ final agentsBySiteProvider = FutureProvider.autoDispose<List<dynamic>>((ref) asy
   }
 });
 
-// ─── Chef Home Screen ─────────────────────────────────────────────────────────
 class ChefHomeScreen extends ConsumerStatefulWidget {
   const ChefHomeScreen({super.key});
 
@@ -113,7 +109,6 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen>
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // ── Header Hero Banner ──────────────────────────────────────────
           HeroBanner(
             userName: user?.firstName != null
                 ? '${user!.firstName} ${user.lastName}'
@@ -183,8 +178,6 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen>
               ),
             ),
           ),
-
-          // ── Toggle Mes activités / Toutes les activités ───────────────
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -210,8 +203,6 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen>
             ),
           ),
           const Divider(height: 1, color: AppColors.border),
-
-          // ── Tab bar ─────────────────────────────────────────────────────
           Container(
             color: Colors.white,
             child: TabBar(
@@ -225,15 +216,11 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen>
               ],
             ),
           ),
-
-          // ── Tab body ────────────────────────────────────────────────────
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                // ── TAB 1 : Dashboard ────────────────────────────────────
                 _DashboardTab(statsAsync: statsAsync),
-                // ── TAB 2 : Mes équipes par site ─────────────────────────
                 const _EquipesTab(),
               ],
             ),
@@ -244,7 +231,6 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen>
   }
 }
 
-// ─── Tab 1 : Dashboard ───────────────────────────────────────────────────────
 class _DashboardTab extends StatelessWidget {
   final AsyncValue<LiveStats> statsAsync;
   const _DashboardTab({required this.statsAsync});
@@ -254,7 +240,6 @@ class _DashboardTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
-        // ── Live Operations block ─────────────────────────────────────
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -270,18 +255,13 @@ class _DashboardTab extends StatelessWidget {
             _LiveDot(isConnected: statsAsync.hasValue),
           ],
         ).animate().fadeIn().slideX(begin: -0.05, end: 0),
-
         const SizedBox(height: 14),
-
         statsAsync.when(
           loading: () => const _StatsGridSkeleton(),
           error: (_, __) => const SizedBox(),
           data: (stats) => _LiveStatsGrid(stats: stats),
         ),
-
         const SizedBox(height: 20),
-
-        // ── Section Title: Actions rapides ────────────────────────────
         const Text(
           'Actions rapides',
           style: TextStyle(
@@ -291,10 +271,7 @@ class _DashboardTab extends StatelessWidget {
             letterSpacing: -0.3,
           ),
         ).animate().fadeIn(delay: 100.ms),
-
         const SizedBox(height: 14),
-
-        // ── Priority actions grid ──────────────────────────────────────
         GridView.count(
           crossAxisCount: 2,
           crossAxisSpacing: 14,
@@ -325,25 +302,21 @@ class _DashboardTab extends StatelessWidget {
               onTap: () => context.push('/chef/incidents'),
             ),
             _ActionCard(
-              icon: Icons.apartment_rounded,
-              title: 'Mes chantiers',
-              subtitle: 'Tâches & rapports',
+              icon: Icons.history_edu_rounded,
+              title: 'Interventions',
+              subtitle: 'Historique & export',
               color: AppColors.secondary,
-              onTap: () => context.push('/chef/select-site'),
+              onTap: () => context.push('/chef/interventions'),
             ),
           ],
         ).animate().fadeIn(delay: 200.ms),
-
         const SizedBox(height: 20),
-
-        // ── Transfers ─────────────────────────────────────────────────
         _TransferCard(onTap: () => context.push('/chef/transfers')),
       ],
     );
   }
 }
 
-// ─── Tab 2 : Mes équipes par site ─────────────────────────────────────────────
 class _EquipesTab extends ConsumerWidget {
   const _EquipesTab();
 
@@ -400,17 +373,9 @@ class _EquipesTab extends ConsumerWidget {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.06),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
                 ),
                 child: Column(
                   children: [
-                    // ── Site header ──────────────────────────────────────
                     Padding(
                       padding: const EdgeInsets.all(14),
                       child: Row(
@@ -436,41 +401,30 @@ class _EquipesTab extends ConsumerWidget {
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w700, fontSize: 15)),
                                 Text(isPermanence ? 'Permanence' : 'Chantier',
-                                    style: TextStyle(
-                                        fontSize: 12, color: color)),
+                                    style: TextStyle(fontSize: 12, color: color)),
                               ],
                             ),
                           ),
-                          // Agent count badge
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
                               color: color.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.people_rounded, size: 14, color: color),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '$agentCount agent${agentCount > 1 ? 's' : ''}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: color,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              '$agentCount agent${agentCount > 1 ? 's' : ''}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: color,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-
                     if (agents.isNotEmpty) ...[
                       const Divider(height: 1),
-                      // ── Agent list ───────────────────────────────────
                       ...agents.take(4).map((a) {
                         final ag = a as Map<String, dynamic>;
                         final name = '${ag['firstName'] ?? ''} ${ag['lastName'] ?? ''}'.trim();
@@ -494,33 +448,8 @@ class _EquipesTab extends ConsumerWidget {
                                   fontWeight: FontWeight.w600, fontSize: 13)),
                           subtitle: Text('$agentType · $phone',
                               style: const TextStyle(fontSize: 11)),
-                          trailing: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: AppColors.accent.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              'Sur site',
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.accent),
-                            ),
-                          ),
                         );
                       }),
-                      if (agents.length > 4)
-                        TextButton(
-                          onPressed: () {
-                            // Show all agents for this site
-                            context.push('/chef/stats-details/total_agents');
-                          },
-                          child: Text(
-                            'Voir les ${agents.length - 4} autres agents →',
-                            style: TextStyle(color: color, fontSize: 12),
-                          ),
-                        ),
                     ] else
                       const Padding(
                         padding: EdgeInsets.all(12),
@@ -530,7 +459,7 @@ class _EquipesTab extends ConsumerWidget {
                       ),
                   ],
                 ),
-              ).animate().fadeIn(delay: Duration(milliseconds: 50 * i));
+              );
             },
           ),
         );
@@ -539,7 +468,6 @@ class _EquipesTab extends ConsumerWidget {
   }
 }
 
-// ─── Action card ──────────────────────────────────────────────────────────────
 class _ActionCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -568,13 +496,6 @@ class _ActionCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.border),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.06),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -589,10 +510,14 @@ class _ActionCard extends StatelessWidget {
               ),
               const Spacer(),
               Text(title,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textPrimary)),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: AppColors.textPrimary)),
               const SizedBox(height: 2),
               Text(subtitle,
-                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textSecondary)),
             ],
           ),
         ),
@@ -601,7 +526,6 @@ class _ActionCard extends StatelessWidget {
   }
 }
 
-// ─── Transfer card ────────────────────────────────────────────────────────────
 class _TransferCard extends StatelessWidget {
   final VoidCallback onTap;
   const _TransferCard({required this.onTap});
@@ -625,21 +549,11 @@ class _TransferCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.secondary.withValues(alpha: 0.2),
-                      AppColors.secondary.withValues(alpha: 0.05),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: AppColors.secondary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: AppColors.secondary.withValues(alpha: 0.25),
-                    width: 1,
-                  ),
                 ),
-                child: const Icon(Icons.sync_alt_rounded, color: AppColors.secondary, size: 26),
+                child: const Icon(Icons.sync_alt_rounded,
+                    color: AppColors.secondary, size: 26),
               ),
               const SizedBox(width: 16),
               const Expanded(
@@ -657,7 +571,8 @@ class _TransferCard extends StatelessWidget {
                     SizedBox(height: 3),
                     Text(
                       'Demander ou prêter du personnel',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      style: TextStyle(
+                          fontSize: 12, color: AppColors.textSecondary),
                     ),
                   ],
                 ),
@@ -668,11 +583,10 @@ class _TransferCard extends StatelessWidget {
           ),
         ),
       ),
-    ).animate().fadeIn(delay: 350.ms).slideY(begin: 0.1, end: 0);
+    ).animate().fadeIn(delay: 350.ms);
   }
 }
 
-// ─── Live indicator dot ───────────────────────────────────────────────────────
 class _LiveDot extends StatefulWidget {
   final bool isConnected;
   const _LiveDot({required this.isConnected});
@@ -681,7 +595,8 @@ class _LiveDot extends StatefulWidget {
   State<_LiveDot> createState() => _LiveDotState();
 }
 
-class _LiveDotState extends State<_LiveDot> with SingleTickerProviderStateMixin {
+class _LiveDotState extends State<_LiveDot>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
 
   @override
@@ -701,7 +616,8 @@ class _LiveDotState extends State<_LiveDot> with SingleTickerProviderStateMixin 
 
   @override
   Widget build(BuildContext context) {
-    final color = widget.isConnected ? AppColors.accent : AppColors.textTertiary;
+    final color =
+        widget.isConnected ? AppColors.accent : AppColors.textTertiary;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -719,14 +635,14 @@ class _LiveDotState extends State<_LiveDot> with SingleTickerProviderStateMixin 
         const SizedBox(width: 5),
         Text(
           widget.isConnected ? 'AS ONE Live' : 'Chargement…',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
+          style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w600, color: color),
         ),
       ],
     );
   }
 }
 
-// ─── Live stats grid ──────────────────────────────────────────────────────────
 class _LiveStatsGrid extends StatelessWidget {
   final LiveStats stats;
   const _LiveStatsGrid({required this.stats});
@@ -750,7 +666,8 @@ class _LiveStatsGrid extends StatelessWidget {
               label: 'Disponibles',
               value: '${stats.availableAgents}',
               color: AppColors.accent,
-              onTap: () => context.push('/chef/stats-details/available_agents'),
+              onTap: () =>
+                  context.push('/chef/stats-details/available_agents'),
             ),
           ],
         ),
@@ -770,7 +687,8 @@ class _LiveStatsGrid extends StatelessWidget {
               label: 'Pointages auj.',
               value: '${stats.todayPointages}',
               color: AppColors.warning,
-              onTap: () => context.push('/chef/stats-details/today_pointages'),
+              onTap: () =>
+                  context.push('/chef/stats-details/today_pointages'),
             ),
           ],
         ),
@@ -782,7 +700,8 @@ class _LiveStatsGrid extends StatelessWidget {
               label: 'En attente',
               value: '${stats.pendingAssignments}',
               color: AppColors.primary.withValues(alpha: 0.7),
-              onTap: () => context.push('/chef/stats-details/pending_assignments'),
+              onTap: () =>
+                  context.push('/chef/stats-details/pending_assignments'),
             ),
             const SizedBox(width: 10),
             _StatTile(
@@ -794,23 +713,8 @@ class _LiveStatsGrid extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerRight,
-          child: Text(
-            'Mis à jour ${_formatTime(stats.updatedAt)}',
-            style: const TextStyle(fontSize: 10, color: AppColors.textTertiary),
-          ),
-        ),
       ],
     ).animate().fadeIn(delay: 50.ms);
-  }
-
-  String _formatTime(DateTime dt) {
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    final s = dt.second.toString().padLeft(2, '0');
-    return '$h:$m:$s';
   }
 }
 
@@ -843,13 +747,6 @@ class _StatTile extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppColors.border),
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.06),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
             ),
             child: Row(
               children: [
@@ -897,7 +794,6 @@ class _StatTile extends StatelessWidget {
   }
 }
 
-// ─── Loading skeleton ─────────────────────────────────────────────────────────
 class _StatsGridSkeleton extends StatelessWidget {
   const _StatsGridSkeleton();
 
@@ -910,30 +806,29 @@ class _StatsGridSkeleton extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 10),
           child: Row(
             children: [
-              _SkeletonBox(),
+              Expanded(
+                child: Container(
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
               const SizedBox(width: 10),
-              _SkeletonBox(),
+              Expanded(
+                child: Container(
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
       ),
-    );
-  }
-}
-
-class _SkeletonBox extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        height: 64,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-        ),
-      )
-          .animate(onPlay: (c) => c.repeat())
-          .shimmer(duration: 1200.ms, color: Colors.white.withValues(alpha: 0.4)),
     );
   }
 }
