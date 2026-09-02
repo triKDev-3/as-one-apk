@@ -31,6 +31,12 @@ class RealtimeService {
       ..onDisconnect((_) {
         _controller.add(RealtimeEvent(type: 'disconnected', data: {}));
       })
+      ..on('notification', (data) {
+        _controller.add(RealtimeEvent(
+          type: 'notification',
+          data: Map<String, dynamic>.from(data as Map? ?? {}),
+        ));
+      })
       ..on('assignment:new', (data) {
         _controller.add(RealtimeEvent(
           type: 'assignment:new',
