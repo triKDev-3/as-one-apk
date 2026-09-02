@@ -267,9 +267,6 @@ export class StatsService {
     }));
   }
 
-  /**
-   * Calendrier global chef / admin : agrège pointages, incidents, affectations par jour.
-   */
   async getChefCalendar(
     userId: string,
     role: string,
@@ -370,9 +367,13 @@ export class StatsService {
       const key = i.createdAt.toISOString().slice(0, 10);
       const b = ensure(key);
       b.incidents += 1;
+      const label =
+        (i.description || 'Incident').length > 60
+          ? `${(i.description || 'Incident').slice(0, 57)}…`
+          : i.description || 'Incident';
       b.events.push({
         kind: 'incident',
-        label: i.title || 'Incident',
+        label,
         siteName: i.site?.name,
         siteId: i.site?.id,
       });
@@ -406,7 +407,6 @@ export class StatsService {
       }
     }
 
-    // Résumé compact pour les pastilles du calendrier
     const summary: Record<
       string,
       {
