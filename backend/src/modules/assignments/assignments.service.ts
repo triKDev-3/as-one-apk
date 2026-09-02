@@ -12,6 +12,29 @@ import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 
+function dateKey(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
+function rangesOverlap(
+  aStart: Date,
+  aEnd: Date | null,
+  bStart: Date,
+  bEnd: Date | null,
+): boolean {
+  const aS = new Date(aStart);
+  aS.setUTCHours(0, 0, 0, 0);
+  const aE = aEnd ? new Date(aEnd) : new Date(aS);
+  aE.setUTCHours(23, 59, 59, 999);
+
+  const bS = new Date(bStart);
+  bS.setUTCHours(0, 0, 0, 0);
+  const bE = bEnd ? new Date(bEnd) : new Date(bS);
+  bE.setUTCHours(23, 59, 59, 999);
+
+  return aS <= bE && bS <= aE;
+}
+
 @Injectable()
 export class AssignmentsService {
   constructor(
@@ -21,19 +44,52 @@ export class AssignmentsService {
     private readonly whatsapp: WhatsappService,
   ) {}
 
-  async create(dto: CreateAssignmentDto, chefId: string) {
-    const existingLocked = await this.prisma.assignment.findFirst({
+  /**
+   * Conflits multi-sites : affectations actives sur un autre site
+   * dont la plage chevauche [startDate, endDate].
+   */
+  private async findMultiSiteConflicts(
+    agentId: string,
+    siteId: string,
+    startDate: Date,
+    endDate: Date | null,
+  ) {
+    const candidates = await this.prisma.assignment.findMany({
       where: {
-        agentId: dto.agentId,
-        isLocked: true,
-        status: { in: [AssignmentStatus.CONFIRMED, AssignmentStatus.LOCKED] },
+        agentId,
+        siteId: { not: siteId },
+        status: {
+          in: [
+            AssignmentStatus.PENDING_CONFIRMATION,
+            AssignmentStatus.CONFIRMED,
+            AssignmentStatus.LOCKED,
+          ],
+        },
+      },
+      include: {
+        site: { select: { id: true, name: true } },
       },
     });
 
-    if (existingLocked) {
-      throw new ConflictException('Cet agent est déjà verrouillé sur un autre chantier');
-    }
+    return candidates.filter((c) =>
+      rangesOverlap(c.startDate, c.endDate, startDate, endDate),
+    );
+  }
 
+  private async hasDepartOnDate(agentId: string, day: string) {
+    const start = new Date(`${day}T00:00:00.000Z`);
+    const end = new Date(`${day}T23:59:59.999Z`);
+    const count = await this.prisma.pointage.count({
+      where: {
+        agentId,
+        type: { in: ['DEPART', 'PRESENCE_PERMANENCE'] },
+        notedAt: { gte: start, lte: end },
+      },
+    });
+    return count > 0;
+  }
+
+  async create(dto: CreateAssignmentDto, chefId: string) {
     const agent = await this.prisma.user.findUnique({
       where: { id: dto.agentId },
       include: { agentProfile: true },
@@ -43,18 +99,87 @@ export class AssignmentsService {
       throw new NotFoundException('Agent introuvable');
     }
 
+    const startDate = new Date(dto.startDate);
+    const endDate = dto.endDate ? new Date(dto.endDate) : null;
+    const startKey = dateKey(startDate);
+
+    // —— Conflits multi-sites ——
+    const conflicts = await this.findMultiSiteConflicts(
+      dto.agentId,
+      dto.siteId,
+      startDate,
+      endDate,
+    );
+
+    if (conflicts.length > 0) {
+      const names = conflicts.map((c) => c.site.name).join(', ');
+      const hasDepart = await this.hasDepartOnDate(dto.agentId, startKey);
+
+      // Urgence : force + déjà pointé le jour de début
+      if (dto.forceMultiSite && hasDepart) {
+        // autorisé — on continue
+      } else if (dto.forceMultiSite && !hasDepart) {
+        throw new BadRequestException(
+          `Urgence multi-sites refusée : l'agent n'a pas encore de pointage DEPART le ${startKey}. ` +
+            `Conflit avec : ${names}`,
+        );
+      } else {
+        throw new ConflictException({
+          message: `Conflit multi-sites : agent déjà affecté sur ${names}`,
+          code: 'MULTI_SITE_CONFLICT',
+          conflicts: conflicts.map((c) => ({
+            assignmentId: c.id,
+            siteId: c.site.id,
+            siteName: c.site.name,
+            status: c.status,
+            startDate: c.startDate,
+            endDate: c.endDate,
+          })),
+          canForce: hasDepart,
+          forceHint: hasDepart
+            ? 'Agent déjà pointé ce jour — vous pouvez forcer (urgence multi-chantiers).'
+            : 'Impossible de forcer tant que l\'agent n\'a pas de pointage DEPART ce jour-là (ou libérez-le d\'abord).',
+        });
+      }
+    }
+
+    // Verrouillage strict hors chevauchement de dates (ancien comportement)
+    const existingLocked = await this.prisma.assignment.findFirst({
+      where: {
+        agentId: dto.agentId,
+        isLocked: true,
+        siteId: { not: dto.siteId },
+        status: { in: [AssignmentStatus.CONFIRMED, AssignmentStatus.LOCKED] },
+      },
+      include: { site: { select: { name: true } } },
+    });
+
+    if (existingLocked && !dto.forceMultiSite) {
+      // Si pas de chevauchement de dates, on laisse passer (missions successives)
+      const overlaps = rangesOverlap(
+        existingLocked.startDate,
+        existingLocked.endDate,
+        startDate,
+        endDate,
+      );
+      if (overlaps) {
+        throw new ConflictException(
+          `Cet agent est déjà verrouillé sur ${existingLocked.site.name}`,
+        );
+      }
+    }
+
     const unavailableDates: string[] =
       (agent.agentProfile?.unavailableDates as string[]) || [];
-    const startKey = new Date(dto.startDate).toISOString().slice(0, 10);
     const dayUnavailable = unavailableDates.includes(startKey);
 
-    const assignment = await this.prisma.assignment.create({
+    const assignment = (await this.prisma.assignment.create({
       data: {
         siteId: dto.siteId,
         agentId: dto.agentId,
         createdById: chefId,
-        startDate: new Date(dto.startDate),
-        endDate: dto.endDate ? new Date(dto.endDate) : null,
+        startDate,
+        endDate,
         status: AssignmentStatus.PENDING_CONFIRMATION,
         isLocked: true,
         missionType: dto.missionType || 'TEMPORAIRE',
@@ -64,15 +189,21 @@ export class AssignmentsService {
         fixedSalary: dto.fixedSalary || null,
       },
       include: {
-        agent: { select: { id: true, firstName: true, lastName: true, phone: true } },
+        agent: {
+          select: { id: true, firstName: true, lastName: true, phone: true },
+        },
         site: { select: { id: true, name: true, type: true } },
       },
-    }) as any;
+    })) as any;
 
     const siteName = assignment.site?.name || 'chantier';
-    const body = dayUnavailable
+    let body = dayUnavailable
       ? `Affectation sur ${siteName} un jour que vous aviez marqué indisponible — confirmez avant 22h`
       : `Nouvelle affectation sur ${siteName} — confirmez avant 22h`;
+
+    if (dto.forceMultiSite && conflicts.length > 0) {
+      body += ` (urgence multi-sites — aussi sur ${conflicts.map((c) => c.site.name).join(', ')})`;
+    }
 
     await this.notify.push(dto.agentId, {
       title: 'Nouvelle affectation',
@@ -82,6 +213,7 @@ export class AssignmentsService {
         id: assignment.id,
         siteId: dto.siteId,
         dayUnavailable,
+        multiSite: !!dto.forceMultiSite && conflicts.length > 0,
       },
     });
 
@@ -103,7 +235,9 @@ export class AssignmentsService {
         `Bonjour ${assignment.agent.firstName} ${assignment.agent.lastName},\n` +
         `Vous êtes convoqué(e) sur le chantier *${siteName}* à partir du *${date}*.\n` +
         `Veuillez confirmer votre présence dans l'application.`;
-      this.whatsapp.sendMessage(chefId, assignment.agent.phone, msg).catch(() => {});
+      this.whatsapp
+        .sendMessage(chefId, assignment.agent.phone, msg)
+        .catch(() => {});
     }
 
     return assignment;
@@ -130,7 +264,35 @@ export class AssignmentsService {
       }).format(new Date()),
     );
     if ((hourTogo === 24 ? 0 : hourTogo) >= 22) {
-      throw new BadRequestException('Il est trop tard pour confirmer ou refuser (après 22h)');
+      throw new BadRequestException(
+        'Il est trop tard pour confirmer ou refuser (après 22h)',
+      );
+    }
+
+    // Si confirmation : vérifier encore multi-sites
+    if (accept) {
+      const conflicts = await this.findMultiSiteConflicts(
+        agentId,
+        assignment.siteId,
+        assignment.startDate,
+        assignment.endDate,
+      );
+      // On autorise la confirmation même en multi-sites (le chef a déjà tranché)
+      // mais on notifie les chefs des autres sites
+      for (const c of conflicts) {
+        if (c.createdById) {
+          await this.notify.push(c.createdById, {
+            title: 'Agent multi-sites',
+            body: `Un agent confirmé aussi sur un autre chantier (chevauchement de dates).`,
+            type: 'assignment:multi_site',
+            data: {
+              agentId,
+              otherAssignmentId: assignmentId,
+              siteId: assignment.siteId,
+            },
+          });
+        }
+      }
     }
 
     const updated = await this.prisma.assignment.update({
@@ -198,7 +360,11 @@ export class AssignmentsService {
     });
   }
 
-  async requestTransfer(assignmentId: string, fromChefId: string, toChefId: string) {
+  async requestTransfer(
+    assignmentId: string,
+    fromChefId: string,
+    toChefId: string,
+  ) {
     const assignment = await this.prisma.assignment.findUnique({
       where: { id: assignmentId },
     });
@@ -213,7 +379,7 @@ export class AssignmentsService {
 
     await this.notify.push(toChefId, {
       title: 'Demande de transfert',
-      body: 'Un chef demande le transfert d\'un agent vers vous',
+      body: "Un chef demande le transfert d'un agent vers vous",
       type: 'transfer:request',
       data: { transferId: tr.id, assignmentId },
     });
@@ -231,7 +397,12 @@ export class AssignmentsService {
         assignment: {
           include: {
             agent: {
-              select: { id: true, firstName: true, lastName: true, phone: true },
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+              },
             },
             site: { select: { id: true, name: true } },
           },
@@ -266,7 +437,9 @@ export class AssignmentsService {
           data: { createdById: chefId },
         }),
         this.prisma.siteChef.upsert({
-          where: { siteId_chefId: { siteId: tr.assignment.siteId, chefId } },
+          where: {
+            siteId_chefId: { siteId: tr.assignment.siteId, chefId },
+          },
           create: { siteId: tr.assignment.siteId, chefId },
           update: {},
         }),
@@ -302,6 +475,8 @@ export class AssignmentsService {
   }
 
   async getAvailableAgents(siteId?: string) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+
     const agents = await this.prisma.user.findMany({
       where: { role: Role.AGENT, isActive: true },
       include: {
@@ -315,12 +490,23 @@ export class AssignmentsService {
         },
         assignments: {
           where: {
-            isLocked: true,
             status: {
-              in: [AssignmentStatus.CONFIRMED, AssignmentStatus.LOCKED],
+              in: [
+                AssignmentStatus.PENDING_CONFIRMATION,
+                AssignmentStatus.CONFIRMED,
+                AssignmentStatus.LOCKED,
+              ],
             },
           },
-          select: { id: true, siteId: true },
+          select: {
+            id: true,
+            siteId: true,
+            startDate: true,
+            endDate: true,
+            isLocked: true,
+            status: true,
+            site: { select: { id: true, name: true } },
+          },
         },
       },
     });
@@ -329,20 +515,32 @@ export class AssignmentsService {
       const ratings = a.ratingsReceived;
       const avgScore =
         ratings.length > 0
-          ? ratings.reduce((sum: number, r: { score: number }) => sum + r.score, 0) /
-            ratings.length
+          ? ratings.reduce(
+              (sum: number, r: { score: number }) => sum + r.score,
+              0,
+            ) / ratings.length
           : null;
       const daysWorked = new Set(
         a.pointages.map((p) => p.notedAt.toISOString().slice(0, 10)),
       ).size;
-      const todayStr = new Date().toISOString().slice(0, 10);
+
       const hasPointedToday = a.pointages.some(
         (p) => p.notedAt.toISOString().slice(0, 10) === todayStr,
       );
-      const isLockedElsewhere =
-        a.assignments.some(
-          (asgn: { siteId: string }) => siteId && asgn.siteId !== siteId,
-        ) && !hasPointedToday;
+
+      // Autres sites actifs (chevauchement aujourd'hui ou plage ouverte)
+      const otherSites = a.assignments.filter((asgn) => {
+        if (siteId && asgn.siteId === siteId) return false;
+        return rangesOverlap(
+          asgn.startDate,
+          asgn.endDate,
+          new Date(`${todayStr}T00:00:00.000Z`),
+          new Date(`${todayStr}T23:59:59.999Z`),
+        );
+      });
+
+      const isLockedElsewhere = otherSites.length > 0 && !hasPointedToday;
+      const canForceMultiSite = otherSites.length > 0 && hasPointedToday;
 
       const unavailableDates: string[] =
         (a.agentProfile?.unavailableDates as string[]) || [];
@@ -358,6 +556,12 @@ export class AssignmentsService {
         daysWorked,
         isAvailable: a.agentProfile?.isAvailable ?? true,
         isLockedElsewhere,
+        canForceMultiSite,
+        lockedOnSites: otherSites.map((s) => ({
+          siteId: s.site.id,
+          siteName: s.site.name,
+          status: s.status,
+        })),
         unavailableDates,
         isUnavailableToday: unavailableDates.includes(todayStr),
       };
@@ -400,7 +604,9 @@ export class AssignmentsService {
       const msg =
         `ℹ️ *AS ONE* : Vous avez été libéré(e) du chantier *${siteName}*.\n` +
         `Attendez une nouvelle convocation pour y retourner.`;
-      this.whatsapp.sendMessage(chefId, assignment.agent.phone, msg).catch(() => {});
+      this.whatsapp
+        .sendMessage(chefId, assignment.agent.phone, msg)
+        .catch(() => {});
     }
 
     return updated;
