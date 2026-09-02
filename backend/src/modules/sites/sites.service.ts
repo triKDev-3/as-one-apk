@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSiteDto } from './dto/create-site.dto';
+import { AssignmentStatus } from '@prisma/client';
 
 @Injectable()
 export class SitesService {
@@ -28,9 +29,10 @@ export class SitesService {
 
   async findAll(type?: string, userId?: string, role?: string, all?: boolean) {
     const isFiltered = role === 'CHEF' && !all;
-    const siteFilter = isFiltered && userId ? { chefs: { some: { chefId: userId } } } : {};
+    const siteFilter =
+      isFiltered && userId ? { chefs: { some: { chefId: userId } } } : {};
 
-    return this.prisma.site.findMany({
+    const sites = await this.prisma.site.findMany({
       where: {
         isActive: true,
         ...(type ? { type: type as any } : {}),
@@ -39,21 +41,115 @@ export class SitesService {
       include: {
         chefs: {
           include: {
-            chef: { select: { id: true, firstName: true, lastName: true } },
+            chef: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+                isActive: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            assignments: {
+              where: {
+                status: {
+                  in: [
+                    AssignmentStatus.PENDING_CONFIRMATION,
+                    AssignmentStatus.CONFIRMED,
+                    AssignmentStatus.LOCKED,
+                  ],
+                },
+              },
+            },
           },
         },
       },
       orderBy: { name: 'asc' },
     });
+
+    // Enrichir avec détail opérations en cours (agents actifs)
+    const enriched = await Promise.all(
+      sites.map(async (s) => {
+        const activeAssignments = await this.prisma.assignment.findMany({
+          where: {
+            siteId: s.id,
+            status: {
+              in: [
+                AssignmentStatus.PENDING_CONFIRMATION,
+                AssignmentStatus.CONFIRMED,
+                AssignmentStatus.LOCKED,
+              ],
+            },
+          },
+          select: {
+            id: true,
+            status: true,
+            startDate: true,
+            endDate: true,
+            agent: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+          take: 50,
+        });
+
+        return {
+          ...s,
+          activeAgentsCount: s._count.assignments,
+          activeAssignments: activeAssignments.map((a) => ({
+            id: a.id,
+            status: a.status,
+            startDate: a.startDate,
+            endDate: a.endDate,
+            agentName: `${a.agent.firstName} ${a.agent.lastName}`.trim(),
+            agentId: a.agent.id,
+          })),
+        };
+      }),
+    );
+
+    return enriched;
   }
 
   async findOne(id: string) {
     const site = await this.prisma.site.findUnique({
       where: { id },
       include: {
-        assignments: {
+        chefs: {
           include: {
-            agent: { select: { id: true, firstName: true, lastName: true, phone: true } },
+            chef: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+              },
+            },
+          },
+        },
+        assignments: {
+          where: {
+            status: {
+              in: [
+                AssignmentStatus.PENDING_CONFIRMATION,
+                AssignmentStatus.CONFIRMED,
+                AssignmentStatus.LOCKED,
+              ],
+            },
+          },
+          include: {
+            agent: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+              },
+            },
           },
         },
       },
@@ -63,8 +159,30 @@ export class SitesService {
   }
 
   async assignChef(siteId: string, chefId: string) {
+    const existing = await this.prisma.siteChef.findUnique({
+      where: { siteId_chefId: { siteId, chefId } },
+    });
+    if (existing) {
+      throw new ConflictException('Ce chef est déjà assigné à ce site');
+    }
     return this.prisma.siteChef.create({
       data: { siteId, chefId },
+      include: {
+        chef: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
     });
+  }
+
+  async removeChef(siteId: string, chefId: string) {
+    try {
+      await this.prisma.siteChef.delete({
+        where: { siteId_chefId: { siteId, chefId } },
+      });
+      return { ok: true };
+    } catch {
+      throw new NotFoundException('Assignation chef introuvable');
+    }
   }
 }
