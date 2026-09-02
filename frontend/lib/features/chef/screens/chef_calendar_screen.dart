@@ -7,6 +7,7 @@ import 'package:dio/dio.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/providers.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/widgets/asone_loader.dart';
 
 final chefCalendarProvider = FutureProvider.autoDispose
     .family<Map<String, dynamic>, String>((ref, monthKey) async {
@@ -23,7 +24,6 @@ final chefCalendarProvider = FutureProvider.autoDispose
   }
 });
 
-/// Pattern : calendrier (vue globale) + panneau du jour (liste + actions).
 class ChefCalendarScreen extends ConsumerStatefulWidget {
   const ChefCalendarScreen({super.key});
 
@@ -33,12 +33,19 @@ class ChefCalendarScreen extends ConsumerStatefulWidget {
 }
 
 class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
-  DateTime _focused = DateTime.now();
-  DateTime? _selected;
+  late DateTime _focused;
+  late DateTime _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _focused = now;
+    _selected = DateTime(now.year, now.month, now.day); // jour en cours par défaut
+  }
 
   String get _monthKey => DateFormat('yyyy-MM').format(_focused);
 
-  /// Préfixe de route selon le rôle (admin / chef / …)
   String _basePath(BuildContext context) {
     final path = GoRouterState.of(context).uri.path;
     if (path.startsWith('/admin')) return '/admin';
@@ -83,8 +90,8 @@ class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
           ),
           calAsync.when(
             loading: () => const Padding(
-              padding: EdgeInsets.all(32),
-              child: CircularProgressIndicator(),
+              padding: EdgeInsets.all(24),
+              child: AsOneLoader(),
             ),
             error: (e, _) => Padding(
               padding: const EdgeInsets.all(16),
@@ -100,8 +107,7 @@ class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
                 firstDay: DateTime(2024),
                 lastDay: DateTime(2030),
                 focusedDay: _focused,
-                selectedDayPredicate: (d) =>
-                    _selected != null && isSameDay(d, _selected),
+                selectedDayPredicate: (d) => isSameDay(d, _selected),
                 onDaySelected: (selected, focused) {
                   setState(() {
                     _selected = selected;
@@ -153,158 +159,142 @@ class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
           ),
           const Divider(height: 1),
           Expanded(
-            child: _selected == null
-                ? const Center(
-                    child: Text(
-                      'Touchez un jour pour voir la liste et les actions',
-                      style: TextStyle(color: AppColors.textSecondary),
-                      textAlign: TextAlign.center,
-                    ),
-                  )
-                : calAsync.maybeWhen(
-                    data: (data) {
-                      final key =
-                          DateFormat('yyyy-MM-dd').format(_selected!);
-                      final dayMap =
-                          (data['days'] as Map<String, dynamic>?)?[key]
-                              as Map<String, dynamic>?;
-                      final events =
-                          (dayMap?['events'] as List<dynamic>?) ?? [];
-                      final summary =
-                          (data['summary'] as Map<String, dynamic>?)?[key]
-                              as Map<String, dynamic>?;
+            child: calAsync.maybeWhen(
+              data: (data) {
+                final key = DateFormat('yyyy-MM-dd').format(_selected);
+                final dayMap =
+                    (data['days'] as Map<String, dynamic>?)?[key]
+                        as Map<String, dynamic>?;
+                final events =
+                    (dayMap?['events'] as List<dynamic>?) ?? [];
+                final summary =
+                    (data['summary'] as Map<String, dynamic>?)?[key]
+                        as Map<String, dynamic>?;
 
-                      return ListView(
-                        padding: const EdgeInsets.all(16),
-                        children: [
-                          Text(
-                            DateFormat('EEEE d MMMM yyyy', 'fr')
-                                .format(_selected!),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
+                return ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    Text(
+                      DateFormat('EEEE d MMMM yyyy', 'fr').format(_selected),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (summary != null)
+                      Text(
+                        '${summary['pointages'] ?? 0} pointage(s) · '
+                        '${summary['absents'] ?? 0} absent(s) · '
+                        '${summary['incidents'] ?? 0} incident(s) · '
+                        '${summary['pending'] ?? 0} en attente',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => context.push(
+                              '$base/pointages?date=$key',
                             ),
+                            icon: const Icon(Icons.fingerprint),
+                            label: const Text('Pointages'),
                           ),
-                          const SizedBox(height: 8),
-                          if (summary != null)
-                            Text(
-                              '${summary['pointages'] ?? 0} pointage(s) · '
-                              '${summary['absents'] ?? 0} absent(s) · '
-                              '${summary['incidents'] ?? 0} incident(s) · '
-                              '${summary['pending'] ?? 0} en attente',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => context.push(
+                              '$base/incidents?date=$key',
                             ),
-                          const SizedBox(height: 12),
-                          // Actions → historiques filtrés sur ce jour
-                          Row(
+                            icon: const Icon(Icons.warning_amber),
+                            label: const Text('Incidents'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (events.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 24),
+                        child: Center(
+                          child: Text(
+                            'Aucune activité enregistrée ce jour',
+                            style:
+                                TextStyle(color: AppColors.textSecondary),
+                          ),
+                        ),
+                      )
+                    else
+                      ...events.map((e) {
+                        final m = e as Map<String, dynamic>;
+                        final kind = m['kind'] as String? ?? '';
+                        final color = kind == 'incident' || kind == 'absent'
+                            ? AppColors.danger
+                            : kind.contains('pending')
+                                ? AppColors.warning
+                                : AppColors.accent;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Row(
                             children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () => context.push(
-                                    '$base/pointages?date=$key',
-                                  ),
-                                  icon: const Icon(Icons.fingerprint),
-                                  label: const Text('Pointages'),
+                              Container(
+                                width: 4,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 12),
                               Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () => context.push(
-                                    '$base/incidents?date=$key',
-                                  ),
-                                  icon: const Icon(Icons.warning_amber),
-                                  label: const Text('Incidents'),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      m['label'] as String? ?? '',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w700),
+                                    ),
+                                    if (m['siteName'] != null)
+                                      Text(
+                                        m['siteName'] as String,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                kind,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: color,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
-                          if (events.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.only(top: 24),
-                              child: Center(
-                                child: Text(
-                                  'Aucune activité enregistrée ce jour',
-                                  style: TextStyle(
-                                      color: AppColors.textSecondary),
-                                ),
-                              ),
-                            )
-                          else
-                            ...events.map((e) {
-                              final m = e as Map<String, dynamic>;
-                              final kind = m['kind'] as String? ?? '';
-                              final color = kind == 'incident' ||
-                                      kind == 'absent'
-                                  ? AppColors.danger
-                                  : kind.contains('pending')
-                                      ? AppColors.warning
-                                      : AppColors.accent;
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border:
-                                      Border.all(color: AppColors.border),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 4,
-                                      height: 36,
-                                      decoration: BoxDecoration(
-                                        color: color,
-                                        borderRadius:
-                                            BorderRadius.circular(4),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            m['label'] as String? ?? '',
-                                            style: const TextStyle(
-                                                fontWeight:
-                                                    FontWeight.w700),
-                                          ),
-                                          if (m['siteName'] != null)
-                                            Text(
-                                              m['siteName'] as String,
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                color: AppColors
-                                                    .textSecondary,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                    Text(
-                                      kind,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: color,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }),
-                        ],
-                      );
-                    },
-                    orElse: () => const SizedBox.shrink(),
-                  ),
+                        );
+                      }),
+                  ],
+                );
+              },
+              orElse: () => const AsOneLoader(),
+            ),
           ),
         ],
       ),

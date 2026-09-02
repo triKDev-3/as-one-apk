@@ -74,21 +74,40 @@ export class UsersService {
     return user;
   }
 
+  /**
+   * Protection : impossible de désactiver le dernier admin actif
+   * (évite de se verrouiller hors de l'application).
+   */
   async setActive(id: string, isActive: boolean) {
+    const target = await this.prisma.user.findUnique({ where: { id } });
+    if (!target) throw new NotFoundException('Utilisateur introuvable');
+
+    if (!isActive && target.role === Role.ADMIN && target.isActive) {
+      const activeAdmins = await this.prisma.user.count({
+        where: { role: Role.ADMIN, isActive: true },
+      });
+      if (activeAdmins <= 1) {
+        throw new BadRequestException(
+          'Impossible de désactiver le dernier administrateur actif. '
+          + 'Créez un autre compte ADMIN avant, ou réactivez-le via la base de données.',
+        );
+      }
+    }
+
     return this.prisma.user.update({
       where: { id },
       data: { isActive },
-      select: { id: true, isActive: true, firstName: true, lastName: true },
+      select: { id: true, isActive: true, firstName: true, lastName: true, role: true },
     });
   }
 
   async updateRole(id: string, newRole: Role) {
-    // Basic verification
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('Utilisateur introuvable');
-    if (user.role === Role.ADMIN) throw new BadRequestException('Impossible de modifier le rôle d\'un admin');
+    if (user.role === Role.ADMIN) {
+      throw new BadRequestException("Impossible de modifier le rôle d'un admin");
+    }
 
-    // If changing to AGENT and doesn't have a profile, create one
     if (newRole === Role.AGENT && user.role !== Role.AGENT) {
       const existingProfile = await this.prisma.agentProfile.findUnique({ where: { userId: id } });
       if (!existingProfile) {
@@ -115,7 +134,6 @@ export class UsersService {
       }
     }
 
-    // Détection opérateur Mobile Money (simple)
     let operator = dto.mobileMoneyOperator;
     if (dto.phone && !operator) {
       const digits = dto.phone.replace(/\D/g, '');

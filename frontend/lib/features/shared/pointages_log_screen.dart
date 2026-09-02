@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/providers/providers.dart';
+import '../../core/widgets/asone_loader.dart';
 
 final pointagesLogProvider =
     FutureProvider.autoDispose.family<List<dynamic>, String?>((ref, date) {
@@ -10,15 +11,15 @@ final pointagesLogProvider =
 });
 
 class PointagesLogScreen extends ConsumerWidget {
-  /// yyyy-MM-dd — si fourni, filtre le jour et regroupe par site
   final String? date;
 
   const PointagesLogScreen({super.key, this.date});
 
+  /// Libellés métier clairs (DEPART = présence fin de journée)
   String _label(String type) {
     switch (type) {
       case 'DEPART':
-        return 'Départ';
+        return 'Présent';
       case 'ABSENT':
         return 'Absent';
       case 'PRESENCE_PERMANENCE':
@@ -56,7 +57,7 @@ class PointagesLogScreen extends ConsumerWidget {
         foregroundColor: Colors.white,
       ),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const AsOneLoader(message: 'Chargement des pointages…'),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -81,7 +82,6 @@ class PointagesLogScreen extends ConsumerWidget {
             );
           }
 
-          // Regroupement par site
           final Map<String, List<Map<String, dynamic>>> bySite = {};
           for (final raw in rows) {
             final p = Map<String, dynamic>.from(raw as Map);
