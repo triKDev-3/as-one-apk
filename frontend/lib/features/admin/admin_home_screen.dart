@@ -7,6 +7,7 @@ import '../../core/providers/providers.dart';
 import '../../core/widgets/custom_card.dart';
 import '../../core/widgets/hero_banner.dart';
 import '../../core/widgets/action_grid_card.dart';
+import '../../core/widgets/asone_bottom_nav.dart';
 
 class AdminHomeScreen extends ConsumerWidget {
   const AdminHomeScreen({super.key});
@@ -17,12 +18,16 @@ class AdminHomeScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      bottomNavigationBar: const AsOneBottomNav(role: 'ADMIN', currentIndex: 0),
       body: Column(
         children: [
           HeroBanner(
-            userName: user?.firstName != null ? '${user!.firstName} ${user.lastName}' : 'Direction AS ONE',
+            userName: user?.firstName != null
+                ? '${user!.firstName} ${user.lastName}'
+                : 'Direction AS ONE',
             roleName: 'Administrateur',
-            subtitle: 'Pilotage global du personnel, des sites d\'intervention et des accès.',
+            subtitle:
+                'Pilotage global du personnel, des sites d\'intervention et des accès.',
             onLogout: () async {
               await ref.read(authProvider.notifier).logout();
               if (context.mounted) context.go('/login');
@@ -32,31 +37,15 @@ class AdminHomeScreen extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
               children: [
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Gestion & Paramètres',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      'Accès Superviseur',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
+                const Text(
+                  'Gestion & Paramètres',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
                 ).animate().fadeIn().slideX(begin: -0.05, end: 0),
-
                 const SizedBox(height: 14),
-
-                // 2x2 Admin Grid
                 GridView.count(
                   crossAxisCount: 2,
                   crossAxisSpacing: 14,
@@ -94,118 +83,61 @@ class AdminHomeScreen extends ConsumerWidget {
                       onTap: () => context.push('/admin/sites'),
                     ),
                   ],
-                ).animate().fadeIn(delay: 150.ms).scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1)),
-
+                ).animate().fadeIn(delay: 150.ms),
                 const SizedBox(height: 20),
-
-                // Performance Ranking Hero Card
                 CustomCard(
                   onTap: () => context.push('/admin/pointages'),
                   padding: const EdgeInsets.all(18),
-                  child: Row(
+                  child: const Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(Icons.fingerprint_rounded, color: AppColors.accent, size: 26),
+                      Icon(Icons.fingerprint_rounded, color: AppColors.accent),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Text('Historique pointages',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w700)),
                       ),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Historique pointages', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                            SizedBox(height: 3),
-                            Text('Départs et absences de tous les sites', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textTertiary, size: 14),
+                      Icon(Icons.arrow_forward_ios_rounded,
+                          color: AppColors.textTertiary, size: 14),
                     ],
                   ),
-                ).animate().fadeIn(delay: 250.ms).slideY(begin: 0.1, end: 0),
+                ),
                 const SizedBox(height: 12),
                 CustomCard(
                   onTap: () => context.push('/admin/incidents'),
                   padding: const EdgeInsets.all(18),
-                  child: Row(
+                  child: const Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.danger.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(Icons.warning_amber_rounded, color: AppColors.danger, size: 26),
+                      Icon(Icons.warning_amber_rounded, color: AppColors.danger),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Text('Incidents',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w700)),
                       ),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Incidents', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                            SizedBox(height: 3),
-                            Text('Consultation des signalements', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textTertiary, size: 14),
+                      Icon(Icons.arrow_forward_ios_rounded,
+                          color: AppColors.textTertiary, size: 14),
                     ],
                   ),
-                ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1, end: 0),
+                ),
                 const SizedBox(height: 12),
                 CustomCard(
                   onTap: () => context.push('/admin/ranking'),
                   padding: const EdgeInsets.all(18),
-                  child: Row(
+                  child: const Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppColors.warning.withValues(alpha: 0.2),
-                              AppColors.warning.withValues(alpha: 0.05),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.warning.withValues(alpha: 0.3), width: 1),
-                        ),
-                        child: const Icon(Icons.leaderboard_rounded, color: AppColors.warning, size: 26),
+                      Icon(Icons.leaderboard_rounded, color: AppColors.warning),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Text('Classement des agents',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w700)),
                       ),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Classement des agents',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            SizedBox(height: 3),
-                            Text(
-                              'Notes moyennes, ponctualité et performances chantiers',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textTertiary, size: 14),
+                      Icon(Icons.arrow_forward_ios_rounded,
+                          color: AppColors.textTertiary, size: 14),
                     ],
                   ),
-                ).animate().fadeIn(delay: 350.ms).slideY(begin: 0.1, end: 0),
+                ),
               ],
             ),
           ),
