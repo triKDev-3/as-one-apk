@@ -6,10 +6,6 @@ import { Role } from '@prisma/client';
 export class AgentService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Gros bouton disponibilité continue.
-   * Règle métier : modifiable jusqu'à 22h.
-   */
   async toggleAvailability(userId: string, isAvailable: boolean) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -20,35 +16,31 @@ export class AgentService {
       throw new ForbiddenException('Seul un agent peut modifier sa disponibilité');
     }
 
-    // Règle 22h
     const now = new Date();
-    if (now.getHours() >= 22) {
+    const hourTogo = Number(
+      new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Africa/Lome',
+        hour: 'numeric',
+        hour12: false,
+      }).format(now),
+    );
+    if ((hourTogo === 24 ? 0 : hourTogo) >= 22) {
       throw new BadRequestException('Les disponibilités ne sont plus modifiables après 22h');
     }
 
     if (!user.agentProfile) {
-      // Création automatique du profil si manquant
-      await this.prisma.agentProfile.create({
-        data: { userId, isAvailable },
-      });
+      await this.prisma.agentProfile.create({ data: { userId, isAvailable } });
     } else {
       await this.prisma.agentProfile.update({
         where: { userId },
-        data: {
-          isAvailable,
-          lastAvailabilityChange: now,
-        },
+        data: { isAvailable, lastAvailabilityChange: now },
       });
     }
 
-    // Log léger
     const profile = await this.prisma.agentProfile.findUnique({ where: { userId } });
     if (profile) {
       await this.prisma.availabilityLog.create({
-        data: {
-          agentId: profile.id,
-          isAvailable,
-        },
+        data: { agentId: profile.id, isAvailable },
       });
     }
 
@@ -80,7 +72,6 @@ export class AgentService {
 
     if (!user) throw new NotFoundException();
 
-    // Classement (top + position de l'agent)
     const ranking = await this.prisma.user.findMany({
       where: { role: Role.AGENT, isActive: true },
       select: { id: true, firstName: true, lastName: true, rankingScore: true },
@@ -112,20 +103,9 @@ export class AgentService {
     };
   }
 
-  /**
-   * Agents disponibles pour un chef (pool complète).
-   */
-  /**
-   * Pool agents pour composition d'équipe.
-   * Inclut les indisponibles (le chef peut les assigner → confirmation obligatoire).
-   * Tri : disponibles d'abord, puis ranking.
-   */
   async getAvailableAgents() {
     const agents = await this.prisma.user.findMany({
-      where: {
-        role: Role.AGENT,
-        isActive: true,
-      },
+      where: { role: Role.AGENT, isActive: true },
       select: {
         id: true,
         firstName: true,
@@ -138,7 +118,6 @@ export class AgentService {
       orderBy: [{ rankingScore: 'desc' }, { lastName: 'asc' }],
     });
 
-    // Disponibles en premier
     return agents.sort((a, b) => {
       const avA = a.agentProfile?.isAvailable === true ? 0 : 1;
       const avB = b.agentProfile?.isAvailable === true ? 0 : 1;
@@ -147,15 +126,10 @@ export class AgentService {
     });
   }
 
-  /**
-   * Historique des pointages d'un agent
-   */
   async getPointagesHistory(agentId: string) {
     const pointages = await this.prisma.pointage.findMany({
       where: { agentId },
-      include: {
-        site: { select: { name: true } },
-      },
+      include: { site: { select: { name: true } } },
       orderBy: { notedAt: 'desc' },
     });
 
@@ -169,96 +143,111 @@ export class AgentService {
   }
 
   /**
-   * Mon planning (calendrier)
-   * Retourne les jours pointés et les indisponibilités
+   * Calendrier agent :
+   * - assigned : jours couverts par affectation CONFIRMED/LOCKED (sauf dimanche)
+   * - worked : pointage DEPART / PRESENCE
+   * - unavailable : jour marqué par l'agent
+   * - routine : missions routine
    */
   async getPlanning(agentId: string, monthKey?: string) {
-    // Filtrage par mois si fourni (format: 'yyyy-MM'), sinon les 3 derniers mois
     const now = new Date();
     let startDate: Date;
     let endDate: Date;
-    
+
     if (monthKey && /^\d{4}-\d{2}$/.test(monthKey)) {
       const [year, month] = monthKey.split('-').map(Number);
-      startDate = new Date(year, month - 1, 1);
-      endDate = new Date(year, month, 0, 23, 59, 59); // last day of month
+      startDate = new Date(Date.UTC(year, month - 1, 1));
+      endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59));
     } else {
-      startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1));
+      endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59));
     }
 
-    // Récupérer tous les pointages ARRIVEE sur la période
     const pointages = await this.prisma.pointage.findMany({
-      where: { 
-        agentId, 
+      where: {
+        agentId,
         notedAt: { gte: startDate, lte: endDate },
-        type: { in: ['DEPART', 'PRESENCE_PERMANENCE', 'ARRIVEE'] } 
+        type: { in: ['DEPART', 'PRESENCE_PERMANENCE', 'ARRIVEE'] },
       },
       include: { site: { select: { name: true } } },
       orderBy: { notedAt: 'asc' },
     });
 
-    // Récupérer les missions de routine de l'agent
-    const routines = await this.prisma.assignment.findMany({
+    const assignments = await this.prisma.assignment.findMany({
       where: {
         agentId,
-        status: { in: ['CONFIRMED', 'PENDING_CONFIRMATION', 'LOCKED'] },
-        missionType: 'ROUTINE'
+        status: { in: ['CONFIRMED', 'LOCKED', 'PENDING_CONFIRMATION'] },
       },
-      include: { site: { select: { name: true } } }
+      include: { site: { select: { name: true } } },
     });
 
-    // Récupérer les logs d'indisponibilité futures
     const profile = await this.prisma.agentProfile.findUnique({ where: { userId: agentId } });
-    // Les indisponibilités futures sont stockées en JSON sur le profil
-    const unavailableDates: string[] = (profile as any)?.unavailableDates ?? [];
+    const unavailableDates: string[] = (profile?.unavailableDates as string[]) || [];
 
-    // Construire le map date -> statut (format attendu par le frontend)
     const calendarMap: Record<string, { status: string; siteName?: string }> = {};
 
-    for (const routine of routines) {
-      const days = routine.routineDays as unknown as number[];
-      if (!Array.isArray(days) || days.length === 0) continue;
-      // Parcourir chaque jour de startDate à endDate
-      let current = new Date(startDate);
-      while (current <= endDate) {
-        // En js, getDay() = 0 (Dimanche) .. 6 (Samedi). On veut 1 (Lundi) .. 7 (Dimanche)
-        const dayOfWeek = current.getDay() === 0 ? 7 : current.getDay();
-        if (days.includes(dayOfWeek)) {
-          // Vérifier si current >= routine.startDate (et <= endDate si défini)
-          const rStart = new Date(routine.startDate);
-          rStart.setHours(0, 0, 0, 0);
-          let rEnd = routine.endDate ? new Date(routine.endDate) : null;
-          if (rEnd) rEnd.setHours(23, 59, 59, 999);
+    // 1) Affectations confirmées / en attente → jours de mission (hors dimanche)
+    for (const asg of assignments) {
+      const aStart = new Date(asg.startDate);
+      aStart.setUTCHours(0, 0, 0, 0);
+      const aEnd = asg.endDate
+        ? new Date(asg.endDate)
+        : new Date(Math.max(aStart.getTime(), endDate.getTime()));
+      aEnd.setUTCHours(23, 59, 59, 999);
 
-          if (current >= rStart && (!rEnd || current <= rEnd)) {
-            const dateKey = current.toISOString().split('T')[0];
-            calendarMap[dateKey] = { status: 'routine', siteName: routine.site.name };
+      const cursor = new Date(Math.max(aStart.getTime(), startDate.getTime()));
+      const limit = new Date(Math.min(aEnd.getTime(), endDate.getTime()));
+
+      while (cursor <= limit) {
+        const dow = cursor.getUTCDay(); // 0 = dimanche
+        if (dow !== 0) {
+          if (asg.missionType === 'ROUTINE') {
+            const days = asg.routineDays as unknown as number[];
+            const dayOfWeek = dow === 0 ? 7 : dow;
+            if (Array.isArray(days) && days.includes(dayOfWeek)) {
+              const dateKey = cursor.toISOString().slice(0, 10);
+              calendarMap[dateKey] = {
+                status: 'routine',
+                siteName: asg.site.name,
+              };
+            }
+          } else {
+            const dateKey = cursor.toISOString().slice(0, 10);
+            // Ne pas écraser une routine plus précise
+            if (!calendarMap[dateKey] || calendarMap[dateKey].status !== 'routine') {
+              calendarMap[dateKey] = {
+                status: asg.status === 'PENDING_CONFIRMATION' ? 'assigned_pending' : 'assigned',
+                siteName: asg.site.name,
+              };
+            }
           }
         }
-        current.setDate(current.getDate() + 1);
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
       }
     }
 
-    // Jours travaillés (écrase la routine si pointage effectué)
-    for (const p of pointages) {
-      const dateKey = p.notedAt.toISOString().split('T')[0];
-      calendarMap[dateKey] = { status: 'worked', siteName: p.site.name };
-    }
-
-    // Jours indisponibles marqués (futurs)
+    // 2) Indispos déclarées (n'écrase pas worked)
     for (const d of unavailableDates) {
-      if (!calendarMap[d]) {
+      if (!calendarMap[d] || calendarMap[d].status === 'assigned' || calendarMap[d].status === 'assigned_pending') {
+        // On marque indispo mais on garde le site si déjà assigné
+        calendarMap[d] = {
+          status: 'unavailable',
+          siteName: calendarMap[d]?.siteName,
+        };
+      } else if (!calendarMap[d]) {
         calendarMap[d] = { status: 'unavailable' };
       }
+    }
+
+    // 3) Jours réellement pointés (priorité max)
+    for (const p of pointages) {
+      const dateKey = p.notedAt.toISOString().slice(0, 10);
+      calendarMap[dateKey] = { status: 'worked', siteName: p.site.name };
     }
 
     return calendarMap;
   }
 
-  /**
-   * Rémunération mensuelle
-   */
   async getRemuneration(agentId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: agentId },
@@ -266,28 +255,27 @@ export class AgentService {
     });
     if (!user) throw new NotFoundException('Agent non trouvé');
 
-    // On récupère tous les pointages (arrivées = jours travaillés)
     const pointages = await this.prisma.pointage.findMany({
       where: { agentId, type: { in: ['DEPART', 'PRESENCE_PERMANENCE', 'ARRIVEE'] } },
       orderBy: { notedAt: 'desc' },
       include: { site: true },
     });
 
-    // Grouper par mois (yyyy-MM)
-    const monthlyData: Record<string, { daysWorked: number; totalAmount: number; details: any[] }> = {};
+    const monthlyData: Record<
+      string,
+      { daysWorked: number; totalAmount: number; details: any[] }
+    > = {};
 
     for (const p of pointages) {
       const monthKey = p.notedAt.toISOString().substring(0, 7);
       if (!monthlyData[monthKey]) {
         monthlyData[monthKey] = { daysWorked: 0, totalAmount: 0, details: [] };
       }
-
-      const rate = p.site.dailyRate ? Number(p.site.dailyRate) : (user.agentType === 'PERMANENT' ? 5000 : 3000);
-      
-      // On compte une arrivée comme un jour de travail
-      // Note: "L'agent peut faire 2 chantiers dans une journée" -> il aura 2 arrivées, donc payé 2 fois ?
-      // Selon le client : "l'agent peut faire 2 chantiers dans une journée en cas d'urgence... la notation se fait aussi par rapport à un chantier et une seule fois par jour"
-      
+      const rate = p.site.dailyRate
+        ? Number(p.site.dailyRate)
+        : user.agentType === 'PERMANENT'
+          ? 5000
+          : 3000;
       monthlyData[monthKey].daysWorked += 1;
       monthlyData[monthKey].totalAmount += rate;
       monthlyData[monthKey].details.push({
@@ -297,30 +285,27 @@ export class AgentService {
       });
     }
 
-    const paidMonths = user.agentProfile?.paidMonths as Record<string, string> || {};
+    const paidMonths = (user.agentProfile?.paidMonths as Record<string, string>) || {};
 
-    const result = Object.entries(monthlyData).map(([monthKey, data]) => ({
-      monthKey,
-      daysWorked: data.daysWorked,
-      totalAmount: data.totalAmount,
-      isPaid: !!paidMonths[monthKey],
-      paidAt: paidMonths[monthKey] || null,
-      details: data.details,
-    }));
-
-    return result.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+    return Object.entries(monthlyData)
+      .map(([monthKey, data]) => ({
+        monthKey,
+        daysWorked: data.daysWorked,
+        totalAmount: data.totalAmount,
+        isPaid: !!paidMonths[monthKey],
+        paidAt: paidMonths[monthKey] || null,
+        details: data.details,
+      }))
+      .sort((a, b) => b.monthKey.localeCompare(a.monthKey));
   }
 
-  /**
-   * Marquer un mois comme payé
-   */
   async markMonthPaid(agentId: string, monthKey: string) {
     const profile = await this.prisma.agentProfile.findUnique({
       where: { userId: agentId },
     });
     if (!profile) throw new NotFoundException('Profil agent non trouvé');
 
-    const paidMonths = (profile.paidMonths as Record<string, string> || {});
+    const paidMonths = (profile.paidMonths as Record<string, string>) || {};
     paidMonths[monthKey] = new Date().toISOString();
 
     await this.prisma.agentProfile.update({
@@ -331,11 +316,7 @@ export class AgentService {
     return { success: true, monthKey, paidAt: paidMonths[monthKey] };
   }
 
-  /**
-   * Marquer un jour spécifique comme disponible ou non (pour les jours futurs)
-   */
   async markDayAvailability(userId: string, date: string, available: boolean) {
-    // Basic validation of date string (YYYY-MM-DD)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       throw new BadRequestException('Format de date invalide (YYYY-MM-DD attendu)');
     }
@@ -351,20 +332,14 @@ export class AgentService {
     let unavailableDates: string[] = (profile.unavailableDates as string[]) || [];
 
     if (available) {
-      // Remove from unavailableDates if it exists
       unavailableDates = unavailableDates.filter((d) => d !== date);
-    } else {
-      // Add to unavailableDates if it doesn't exist
-      if (!unavailableDates.includes(date)) {
-        unavailableDates.push(date);
-      }
+    } else if (!unavailableDates.includes(date)) {
+      unavailableDates.push(date);
     }
 
     await this.prisma.agentProfile.update({
       where: { userId },
-      data: {
-        unavailableDates,
-      },
+      data: { unavailableDates },
     });
 
     return { success: true, date, available };
