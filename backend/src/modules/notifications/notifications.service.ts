@@ -38,7 +38,6 @@ export class NotificationsService {
     };
 
     this.gateway.notifyUser(userId, 'notification', payload);
-    // Compat anciens écouteurs
     this.gateway.notifyUser(userId, input.type, {
       message: input.body,
       title: input.title,
@@ -52,7 +51,7 @@ export class NotificationsService {
     await Promise.all(unique.map((id) => this.push(id, input)));
   }
 
-  async list(userId: string, limit = 50) {
+  async list(userId: string, limit = 80) {
     return this.prisma.appNotification.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
@@ -63,6 +62,13 @@ export class NotificationsService {
   async markRead(id: string, userId: string) {
     return this.prisma.appNotification.updateMany({
       where: { id, userId, readAt: null },
+      data: { readAt: new Date() },
+    });
+  }
+
+  async markAllRead(userId: string) {
+    return this.prisma.appNotification.updateMany({
+      where: { userId, readAt: null },
       data: { readAt: new Date() },
     });
   }
