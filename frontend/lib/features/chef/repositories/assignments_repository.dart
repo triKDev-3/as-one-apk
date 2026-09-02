@@ -57,6 +57,26 @@ class AssignmentModel {
   bool isUnavailableOn(String yyyyMmDd) => unavailableDates.contains(yyyyMmDd);
 }
 
+class LockedSiteInfo {
+  final String siteId;
+  final String siteName;
+  final String status;
+
+  LockedSiteInfo({
+    required this.siteId,
+    required this.siteName,
+    required this.status,
+  });
+
+  factory LockedSiteInfo.fromJson(Map<String, dynamic> json) {
+    return LockedSiteInfo(
+      siteId: json['siteId'] as String? ?? '',
+      siteName: json['siteName'] as String? ?? 'Autre site',
+      status: json['status'] as String? ?? '',
+    );
+  }
+}
+
 class AvailableAgent {
   final String id;
   final String firstName;
@@ -68,6 +88,8 @@ class AvailableAgent {
   final int daysWorked;
   final bool isAvailable;
   final bool isLockedElsewhere;
+  final bool canForceMultiSite;
+  final List<LockedSiteInfo> lockedOnSites;
   final List<String> unavailableDates;
   final bool isUnavailableToday;
 
@@ -82,11 +104,16 @@ class AvailableAgent {
     this.daysWorked = 0,
     this.isAvailable = true,
     this.isLockedElsewhere = false,
+    this.canForceMultiSite = false,
+    this.lockedOnSites = const [],
     this.unavailableDates = const [],
     this.isUnavailableToday = false,
   });
 
   String get fullName => '$firstName $lastName';
+
+  String get lockedSitesLabel =>
+      lockedOnSites.map((s) => s.siteName).join(', ');
 
   bool isUnavailableOn(String yyyyMmDd) => unavailableDates.contains(yyyyMmDd);
 
@@ -95,6 +122,12 @@ class AvailableAgent {
     final dates = rawDates is List
         ? rawDates.map((e) => e.toString()).toList()
         : <String>[];
+    final rawLocked = json['lockedOnSites'];
+    final locked = rawLocked is List
+        ? rawLocked
+            .map((e) => LockedSiteInfo.fromJson(e as Map<String, dynamic>))
+            .toList()
+        : <LockedSiteInfo>[];
     return AvailableAgent(
       id: json['id'] as String,
       firstName: json['firstName'] as String? ?? '',
@@ -106,6 +139,8 @@ class AvailableAgent {
       daysWorked: (json['daysWorked'] as num?)?.toInt() ?? 0,
       isAvailable: json['isAvailable'] as bool? ?? true,
       isLockedElsewhere: json['isLockedElsewhere'] as bool? ?? false,
+      canForceMultiSite: json['canForceMultiSite'] as bool? ?? false,
+      lockedOnSites: locked,
       unavailableDates: dates,
       isUnavailableToday: json['isUnavailableToday'] as bool? ?? false,
     );
@@ -152,6 +187,7 @@ class AssignmentsRepository {
     String? missionType,
     List<int>? routineDays,
     double? fixedSalary,
+    bool forceMultiSite = false,
   }) async {
     try {
       final data = {
@@ -162,6 +198,7 @@ class AssignmentsRepository {
         if (missionType != null) 'missionType': missionType,
         if (routineDays != null) 'routineDays': routineDays,
         if (fixedSalary != null) 'fixedSalary': fixedSalary,
+        if (forceMultiSite) 'forceMultiSite': true,
       };
       final response = await _api.dio.post('/assignments', data: data);
       return AssignmentModel.fromJson(response.data as Map<String, dynamic>);
