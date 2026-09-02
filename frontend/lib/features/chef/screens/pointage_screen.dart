@@ -121,6 +121,7 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
                 'agentName': '${agent.firstName} ${agent.lastName}',
                 'agentPhone': agent.phone ?? '',
                 'status': 'EXTRA',
+                'unavailableOnDate': false,
               });
             }
           });
@@ -210,8 +211,7 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
                     ),
                     IconButton(
                       onPressed: () => _pickPhoto(ImageSource.gallery),
-                      icon:
-                          const Icon(Icons.photo_library, color: AppColors.accent),
+                      icon: const Icon(Icons.photo_library, color: AppColors.accent),
                     ),
                   ]),
               ],
@@ -222,7 +222,7 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Glissez vers la droite pour marquer absent.',
+                'Badge « Indispo » = déclaré par l\'agent. Vous pouvez quand même le pointer s\'il est présent.\nGlissez vers la droite pour marquer absent.',
                 style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
             ),
@@ -244,6 +244,7 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
                           'agentName': a.agentName,
                           'agentPhone': a.agentPhone,
                           'status': a.status,
+                          'unavailableOnDate': a.isUnavailableOn(dateStr),
                         })
                     .toList();
                 for (final extra in _extraAgents) {
@@ -273,6 +274,7 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
                     final isSelected = _selected.contains(a['agentId']);
                     final isConfirmed = a['status'] == 'CONFIRMED' ||
                         a['status'] == 'LOCKED';
+                    final isIndispo = a['unavailableOnDate'] == true;
 
                     final agentCard = Container(
                       margin: const EdgeInsets.only(bottom: 8),
@@ -306,18 +308,19 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
                               border: Border.all(
                                 color: isAlreadyPointed
                                     ? Colors.grey.withValues(alpha: 0.5)
-                                    : (isSelected
-                                        ? AppColors.accent
-                                        : AppColors.border),
-                                width: isSelected ? 1.5 : 1,
+                                    : (isIndispo
+                                        ? AppColors.warning
+                                        : (isSelected
+                                            ? AppColors.accent
+                                            : AppColors.border)),
+                                width: isSelected || isIndispo ? 1.5 : 1,
                               ),
                             ),
                             child: Row(children: [
                               CircleAvatar(
                                 radius: 18,
-                                backgroundColor: AppColors.primary
-                                    .withValues(
-                                        alpha: isAlreadyPointed ? 0.05 : 0.12),
+                                backgroundColor: AppColors.primary.withValues(
+                                    alpha: isAlreadyPointed ? 0.05 : 0.12),
                                 child: Text(
                                   (a['agentName'] as String).isNotEmpty
                                       ? (a['agentName'] as String)[0]
@@ -351,6 +354,28 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
                                                 color: isAlreadyPointed
                                                     ? Colors.grey
                                                     : null)),
+                                    if (isIndispo && !isAlreadyPointed)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.warning
+                                                .withValues(alpha: 0.15),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                          ),
+                                          child: const Text(
+                                            'Déclaré indispo ce jour — pointable si présent',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: AppColors.warning,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                   ],
                                 ),
                               ),
@@ -443,7 +468,8 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
                         alignment: Alignment.centerLeft,
                         padding: const EdgeInsets.only(left: 20),
                         margin: const EdgeInsets.only(bottom: 8),
-                        child: const Icon(Icons.person_off, color: Colors.white),
+                        child:
+                            const Icon(Icons.person_off, color: Colors.white),
                       ),
                       child: agentCard,
                     );
@@ -623,7 +649,11 @@ class _AddAgentModalState extends ConsumerState<_AddAgentModal> {
                     ),
                     title: Text('${a.firstName} ${a.lastName}',
                         style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(a.phone),
+                    subtitle: Text(
+                      a.isUnavailableToday
+                          ? '${a.phone} · Indispo aujourd\'hui'
+                          : a.phone,
+                    ),
                     onTap: () => widget.onAgentSelected(a),
                   );
                 },
