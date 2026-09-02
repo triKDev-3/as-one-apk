@@ -18,9 +18,9 @@ class AsOneBottomNav extends StatelessWidget {
       case 'CHEF':
         return const [
           _NavItem(Icons.dashboard_rounded, 'Accueil', '/chef'),
+          _NavItem(Icons.calendar_month_rounded, 'Agenda', '/chef/calendar'),
           _NavItem(Icons.apartment_rounded, 'Sites', '/chef/select-site'),
-          _NavItem(Icons.fingerprint_rounded, 'Pointages', '/chef/pointages'),
-          _NavItem(Icons.warning_amber_rounded, 'Incidents', '/chef/incidents'),
+          _NavItem(Icons.notifications_rounded, 'Notifs', '/chef/notifications'),
           _NavItem(Icons.person_rounded, 'Profil', '/chef/profile'),
         ];
       case 'MAGASINIER':
@@ -28,28 +28,29 @@ class AsOneBottomNav extends StatelessWidget {
           _NavItem(Icons.dashboard_rounded, 'Accueil', '/magasinier'),
           _NavItem(Icons.outbox_rounded, 'Sortie', '/magasinier/out'),
           _NavItem(Icons.move_to_inbox_rounded, 'Retour', '/magasinier/return'),
+          _NavItem(Icons.notifications_rounded, 'Notifs', '/magasinier/notifications'),
           _NavItem(Icons.warning_amber_rounded, 'Incidents', '/magasinier/incidents'),
-          _NavItem(Icons.fingerprint_rounded, 'Pointages', '/magasinier/pointages'),
         ];
       case 'COMPTABLE':
         return const [
           _NavItem(Icons.dashboard_rounded, 'Accueil', '/comptable'),
           _NavItem(Icons.fingerprint_rounded, 'Pointages', '/comptable/pointages'),
+          _NavItem(Icons.notifications_rounded, 'Notifs', '/comptable/notifications'),
           _NavItem(Icons.warning_amber_rounded, 'Incidents', '/comptable/incidents'),
         ];
       case 'ADMIN':
         return const [
           _NavItem(Icons.dashboard_rounded, 'Accueil', '/admin'),
+          _NavItem(Icons.calendar_month_rounded, 'Agenda', '/admin/calendar'),
           _NavItem(Icons.people_rounded, 'Équipe', '/admin/users'),
+          _NavItem(Icons.notifications_rounded, 'Notifs', '/admin/notifications'),
           _NavItem(Icons.domain_rounded, 'Sites', '/admin/sites'),
-          _NavItem(Icons.fingerprint_rounded, 'Pointages', '/admin/pointages'),
-          _NavItem(Icons.leaderboard_rounded, 'Classement', '/admin/ranking'),
         ];
       default:
         return const [
           _NavItem(Icons.home_rounded, 'Accueil', '/agent'),
           _NavItem(Icons.calendar_month_rounded, 'Planning', '/agent/planning'),
-          _NavItem(Icons.fingerprint_rounded, 'Pointages', '/agent/pointages'),
+          _NavItem(Icons.notifications_rounded, 'Notifs', '/agent/notifications'),
           _NavItem(Icons.leaderboard_rounded, 'Classement', '/agent/ranking'),
           _NavItem(Icons.person_rounded, 'Profil', '/agent/profile'),
         ];
@@ -70,11 +71,7 @@ class AsOneBottomNav extends StatelessWidget {
         final dest = items[i].route;
         final current = GoRouterState.of(context).uri.path;
         if (current == dest) return;
-        if (i == 0) {
-          context.go(dest);
-        } else {
-          context.go(dest);
-        }
+        context.go(dest);
       },
       destinations: [
         for (final it in items)
