@@ -30,6 +30,7 @@ import '../../features/shared/ranking_screen.dart';
 import '../../features/shared/pointages_log_screen.dart';
 import '../../features/shared/incidents_list_screen.dart';
 import '../../features/shared/notifications_screen.dart';
+import '../../features/shared/interventions_history_screen.dart';
 import '../../features/agent/screens/planning_screen.dart';
 import '../../features/agent/screens/pointages_history_screen.dart';
 import '../../features/agent/screens/remuneration_screen.dart';
@@ -91,6 +92,10 @@ class AppRouter {
           GoRoute(
             path: 'pointages',
             builder: (_, state) => PointagesLogScreen(date: _qDate(state)),
+          ),
+          GoRoute(
+            path: 'interventions',
+            builder: (_, __) => const InterventionsHistoryScreen(),
           ),
           GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
           GoRoute(
@@ -168,6 +173,10 @@ class AppRouter {
               date: _qDate(state),
             ),
           ),
+          GoRoute(
+            path: 'interventions',
+            builder: (_, __) => const InterventionsHistoryScreen(),
+          ),
           GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
         ],
       ),
@@ -187,6 +196,10 @@ class AppRouter {
           GoRoute(
             path: 'incidents',
             builder: (_, state) => IncidentsListScreen(date: _qDate(state)),
+          ),
+          GoRoute(
+            path: 'interventions',
+            builder: (_, __) => const InterventionsHistoryScreen(),
           ),
           GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
           GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
