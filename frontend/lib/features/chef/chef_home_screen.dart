@@ -9,6 +9,7 @@ import '../../core/providers/providers.dart';
 import '../../core/network/api_client.dart';
 import '../../core/widgets/custom_card.dart';
 import '../../core/widgets/hero_banner.dart';
+import '../../core/widgets/asone_loader.dart';
 
 class LiveStats {
   final int totalAgents;
@@ -118,6 +119,15 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen>
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                IconButton.filledTonal(
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white.withValues(alpha: 0.12),
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: const Icon(Icons.notifications_outlined, size: 20),
+                  onPressed: () => context.push('/chef/notifications'),
+                ),
+                const SizedBox(width: 8),
                 IconButton.filledTonal(
                   style: IconButton.styleFrom(
                     backgroundColor: Colors.white.withValues(alpha: 0.12),
@@ -257,13 +267,13 @@ class _DashboardTab extends StatelessWidget {
         ).animate().fadeIn().slideX(begin: -0.05, end: 0),
         const SizedBox(height: 14),
         statsAsync.when(
-          loading: () => const _StatsGridSkeleton(),
+          loading: () => const SizedBox(height: 120, child: AsOneLoader()),
           error: (_, __) => const SizedBox(),
           data: (stats) => _LiveStatsGrid(stats: stats),
         ),
         const SizedBox(height: 20),
         const Text(
-          'Actions rapides',
+          'Actions & historiques',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
@@ -282,22 +292,15 @@ class _DashboardTab extends StatelessWidget {
           children: [
             _ActionCard(
               icon: Icons.fingerprint_rounded,
-              title: 'Mes pointages',
-              subtitle: 'Par journée',
+              title: 'Historique pointages',
+              subtitle: 'Tous les sites',
               color: AppColors.accent,
-              onTap: () => context.push('/chef/select-site'),
-            ),
-            _ActionCard(
-              icon: Icons.star_half_rounded,
-              title: 'Mes notations',
-              subtitle: 'Évaluer les agents',
-              color: AppColors.warning,
-              onTap: () => context.push('/chef/select-site'),
+              onTap: () => context.push('/chef/pointages'),
             ),
             _ActionCard(
               icon: Icons.warning_amber_rounded,
               title: 'Incidents',
-              subtitle: 'Signaler ou consulter',
+              subtitle: 'Liste & signalement',
               color: AppColors.danger,
               onTap: () => context.push('/chef/incidents'),
             ),
@@ -308,8 +311,40 @@ class _DashboardTab extends StatelessWidget {
               color: AppColors.secondary,
               onTap: () => context.push('/chef/interventions'),
             ),
+            _ActionCard(
+              icon: Icons.notifications_rounded,
+              title: 'Notifications',
+              subtitle: 'Alertes agents',
+              color: AppColors.primary,
+              onTap: () => context.push('/chef/notifications'),
+            ),
           ],
         ).animate().fadeIn(delay: 200.ms),
+        const SizedBox(height: 14),
+        GridView.count(
+          crossAxisCount: 2,
+          crossAxisSpacing: 14,
+          mainAxisSpacing: 14,
+          childAspectRatio: 1.1,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            _ActionCard(
+              icon: Icons.how_to_reg_rounded,
+              title: 'Pointer',
+              subtitle: 'Choisir un site',
+              color: AppColors.accent,
+              onTap: () => context.push('/chef/select-site'),
+            ),
+            _ActionCard(
+              icon: Icons.star_half_rounded,
+              title: 'Notations',
+              subtitle: 'Évaluer les agents',
+              color: AppColors.warning,
+              onTap: () => context.push('/chef/select-site'),
+            ),
+          ],
+        ),
         const SizedBox(height: 20),
         _TransferCard(onTap: () => context.push('/chef/transfers')),
       ],
@@ -325,7 +360,7 @@ class _EquipesTab extends ConsumerWidget {
     final sitesAsync = ref.watch(agentsBySiteProvider);
 
     return sitesAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const AsOneLoader(),
       error: (e, _) => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -342,14 +377,8 @@ class _EquipesTab extends ConsumerWidget {
       data: (sites) {
         if (sites.isEmpty) {
           return const Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.business_outlined, size: 56, color: AppColors.textTertiary),
-                SizedBox(height: 12),
-                Text('Aucun site actif', style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
-              ],
-            ),
+            child: Text('Aucun site actif',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
           );
         }
 
@@ -405,19 +434,12 @@ class _EquipesTab extends ConsumerWidget {
                               ],
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              '$agentCount agent${agentCount > 1 ? 's' : ''}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: color,
-                              ),
+                          Text(
+                            '$agentCount agent${agentCount > 1 ? 's' : ''}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: color,
                             ),
                           ),
                         ],
@@ -428,35 +450,14 @@ class _EquipesTab extends ConsumerWidget {
                       ...agents.take(4).map((a) {
                         final ag = a as Map<String, dynamic>;
                         final name = '${ag['firstName'] ?? ''} ${ag['lastName'] ?? ''}'.trim();
-                        final phone = ag['phone'] as String? ?? '';
-                        final agentType = ag['agentType'] as String? ?? '';
                         return ListTile(
                           dense: true,
-                          leading: CircleAvatar(
-                            radius: 16,
-                            backgroundColor: color.withValues(alpha: 0.1),
-                            child: Text(
-                              name.isNotEmpty ? name[0].toUpperCase() : '?',
-                              style: TextStyle(
-                                  color: color,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13),
-                            ),
-                          ),
                           title: Text(name,
                               style: const TextStyle(
                                   fontWeight: FontWeight.w600, fontSize: 13)),
-                          subtitle: Text('$agentType · $phone',
-                              style: const TextStyle(fontSize: 11)),
                         );
                       }),
-                    ] else
-                      const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: Text('Aucun agent affecté à ce site',
-                            style: TextStyle(
-                                color: AppColors.textSecondary, fontSize: 13)),
-                      ),
+                    ],
                   ],
                 ),
               );
@@ -583,7 +584,7 @@ class _TransferCard extends StatelessWidget {
           ),
         ),
       ),
-    ).animate().fadeIn(delay: 350.ms);
+    );
   }
 }
 
@@ -687,8 +688,7 @@ class _LiveStatsGrid extends StatelessWidget {
               label: 'Pointages auj.',
               value: '${stats.todayPointages}',
               color: AppColors.warning,
-              onTap: () =>
-                  context.push('/chef/stats-details/today_pointages'),
+              onTap: () => context.push('/chef/pointages'),
             ),
           ],
         ),
@@ -714,7 +714,7 @@ class _LiveStatsGrid extends StatelessWidget {
           ],
         ),
       ],
-    ).animate().fadeIn(delay: 50.ms);
+    );
   }
 }
 
@@ -787,45 +787,6 @@ class _StatTile extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatsGridSkeleton extends StatelessWidget {
-  const _StatsGridSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: List.generate(
-        3,
-        (i) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Container(
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              ),
-            ],
           ),
         ),
       ),
