@@ -7,7 +7,6 @@ import '../../core/providers/providers.dart';
 import '../../core/widgets/custom_card.dart';
 import '../../core/widgets/hero_banner.dart';
 import '../../core/widgets/action_grid_card.dart';
-import '../../core/widgets/asone_bottom_nav.dart';
 
 class AdminHomeScreen extends ConsumerWidget {
   const AdminHomeScreen({super.key});
@@ -18,7 +17,7 @@ class AdminHomeScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      bottomNavigationBar: const AsOneBottomNav(role: 'ADMIN', currentIndex: 0),
+      // Nav bas fournie par RoleShell (persistante)
       body: Column(
         children: [
           HeroBanner(
