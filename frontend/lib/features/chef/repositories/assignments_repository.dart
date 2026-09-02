@@ -44,6 +44,17 @@ class AssignmentModel {
   }
 
   String get agentPhone => agent?['phone'] as String? ?? '';
+
+  List<String> get unavailableDates {
+    final profile = agent?['agentProfile'] as Map<String, dynamic>?;
+    final raw = profile?['unavailableDates'];
+    if (raw is List) {
+      return raw.map((e) => e.toString()).toList();
+    }
+    return const [];
+  }
+
+  bool isUnavailableOn(String yyyyMmDd) => unavailableDates.contains(yyyyMmDd);
 }
 
 class AvailableAgent {
@@ -51,12 +62,14 @@ class AvailableAgent {
   final String firstName;
   final String lastName;
   final String phone;
-  final String contractType; // PERMANENT | TEMPORAIRE
+  final String contractType;
   final double rankingScore;
   final double? avgScore;
   final int daysWorked;
   final bool isAvailable;
   final bool isLockedElsewhere;
+  final List<String> unavailableDates;
+  final bool isUnavailableToday;
 
   AvailableAgent({
     required this.id,
@@ -69,11 +82,19 @@ class AvailableAgent {
     this.daysWorked = 0,
     this.isAvailable = true,
     this.isLockedElsewhere = false,
+    this.unavailableDates = const [],
+    this.isUnavailableToday = false,
   });
 
   String get fullName => '$firstName $lastName';
 
+  bool isUnavailableOn(String yyyyMmDd) => unavailableDates.contains(yyyyMmDd);
+
   factory AvailableAgent.fromJson(Map<String, dynamic> json) {
+    final rawDates = json['unavailableDates'];
+    final dates = rawDates is List
+        ? rawDates.map((e) => e.toString()).toList()
+        : <String>[];
     return AvailableAgent(
       id: json['id'] as String,
       firstName: json['firstName'] as String? ?? '',
@@ -85,6 +106,8 @@ class AvailableAgent {
       daysWorked: (json['daysWorked'] as num?)?.toInt() ?? 0,
       isAvailable: json['isAvailable'] as bool? ?? true,
       isLockedElsewhere: json['isLockedElsewhere'] as bool? ?? false,
+      unavailableDates: dates,
+      isUnavailableToday: json['isUnavailableToday'] as bool? ?? false,
     );
   }
 }
