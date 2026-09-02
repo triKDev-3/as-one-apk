@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AssignmentStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class StatsService {
@@ -430,5 +431,93 @@ export class StatsService {
     }
 
     return { month: monthKey, summary, days };
+  }
+
+  /**
+   * Historique des interventions = affectations (missions) avec filtres.
+   */
+  async getInterventionsHistory(params: {
+    userId: string;
+    role: string;
+    all: boolean;
+    from?: string;
+    to?: string;
+    siteId?: string;
+    status?: string;
+  }) {
+    const isFiltered = params.role === 'CHEF' && !params.all;
+    const siteFilter = isFiltered
+      ? { chefs: { some: { chefId: params.userId } } }
+      : {};
+
+    const where: Prisma.AssignmentWhereInput = {
+      ...(params.siteId ? { siteId: params.siteId } : {}),
+      ...(isFiltered ? { site: siteFilter } : {}),
+    };
+
+    if (params.status && params.status !== 'ALL') {
+      where.status = params.status as AssignmentStatus;
+    }
+
+    if (params.from || params.to) {
+      const range: Prisma.DateTimeFilter = {};
+      if (params.from) range.gte = new Date(`${params.from}T00:00:00.000Z`);
+      if (params.to) range.lte = new Date(`${params.to}T23:59:59.999Z`);
+      where.startDate = range;
+    }
+
+    const rows = await this.prisma.assignment.findMany({
+      where,
+      include: {
+        site: { select: { id: true, name: true, type: true } },
+        agent: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            contractType: true,
+          },
+        },
+        createdBy: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+      orderBy: { startDate: 'desc' },
+      take: 1000,
+    });
+
+    const items = rows.map((a) => ({
+      id: a.id,
+      status: a.status,
+      missionType: a.missionType,
+      startDate: a.startDate,
+      endDate: a.endDate,
+      confirmedAt: a.confirmedAt,
+      refusedAt: a.refusedAt,
+      isLocked: a.isLocked,
+      siteId: a.site.id,
+      siteName: a.site.name,
+      siteType: a.site.type,
+      agentId: a.agent.id,
+      agentName: `${a.agent.firstName} ${a.agent.lastName}`.trim(),
+      agentPhone: a.agent.phone,
+      agentContract: a.agent.contractType,
+      chefName: a.createdBy
+        ? `${a.createdBy.firstName} ${a.createdBy.lastName}`.trim()
+        : null,
+      createdAt: a.createdAt,
+    }));
+
+    const byStatus: Record<string, number> = {};
+    for (const it of items) {
+      byStatus[it.status] = (byStatus[it.status] || 0) + 1;
+    }
+
+    return {
+      count: items.length,
+      byStatus,
+      items,
+    };
   }
 }
