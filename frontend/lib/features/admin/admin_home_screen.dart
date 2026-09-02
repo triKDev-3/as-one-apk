@@ -86,6 +86,27 @@ class AdminHomeScreen extends ConsumerWidget {
                 ).animate().fadeIn(delay: 150.ms),
                 const SizedBox(height: 20),
                 CustomCard(
+                  onTap: () => context.push('/admin/interventions'),
+                  padding: const EdgeInsets.all(18),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.history_edu_rounded, color: AppColors.primary),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Text('Historique interventions',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w700)),
+                      ),
+                      Icon(Icons.file_download_outlined,
+                          color: AppColors.textTertiary, size: 18),
+                      SizedBox(width: 6),
+                      Icon(Icons.arrow_forward_ios_rounded,
+                          color: AppColors.textTertiary, size: 14),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                CustomCard(
                   onTap: () => context.push('/admin/pointages'),
                   padding: const EdgeInsets.all(18),
                   child: const Row(
