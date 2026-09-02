@@ -1,5 +1,5 @@
 // AS ONE — Prisma Schema
-// Version 1.1 — Pointage départ + absent
+// Version 1.2 — Pointage rétroactif + notifications
 
 generator client {
   provider = "prisma-client-js"
@@ -95,6 +95,7 @@ model User {
   incidentsReported Incident[]
   siteTasksCreated  SiteTask[]
   siteReportsCreated SiteReport[]
+  notifications AppNotification[]
   @@index([role, isActive])
   @@index([phone])
 }
@@ -162,18 +163,11 @@ model Assignment {
   createdById String
   status      AssignmentStatus @default(PENDING_CONFIRMATION)
   startDate   DateTime
-<<<<<<< HEAD
-  endDate     DateTime?        // null si permanence ou multi-jours en cours
-  isLocked    Boolean          @default(false) // reste verrouillé jusqu'à fin chantier
-
-  missionType String?          @default("TEMPORAIRE") // TEMPORAIRE, PERMANENTE, ROUTINE
-  routineDays Json?
-  fixedSalary Decimal?         @db.Decimal(10, 2)
-
-=======
   endDate     DateTime?
   isLocked    Boolean          @default(false)
->>>>>>> 51b4f09b50968039e245b160ef0c0599e4abb71b
+  missionType String?          @default("TEMPORAIRE")
+  routineDays Json?
+  fixedSalary Decimal?         @db.Decimal(10, 2)
   confirmedAt DateTime?
   refusedAt   DateTime?
   createdAt   DateTime         @default(now())
@@ -379,4 +373,17 @@ model AuditLog {
   metadata    Json?
   createdAt   DateTime @default(now())
   user        User?    @relation(fields: [userId], references: [id])
+}
+
+model AppNotification {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  type      String
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
 }
