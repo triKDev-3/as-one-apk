@@ -13,7 +13,11 @@ class AsOneBottomNav extends StatelessWidget {
     required this.currentIndex,
   });
 
-  List<_NavItem> get _items {
+  static List<String> routesFor(String role) {
+    return _itemsFor(role).map((e) => e.route).toList();
+  }
+
+  static List<_NavItem> _itemsFor(String role) {
     switch (role) {
       case 'CHEF':
         return const [
@@ -56,6 +60,8 @@ class AsOneBottomNav extends StatelessWidget {
         ];
     }
   }
+
+  List<_NavItem> get _items => _itemsFor(role);
 
   @override
   Widget build(BuildContext context) {
