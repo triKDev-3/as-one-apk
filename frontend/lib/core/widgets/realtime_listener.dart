@@ -6,8 +6,6 @@ import '../network/realtime_service.dart';
 import '../theme/app_colors.dart';
 import '../../features/agent/agent_home_screen.dart';
 
-/// Écoute les événements Socket.io et affiche des SnackBars.
-/// À placer sous le MaterialApp (ou dans chaque écran principal).
 class RealtimeListener extends ConsumerStatefulWidget {
   final Widget child;
 
@@ -19,6 +17,7 @@ class RealtimeListener extends ConsumerStatefulWidget {
 
 class _RealtimeListenerState extends ConsumerState<RealtimeListener> {
   StreamSubscription<RealtimeEvent>? _sub;
+  final Set<String> _seen = {};
 
   @override
   void initState() {
@@ -26,64 +25,95 @@ class _RealtimeListenerState extends ConsumerState<RealtimeListener> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _listen());
   }
 
+  void _show(String title, String body, Color color) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+            if (body.isNotEmpty) Text(body),
+          ],
+        ),
+        backgroundColor: color,
+        duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Color _colorFor(String type) {
+    if (type.contains('incident') ||
+        type.contains('penalty') ||
+        type.contains('refus') ||
+        type.contains('suspend')) {
+      return AppColors.danger;
+    }
+    if (type.contains('pointage') ||
+        type.contains('valid') ||
+        type.contains('confirm')) {
+      return AppColors.accent;
+    }
+    return AppColors.primary;
+  }
+
   void _listen() {
     final service = ref.read(realtimeServiceProvider);
     _sub?.cancel();
     _sub = service.events.listen((event) {
       if (!mounted) return;
-      final messenger = ScaffoldMessenger.maybeOf(context);
-      if (messenger == null) return;
+
+      if (event.type == 'notification') {
+        final id = event.data['id'] as String? ?? '';
+        if (id.isNotEmpty) {
+          if (_seen.contains(id)) return;
+          _seen.add(id);
+        }
+        final title = event.data['title'] as String? ?? 'AS ONE';
+        final body = event.data['body'] as String? ?? '';
+        final type = event.data['type'] as String? ?? '';
+        _show(title, body, _colorFor(type));
+        if (type.startsWith('assignment')) {
+          ref.invalidate(agentDashboardProvider);
+        }
+        return;
+      }
 
       switch (event.type) {
         case 'assignment:new':
           final site = event.data['site'] as Map?;
           final name = site?['name'] ?? 'un site';
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text('Nouvelle affectation : $name — confirmez avant 22h'),
-              backgroundColor: AppColors.primary,
-              duration: const Duration(seconds: 5),
-              action: SnackBarAction(
-                label: 'Voir',
-                textColor: Colors.white,
-                onPressed: () {
-                  ref.invalidate(agentDashboardProvider);
-                },
-              ),
-            ),
-          );
+          _show('Nouvelle affectation', '$name — confirmez avant 22h',
+              AppColors.primary);
           ref.invalidate(agentDashboardProvider);
           break;
         case 'assignment:response':
           final accepted = event.data['accepted'] == true;
           final agentName = event.data['agentName'] ?? 'Un agent';
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text(
-                accepted
-                    ? '$agentName a confirmé l\'affectation'
-                    : '$agentName a refusé l\'affectation',
-              ),
-              backgroundColor: accepted ? AppColors.accent : AppColors.danger,
-            ),
+          _show(
+            accepted ? 'Confirmation' : 'Refus',
+            accepted
+                ? '$agentName a confirmé l\'affectation'
+                : '$agentName a refusé l\'affectation',
+            accepted ? AppColors.accent : AppColors.danger,
           );
           break;
         case 'pointage:done':
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text('Votre pointage a été enregistré'),
-              backgroundColor: AppColors.accent,
-            ),
+          _show(
+            'Pointage',
+            event.data['message']?.toString() ?? 'Pointage enregistré',
+            AppColors.accent,
           );
           break;
         case 'incident:new':
-          final msg = event.data['message'] ?? 'Nouvel incident signalé';
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text(msg.toString()),
-              backgroundColor: AppColors.danger,
-              duration: const Duration(seconds: 5),
-            ),
+          _show(
+            'Incident',
+            event.data['message']?.toString() ?? 'Nouvel incident',
+            AppColors.danger,
           );
           break;
       }
