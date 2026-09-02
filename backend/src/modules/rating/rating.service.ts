@@ -12,10 +12,6 @@ import { Role } from '@prisma/client';
 export class RatingService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Note un agent sur un assignment (1-5).
-   * Met à jour rankingScore = moyenne de toutes ses notes.
-   */
   async create(dto: CreateRatingDto, ratedById: string) {
     const assignment = await this.prisma.assignment.findUnique({
       where: { id: dto.assignmentId },
@@ -56,9 +52,7 @@ export class RatingService {
       },
     });
 
-    // Recalcul de la moyenne
     await this.recomputeRanking(dto.agentId);
-
     return rating;
   }
 
@@ -78,6 +72,9 @@ export class RatingService {
     return avg;
   }
 
+  /**
+   * Classement : score = moyenne notes ; jours = jours distincts avec DEPART ou PRESENCE_PERMANENCE.
+   */
   async getRanking(limit = 50, sortBy: 'score' | 'days' = 'score') {
     const agents = await this.prisma.user.findMany({
       where: { role: Role.AGENT, isActive: true },
@@ -87,16 +84,23 @@ export class RatingService {
         lastName: true,
         rankingScore: true,
         agentType: true,
-        _count: {
-          select: {
-            assignments: {
-              where: { status: 'COMPLETED' },
-            },
-          },
-        },
       },
-      take: limit * 2, // over-fetch before sorting
     });
+
+    const pointages = await this.prisma.pointage.findMany({
+      where: {
+        agentId: { in: agents.map((a) => a.id) },
+        type: { in: ['DEPART', 'PRESENCE_PERMANENCE'] },
+      },
+      select: { agentId: true, notedAt: true },
+    });
+
+    const daysByAgent = new Map<string, Set<string>>();
+    for (const p of pointages) {
+      const key = p.notedAt.toISOString().slice(0, 10);
+      if (!daysByAgent.has(p.agentId)) daysByAgent.set(p.agentId, new Set());
+      daysByAgent.get(p.agentId)!.add(key);
+    }
 
     const enriched = agents.map((a) => ({
       id: a.id,
@@ -104,13 +108,13 @@ export class RatingService {
       lastName: a.lastName,
       rankingScore: a.rankingScore,
       agentType: a.agentType,
-      daysWorked: a._count.assignments,
+      daysWorked: daysByAgent.get(a.id)?.size ?? 0,
     }));
 
     if (sortBy === 'days') {
-      enriched.sort((a, b) => b.daysWorked - a.daysWorked);
+      enriched.sort((a, b) => b.daysWorked - a.daysWorked || b.rankingScore - a.rankingScore);
     } else {
-      enriched.sort((a, b) => b.rankingScore - a.rankingScore);
+      enriched.sort((a, b) => b.rankingScore - a.rankingScore || b.daysWorked - a.daysWorked);
     }
 
     return enriched.slice(0, limit);
