@@ -8,7 +8,9 @@ import { PointageType, AssignmentStatus } from '@prisma/client';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 
 function dayBoundsTogo(date = new Date()) {
-  const key = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lome' }).format(date);
+  const key = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Lome',
+  }).format(date);
   const start = new Date(`${key}T00:00:00+00:00`);
   const end = new Date(`${key}T23:59:59.999+00:00`);
   return { start, end, key };
@@ -26,19 +28,11 @@ export class PointageService {
     if (!site) throw new NotFoundException('Site introuvable');
 
     const type = dto.type ?? PointageType.DEPART;
-    const { start, end } = dayBoundsTogo();
+    const notedDate = dto.notedAt ? new Date(dto.notedAt) : new Date();
+    const { start, end, key } = dayBoundsTogo(notedDate);
     const results = [];
 
     for (const agentId of dto.agentIds) {
-<<<<<<< HEAD
-      // Vérifier double pointage ARRIVEE le même jour
-      if (dto.type === PointageType.ARRIVEE || dto.type === PointageType.PRESENCE_PERMANENCE) {
-        const pointageDate = dto.notedAt ? new Date(dto.notedAt) : new Date();
-        const startOfDay = new Date(pointageDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(pointageDate);
-        endOfDay.setHours(23, 59, 59, 999);
-=======
       const existing = await this.prisma.pointage.findFirst({
         where: {
           agentId,
@@ -47,15 +41,15 @@ export class PointageService {
           notedAt: { gte: start, lte: end },
         },
       });
->>>>>>> 51b4f09b50968039e245b160ef0c0599e4abb71b
 
       if (existing) {
         results.push({
           agentId,
           status: 'skipped',
-          reason: type === PointageType.ABSENT
-            ? 'Déjà marqué absent aujourd\'hui'
-            : 'Départ déjà enregistré aujourd\'hui',
+          reason:
+            type === PointageType.ABSENT
+              ? `Déjà marqué absent le ${key}`
+              : `Départ déjà enregistré le ${key}`,
         });
         continue;
       }
@@ -80,7 +74,6 @@ export class PointageService {
           where: { id: assignment.id },
           data: { status: AssignmentStatus.CONFIRMED },
         });
-        assignment.status = AssignmentStatus.CONFIRMED;
       }
 
       const pointage = await this.prisma.pointage.create({
@@ -93,7 +86,7 @@ export class PointageService {
           latitude: dto.latitude,
           longitude: dto.longitude,
           createdById,
-          notedAt: dto.notedAt ? new Date(dto.notedAt) : undefined,
+          notedAt: start,
         },
         include: {
           agent: {
@@ -103,12 +96,19 @@ export class PointageService {
       });
 
       results.push({ agentId, status: 'ok', pointage });
+
+      const isPast = key !== dayBoundsTogo().key;
+      const dateLabel = new Date(`${key}T12:00:00+00:00`).toLocaleDateString('fr-FR');
       this.notifications.notifyPointage(agentId, {
         siteId: dto.siteId,
         type,
-        message: type === PointageType.ABSENT
-          ? 'Vous avez été marqué(e) absent(e)'
-          : 'Votre départ a été enregistré',
+        date: key,
+        message:
+          type === PointageType.ABSENT
+            ? `Vous avez été marqué(e) absent(e) le ${dateLabel} sur ${site.name}`
+            : isPast
+              ? `Votre départ du ${dateLabel} a été enregistré sur ${site.name}`
+              : `Votre départ a été enregistré sur ${site.name}`,
       });
     }
 
