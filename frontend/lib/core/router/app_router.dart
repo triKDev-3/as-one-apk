@@ -14,6 +14,7 @@ import '../../features/chef/screens/site_tasks_screen.dart';
 import '../../features/chef/screens/close_report_screen.dart';
 import '../../features/chef/screens/chef_profile_screen.dart';
 import '../../features/chef/screens/stats_details_screen.dart';
+import '../../features/chef/screens/chef_calendar_screen.dart';
 import '../../features/chef/repositories/sites_repository.dart';
 import '../../features/magasinier/magasinier_home_screen.dart';
 import '../../features/magasinier/screens/material_out_screen.dart';
@@ -28,6 +29,7 @@ import '../../features/admin/screens/admin_sites_screen.dart';
 import '../../features/shared/ranking_screen.dart';
 import '../../features/shared/pointages_log_screen.dart';
 import '../../features/shared/incidents_list_screen.dart';
+import '../../features/shared/notifications_screen.dart';
 import '../../features/agent/screens/planning_screen.dart';
 import '../../features/agent/screens/pointages_history_screen.dart';
 import '../../features/agent/screens/remuneration_screen.dart';
@@ -47,6 +49,7 @@ class AppRouter {
           GoRoute(path: 'planning', builder: (_, __) => const PlanningScreen()),
           GoRoute(path: 'pointages', builder: (_, __) => const PointagesHistoryScreen()),
           GoRoute(path: 'remuneration', builder: (_, __) => const RemunerationScreen()),
+          GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
         ],
       ),
       GoRoute(
@@ -75,14 +78,13 @@ class AppRouter {
               site: state.extra as SiteModel?,
             ),
           ),
+          GoRoute(path: 'calendar', builder: (_, __) => const ChefCalendarScreen()),
           GoRoute(path: 'ranking', builder: (_, __) => const RankingScreen()),
           GoRoute(path: 'transfers', builder: (_, __) => const TransfersScreen()),
-          GoRoute(
-            path: 'incidents',
-            builder: (_, __) => const IncidentsListScreen(),
-          ),
+          GoRoute(path: 'incidents', builder: (_, __) => const IncidentsListScreen()),
           GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
           GoRoute(path: 'pointages', builder: (_, __) => const PointagesLogScreen()),
+          GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
           GoRoute(
             path: 'tasks/:siteId',
             builder: (_, state) => SiteTasksScreen(
@@ -124,11 +126,10 @@ class AppRouter {
           GoRoute(path: 'pointages', builder: (_, __) => const PointagesLogScreen()),
           GoRoute(
             path: 'incidents',
-            builder: (_, __) => const IncidentsListScreen(
-              canApplyPenalty: true,
-            ),
+            builder: (_, __) => const IncidentsListScreen(canApplyPenalty: true),
           ),
           GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
+          GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
         ],
       ),
       GoRoute(
@@ -149,6 +150,7 @@ class AppRouter {
               canResolve: false,
             ),
           ),
+          GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
         ],
       ),
       GoRoute(
@@ -161,11 +163,10 @@ class AppRouter {
           GoRoute(path: 'sites', builder: (_, __) => const AdminSitesScreen()),
           GoRoute(path: 'ranking', builder: (_, __) => const RankingScreen()),
           GoRoute(path: 'pointages', builder: (_, __) => const PointagesLogScreen()),
-          GoRoute(
-            path: 'incidents',
-            builder: (_, __) => const IncidentsListScreen(),
-          ),
+          GoRoute(path: 'incidents', builder: (_, __) => const IncidentsListScreen()),
           GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
+          GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
+          GoRoute(path: 'calendar', builder: (_, __) => const ChefCalendarScreen()),
         ],
       ),
     ],
