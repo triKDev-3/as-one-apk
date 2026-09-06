@@ -1,0 +1,55 @@
+// À fusionner dans schema.prisma puis : npx prisma migrate dev --name permanence_offers
+
+enum PermanenceScheduleStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum PermanenceApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model PermanenceSchedule {
+  id              String   @id @default(cuid())
+  siteId          String
+  createdById     String
+  title           String?
+  workDaysPerWeek Int      @default(6)
+  status          PermanenceScheduleStatus @default(DRAFT)
+  publishedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  site            Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  slots           PermanenceSlot[]
+  @@index([siteId, status])
+}
+
+model PermanenceSlot {
+  id             String   @id @default(cuid())
+  scheduleId     String
+  label          String?
+  startTime      String   // "13:00"
+  endTime        String   // "21:00"
+  salary         Decimal  @db.Decimal(12, 2)
+  requiredAgents Int      @default(1)
+  schedule       PermanenceSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  applications   PermanenceApplication[]
+  @@index([scheduleId])
+}
+
+model PermanenceApplication {
+  id            String   @id @default(cuid())
+  slotId        String
+  agentId       String
+  status        PermanenceApplicationStatus @default(PENDING)
+  rejectMessage String?
+  createdAt     DateTime @default(now())
+  resolvedAt    DateTime?
+  slot          PermanenceSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  agent         User     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  @@unique([slotId, agentId])
+  @@index([agentId, status])
+}
