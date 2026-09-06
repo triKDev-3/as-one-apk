@@ -273,19 +273,28 @@ export class StatsService {
     role: string,
     monthKey: string,
     all: boolean,
+    siteId?: string,
   ) {
     const [year, month] = monthKey.split('-').map(Number);
     const start = new Date(Date.UTC(year, month - 1, 1));
     const end = new Date(Date.UTC(year, month, 0, 23, 59, 59));
 
-    const isFiltered = role === 'CHEF' && !all;
-    const siteFilter = isFiltered ? { chefs: { some: { chefId: userId } } } : {};
+    const isFiltered = role === 'CHEF' && !all && !siteId;
+    const siteFilter = siteId
+      ? { id: siteId }
+      : isFiltered
+        ? { chefs: { some: { chefId: userId } } }
+        : {};
+
+    const siteWhere = Object.keys(siteFilter).length > 0 ? { site: siteFilter } : {};
+    const siteIdWhere = siteId ? { siteId } : {};
 
     const [pointages, incidents, assignments] = await Promise.all([
       this.prisma.pointage.findMany({
         where: {
           notedAt: { gte: start, lte: end },
-          ...(isFiltered ? { site: siteFilter } : {}),
+          ...siteIdWhere,
+          ...(siteId ? {} : isFiltered ? { site: siteFilter } : {}),
         },
         include: {
           site: { select: { id: true, name: true } },
@@ -296,7 +305,8 @@ export class StatsService {
       this.prisma.incident.findMany({
         where: {
           createdAt: { gte: start, lte: end },
-          ...(isFiltered ? { site: siteFilter } : {}),
+          ...siteIdWhere,
+          ...(siteId ? {} : isFiltered ? { site: siteFilter } : {}),
         },
         include: {
           site: { select: { id: true, name: true } },
@@ -314,7 +324,8 @@ export class StatsService {
           status: {
             in: ['CONFIRMED', 'LOCKED', 'PENDING_CONFIRMATION'],
           },
-          ...(isFiltered ? { site: siteFilter } : {}),
+          ...siteIdWhere,
+          ...(siteId ? {} : isFiltered ? { site: siteFilter } : {}),
         },
         include: {
           site: { select: { id: true, name: true } },
@@ -358,7 +369,7 @@ export class StatsService {
       else b.pointages += 1;
       b.events.push({
         kind: p.type === 'ABSENT' ? 'absent' : 'pointage',
-        label: `${p.agent.firstName} ${p.agent.lastName} · ${p.type}`,
+        label: `${p.agent.firstName} ${p.agent.lastName} · ${p.type === 'DEPART' ? 'Présent' : p.type}`,
         siteName: p.site.name,
         siteId: p.site.id,
       });
@@ -430,12 +441,9 @@ export class StatsService {
       };
     }
 
-    return { month: monthKey, summary, days };
+    return { month: monthKey, siteId: siteId ?? null, summary, days };
   }
 
-  /**
-   * Historique des interventions = affectations (missions) avec filtres.
-   */
   async getInterventionsHistory(params: {
     userId: string;
     role: string;
