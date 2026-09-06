@@ -46,6 +46,7 @@ export class StatsController {
   getCalendar(
     @Query('month') month: string,
     @Query('all') all: string,
+    @Query('siteId') siteId: string,
     @Request() req: any,
   ) {
     const monthKey =
@@ -57,6 +58,7 @@ export class StatsController {
       req.user.role,
       monthKey,
       all === 'true',
+      siteId || undefined,
     );
   }
 
