@@ -55,6 +55,17 @@ class AssignmentModel {
   }
 
   bool isUnavailableOn(String yyyyMmDd) => unavailableDates.contains(yyyyMmDd);
+
+  /// true si l'affectation couvre ce jour (start ≤ date ≤ end, end null = en cours).
+  bool coversDate(String yyyyMmDd) {
+    final start = (startDate ?? '').length >= 10
+        ? startDate!.substring(0, 10)
+        : '';
+    if (start.isNotEmpty && yyyyMmDd.compareTo(start) < 0) return false;
+    final end = (endDate ?? '').length >= 10 ? endDate!.substring(0, 10) : '';
+    if (end.isNotEmpty && yyyyMmDd.compareTo(end) > 0) return false;
+    return true;
+  }
 }
 
 class LockedSiteInfo {

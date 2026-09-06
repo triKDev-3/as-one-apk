@@ -23,7 +23,7 @@ class AsOneBottomNav extends StatelessWidget {
       case 'CHEF':
         return const [
           _NavItem(Icons.dashboard_rounded, 'Accueil', '/chef'),
-          _NavItem(Icons.calendar_month_rounded, 'Agenda', '/chef/calendar'),
+          _NavItem(Icons.history_rounded, 'Historique', '/chef/calendar'),
           _NavItem(Icons.apartment_rounded, 'Sites', '/chef/select-site'),
           _NavItem(Icons.notifications_rounded, 'Notifs', '/chef/notifications'),
           _NavItem(Icons.person_rounded, 'Profil', '/chef/profile'),

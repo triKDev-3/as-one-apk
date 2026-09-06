@@ -20,8 +20,15 @@ final pointagesByDateProvider =
 class PointageScreen extends ConsumerStatefulWidget {
   final String siteId;
   final SiteModel? site;
+  final String? date;
 
-  const PointageScreen({super.key, required this.siteId, this.site});
+  const PointageScreen({
+    super.key,
+    required this.siteId,
+    this.site,
+    this.date,
+  });
+
 
   @override
   ConsumerState<PointageScreen> createState() => _PointageScreenState();
@@ -34,8 +41,19 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
   File? _photo;
   final _picker = ImagePicker();
   List<Map<String, dynamic>>? _lastPointedAgents;
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
   final List<Map<String, dynamic>> _extraAgents = [];
+
+  @override
+  void initState() {
+    super.initState();
+    final parsed = DateTime.tryParse(widget.date ?? '');
+    final now = DateTime.now();
+    _selectedDate = parsed != null
+        ? DateTime(parsed.year, parsed.month, parsed.day)
+        : DateTime(now.year, now.month, now.day);
+  }
+
 
   Future<void> _pickPhoto(ImageSource source) async {
     final permission =
@@ -177,7 +195,9 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
                       context: context,
                       initialDate: _selectedDate,
                       firstDate: DateTime(2020),
-                      lastDate: DateTime.now(),
+                      lastDate: _selectedDate.isAfter(DateTime.now())
+                          ? _selectedDate
+                          : DateTime.now(),
                     );
                     if (date != null) {
                       setState(() {
@@ -235,9 +255,10 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
               data: (assignments) {
                 final active = assignments
                     .where((a) =>
-                        a.status == 'CONFIRMED' ||
-                        a.status == 'LOCKED' ||
-                        a.status == 'PENDING_CONFIRMATION')
+                        (a.status == 'CONFIRMED' ||
+                            a.status == 'LOCKED' ||
+                            a.status == 'PENDING_CONFIRMATION') &&
+                        a.coversDate(dateStr))
                     .map<Map<String, dynamic>>((a) => {
                           'id': a.id,
                           'agentId': a.agentId,
@@ -253,8 +274,16 @@ class _PointageScreenState extends ConsumerState<PointageScreen> {
                   }
                 }
                 if (active.isEmpty) {
-                  return const Center(
-                      child: Text('Aucun agent assigné sur ce site'));
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'Aucune affectation pour le ${DateFormat('dd/MM/yyyy').format(_selectedDate)}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                  );
                 }
                 final todayPointagesAsync = ref.watch(
                     pointagesByDateProvider('${widget.siteId}|$dateStr'));

@@ -11,11 +11,13 @@ import '../../../core/network/api_client.dart';
 class RateAgentsScreen extends ConsumerStatefulWidget {
   final String siteId;
   final SiteModel? site;
+  final String? date;
 
   const RateAgentsScreen({
     super.key,
     required this.siteId,
     this.site,
+    this.date,
   });
 
   @override
@@ -88,15 +90,28 @@ class _RateAgentsScreenState extends ConsumerState<RateAgentsScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text(e.toString())),
         data: (assignments) {
+          final day = widget.date;
           final active = assignments
               .where((a) =>
-                  a.status == 'CONFIRMED' ||
-                  a.status == 'LOCKED' ||
-                  a.status == 'COMPLETED')
+                  (a.status == 'CONFIRMED' ||
+                      a.status == 'LOCKED' ||
+                      a.status == 'COMPLETED') &&
+                  (day == null || day.isEmpty || a.coversDate(day)))
               .toList();
 
           if (active.isEmpty) {
-            return const Center(child: Text('Aucun agent à noter'));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  day != null && day.isNotEmpty
+                      ? 'Aucune affectation pour ce jour'
+                      : 'Aucun agent à noter',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.textSecondary),
+                ),
+              ),
+            );
           }
 
           return ListView.builder(

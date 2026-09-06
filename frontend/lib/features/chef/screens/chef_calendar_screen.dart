@@ -9,6 +9,23 @@ import '../../../core/providers/providers.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/widgets/asone_loader.dart';
 
+String _kindLabelFr(String kind) {
+  switch (kind) {
+    case 'assignment':
+      return 'Assigné';
+    case 'assignment_pending':
+      return 'En attente';
+    case 'pointage':
+      return 'Pointé';
+    case 'absent':
+      return 'Absent';
+    case 'incident':
+      return 'Incident';
+    default:
+      return kind;
+  }
+}
+
 final chefCalendarProvider = FutureProvider.autoDispose
     .family<Map<String, dynamic>, String>((ref, monthKey) async {
   final api = ref.watch(apiClientProvider);
@@ -62,7 +79,7 @@ class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Agenda'),
+        title: const Text('Historique'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
@@ -223,13 +240,27 @@ class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
                         padding: EdgeInsets.only(top: 24),
                         child: Center(
                           child: Text(
-                            'Aucune activité enregistrée ce jour',
+                            'Aucune affectation pour ce jour',
                             style:
                                 TextStyle(color: AppColors.textSecondary),
                           ),
                         ),
                       )
-                    else
+                    else ...[
+                      if (!events.any((e) {
+                        final k = (e as Map)['kind'] as String? ?? '';
+                        return k == 'assignment' || k == 'assignment_pending';
+                      }))
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            'Aucune affectation pour ce jour',
+                            style: TextStyle(
+                              color: AppColors.warning,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       ...events.map((e) {
                         final m = e as Map<String, dynamic>;
                         final kind = m['kind'] as String? ?? '';
@@ -279,7 +310,7 @@ class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
                                 ),
                               ),
                               Text(
-                                kind,
+                                _kindLabelFr(kind),
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: color,
@@ -290,6 +321,7 @@ class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
                           ),
                         );
                       }),
+                    ],
                   ],
                 );
               },

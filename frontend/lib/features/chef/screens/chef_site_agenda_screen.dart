@@ -10,6 +10,23 @@ import '../../../core/network/api_client.dart';
 import '../../../core/widgets/asone_loader.dart';
 import '../repositories/sites_repository.dart';
 
+String _kindLabelFr(String kind) {
+  switch (kind) {
+    case 'assignment':
+      return 'Assigné';
+    case 'assignment_pending':
+      return 'En attente';
+    case 'pointage':
+      return 'Pointé';
+    case 'absent':
+      return 'Absent';
+    case 'incident':
+      return 'Incident';
+    default:
+      return kind;
+  }
+}
+
 final siteCalendarProvider = FutureProvider.autoDispose
     .family<Map<String, dynamic>, ({String siteId, String month})>((ref, args) async {
   final api = ref.watch(apiClientProvider);
@@ -83,12 +100,13 @@ class _ChefSiteAgendaScreenState extends ConsumerState<ChefSiteAgendaScreen>
   SiteModel? get _site => widget.site;
   bool get _isPermanence => _site?.isPermanence ?? false;
 
-  void _go(String path) {
+  void _go(String path, {String? date}) {
     setState(() {
       _opsOpen = false;
       _opsCtrl.reverse();
     });
-    context.push(path, extra: _site);
+    final q = date != null && date.isNotEmpty ? '?date=$date' : '';
+    context.push('$path$q', extra: _site);
   }
 
   @override
@@ -202,42 +220,43 @@ class _ChefSiteAgendaScreenState extends ConsumerState<ChefSiteAgendaScreen>
                             label: 'Ops permanence',
                             color: AppColors.secondary,
                             onTap: () => _go(
-                                '/chef/permanence/${widget.siteId}'),
+                                '/chef/permanence/${widget.siteId}',
+                                date: _dayKey),
                           ),
                         _OpsChip(
                           icon: Icons.group_add_rounded,
                           label: 'Composer équipe',
                           color: AppColors.primary,
                           onTap: () =>
-                              _go('/chef/compose/${widget.siteId}'),
+                              _go('/chef/compose/${widget.siteId}', date: _dayKey),
                         ),
                         _OpsChip(
                           icon: Icons.fact_check_rounded,
                           label: 'Pointage',
                           color: AppColors.accent,
                           onTap: () =>
-                              _go('/chef/pointage/${widget.siteId}'),
+                              _go('/chef/pointage/${widget.siteId}', date: _dayKey),
                         ),
                         _OpsChip(
                           icon: Icons.star_rate_rounded,
                           label: 'Noter',
                           color: AppColors.warning,
                           onTap: () =>
-                              _go('/chef/rate/${widget.siteId}'),
+                              _go('/chef/rate/${widget.siteId}', date: _dayKey),
                         ),
                         _OpsChip(
                           icon: Icons.task_alt_rounded,
                           label: 'Tâches',
                           color: AppColors.accent,
                           onTap: () =>
-                              _go('/chef/tasks/${widget.siteId}'),
+                              _go('/chef/tasks/${widget.siteId}', date: _dayKey),
                         ),
                         _OpsChip(
                           icon: Icons.assignment_turned_in_rounded,
                           label: 'Rapport fin',
                           color: AppColors.primary,
                           onTap: () =>
-                              _go('/chef/report/${widget.siteId}'),
+                              _go('/chef/report/${widget.siteId}', date: _dayKey),
                         ),
                         _OpsChip(
                           icon: Icons.warning_amber_rounded,
@@ -407,12 +426,26 @@ class _ChefSiteAgendaScreenState extends ConsumerState<ChefSiteAgendaScreen>
                         padding: EdgeInsets.only(top: 32),
                         child: Center(
                           child: Text(
-                            'Aucune opération ce jour sur ce site',
+                            'Aucune affectation pour ce jour',
                             style: TextStyle(color: AppColors.textSecondary),
                           ),
                         ),
                       )
-                    else
+                    else ...[
+                      if (!events.any((e) {
+                        final k = (e as Map)['kind'] as String? ?? '';
+                        return k == 'assignment' || k == 'assignment_pending';
+                      }))
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            'Aucune affectation pour ce jour',
+                            style: TextStyle(
+                              color: AppColors.warning,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       ...events.map((e) {
                         final m = e as Map<String, dynamic>;
                         final kind = m['kind'] as String? ?? '';
@@ -448,7 +481,7 @@ class _ChefSiteAgendaScreenState extends ConsumerState<ChefSiteAgendaScreen>
                                 ),
                               ),
                               Text(
-                                kind,
+                                _kindLabelFr(kind),
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: color,
@@ -459,6 +492,7 @@ class _ChefSiteAgendaScreenState extends ConsumerState<ChefSiteAgendaScreen>
                           ),
                         );
                       }),
+                    ],
                   ],
                 );
               },

@@ -22,8 +22,14 @@ final siteTasksProvider =
 class SiteTasksScreen extends ConsumerStatefulWidget {
   final String siteId;
   final SiteModel? site;
+  final String? date;
 
-  const SiteTasksScreen({super.key, required this.siteId, this.site});
+  const SiteTasksScreen({
+    super.key,
+    required this.siteId,
+    this.site,
+    this.date,
+  });
 
   @override
   ConsumerState<SiteTasksScreen> createState() => _SiteTasksScreenState();
@@ -41,7 +47,9 @@ class _SiteTasksScreenState extends ConsumerState<SiteTasksScreen> {
       final api = ref.read(apiClientProvider);
       await api.dio.post('/sites/${widget.siteId}/tasks', data: {
         'description': text,
-        'performedAt': DateTime.now().toIso8601String(),
+        'performedAt': widget.date != null && widget.date!.isNotEmpty
+            ? '${widget.date}T12:00:00.000Z'
+            : DateTime.now().toIso8601String(),
       });
       _taskCtrl.clear();
       ref.invalidate(siteTasksProvider(widget.siteId));

@@ -108,6 +108,7 @@ class AppRouter {
                 builder: (_, state) => PointageScreen(
                   siteId: state.pathParameters['siteId']!,
                   site: state.extra as SiteModel?,
+                  date: _qDate(state),
                 ),
               ),
               GoRoute(path: 'calendar', builder: (_, __) => const ChefCalendarScreen()),
@@ -132,6 +133,7 @@ class AppRouter {
                 builder: (_, state) => SiteTasksScreen(
                   siteId: state.pathParameters['siteId']!,
                   site: state.extra as SiteModel?,
+                  date: _qDate(state),
                 ),
               ),
               GoRoute(
@@ -146,6 +148,7 @@ class AppRouter {
                 builder: (_, state) => RateAgentsScreen(
                   siteId: state.pathParameters['siteId']!,
                   site: state.extra as SiteModel?,
+                  date: _qDate(state),
                 ),
               ),
               GoRoute(

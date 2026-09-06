@@ -21,18 +21,64 @@ class RoleShell extends StatelessWidget {
     return 'AGENT';
   }
 
+  /// Accueil n'est sélectionné que sur la racine du rôle.
+  /// Les sous-pages gardent l'onglet de la section en cours.
   static int indexFromPath(String path, String role) {
-    final items = AsOneBottomNav.routesFor(role);
-    // Match le plus long préfixe d'abord
-    for (var i = 0; i < items.length; i++) {
-      final r = items[i];
-      if (path == r || path.startsWith('$r/')) return i;
-    }
-    // Accueil = index 0 si sous-route inconnue
-    if (items.isNotEmpty && path.startsWith(items.first.split('/').take(2).join('/'))) {
+    if (role == 'CHEF') {
+      if (path == '/chef' || path == '/chef/') return 0; // Accueil
+      if (path.startsWith('/chef/notifications')) return 3;
+      if (path.startsWith('/chef/profile')) return 4;
+      // Historique (pluriels AVANT les singuliers)
+      if (path.startsWith('/chef/calendar') ||
+          path.startsWith('/chef/pointages') ||
+          path.startsWith('/chef/incidents') ||
+          path.startsWith('/chef/interventions') ||
+          path.startsWith('/chef/transfers') ||
+          path.startsWith('/chef/ranking')) {
+        return 1;
+      }
+      // Sites + opérations du site
+      if (path.startsWith('/chef/select-site') ||
+          path.startsWith('/chef/site') ||
+          path.startsWith('/chef/compose') ||
+          path.startsWith('/chef/pointage') ||
+          path.startsWith('/chef/rate') ||
+          path.startsWith('/chef/tasks') ||
+          path.startsWith('/chef/report') ||
+          path.startsWith('/chef/permanence') ||
+          path.startsWith('/chef/incident')) {
+        return 2;
+      }
       return 0;
     }
-    return 0;
+
+    final items = AsOneBottomNav.routesFor(role);
+    int best = 0;
+    int bestLen = -1;
+    for (var i = 0; i < items.length; i++) {
+      final r = items[i];
+      final isHome = r == '/agent' ||
+          r == '/admin' ||
+          r == '/magasinier' ||
+          r == '/comptable' ||
+          r == '/chef';
+      if (isHome) {
+        if (path == r || path == '$r/') {
+          if (r.length >= bestLen) {
+            best = i;
+            bestLen = r.length;
+          }
+        }
+        continue;
+      }
+      if (path == r || path.startsWith('$r/')) {
+        if (r.length > bestLen) {
+          best = i;
+          bestLen = r.length;
+        }
+      }
+    }
+    return best;
   }
 
   @override
