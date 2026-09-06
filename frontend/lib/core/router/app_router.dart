@@ -15,6 +15,7 @@ import '../../features/chef/screens/close_report_screen.dart';
 import '../../features/chef/screens/chef_profile_screen.dart';
 import '../../features/chef/screens/stats_details_screen.dart';
 import '../../features/chef/screens/chef_calendar_screen.dart';
+import '../../features/chef/screens/chef_site_agenda_screen.dart';
 import '../../features/chef/screens/permanence_ops_screen.dart';
 import '../../features/chef/repositories/sites_repository.dart';
 import '../../features/magasinier/magasinier_home_screen.dart';
@@ -72,6 +73,15 @@ class AppRouter {
             builder: (_, __) => const ChefHomeScreen(),
             routes: [
               GoRoute(path: 'select-site', builder: (_, __) => const SelectSiteScreen()),
+              // Site → Agenda (flux principal)
+              GoRoute(
+                path: 'site/:siteId/agenda',
+                builder: (_, state) => ChefSiteAgendaScreen(
+                  siteId: state.pathParameters['siteId']!,
+                  site: state.extra as SiteModel?,
+                ),
+              ),
+              // Ancienne fiche site (toujours accessible si besoin)
               GoRoute(
                 path: 'site/:siteId',
                 builder: (_, state) => SiteDetailsScreen(
