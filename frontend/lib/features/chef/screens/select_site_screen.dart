@@ -20,7 +20,7 @@ class SelectSiteScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Choisir un site'),
+        title: const Text('Mes sites'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -58,7 +58,6 @@ class SelectSiteScreen extends ConsumerWidget {
           final permanences =
               sites.where((s) => s.type == 'PERMANENCE').toList();
 
-          // Mes sites en tête
           chantiers.sort((a, b) {
             final aIsMine = a.chefIds.contains(myId) ? 0 : 1;
             final bIsMine = b.chefIds.contains(myId) ? 0 : 1;
@@ -75,17 +74,29 @@ class SelectSiteScreen extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    'Sélectionnez un site pour ouvrir son agenda et ses opérations.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
                 if (chantiers.isNotEmpty) ...[
                   _SectionTitle(title: 'Chantiers', count: chantiers.length),
                   const SizedBox(height: 8),
-                  ...chantiers.map((s) => _SiteTile(site: s, isMine: s.chefIds.contains(myId))),
+                  ...chantiers.map(
+                      (s) => _SiteTile(site: s, isMine: s.chefIds.contains(myId))),
                   const SizedBox(height: 20),
                 ],
                 if (permanences.isNotEmpty) ...[
                   _SectionTitle(
                       title: 'Sites de permanence', count: permanences.length),
                   const SizedBox(height: 8),
-                  ...permanences.map((s) => _SiteTile(site: s, isMine: s.chefIds.contains(myId))),
+                  ...permanences.map(
+                      (s) => _SiteTile(site: s, isMine: s.chefIds.contains(myId))),
                 ],
               ],
             ),
@@ -144,12 +155,15 @@ class _SiteTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: isMine ? const Color(0xFF10B981).withValues(alpha: 0.04) : Colors.white,
+        color: isMine
+            ? const Color(0xFF10B981).withValues(alpha: 0.04)
+            : Colors.white,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
+          // Nouveau flux : site → agenda (pas la fiche ops plate)
           onTap: () {
-            context.push('/chef/site/${site.id}', extra: site);
+            context.push('/chef/site/${site.id}/agenda', extra: site);
           },
           child: Container(
             padding: const EdgeInsets.all(16),
@@ -166,7 +180,9 @@ class _SiteTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
-                    isPermanence ? Icons.home_work_outlined : Icons.construction,
+                    isPermanence
+                        ? Icons.home_work_outlined
+                        : Icons.construction,
                     color: color,
                     size: 24,
                   ),
@@ -190,7 +206,8 @@ class _SiteTile extends StatelessWidget {
                           if (isMine)
                             Container(
                               margin: const EdgeInsets.only(left: 6),
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF10B981),
                                 borderRadius: BorderRadius.circular(20),
@@ -205,6 +222,15 @@ class _SiteTile extends StatelessWidget {
                               ),
                             ),
                         ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Agenda & opérations →',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: color,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       if (site.address != null && site.address!.isNotEmpty) ...[
                         const SizedBox(height: 2),
