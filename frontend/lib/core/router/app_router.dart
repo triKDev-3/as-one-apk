@@ -15,6 +15,7 @@ import '../../features/chef/screens/close_report_screen.dart';
 import '../../features/chef/screens/chef_profile_screen.dart';
 import '../../features/chef/screens/stats_details_screen.dart';
 import '../../features/chef/screens/chef_calendar_screen.dart';
+import '../../features/chef/screens/permanence_ops_screen.dart';
 import '../../features/chef/repositories/sites_repository.dart';
 import '../../features/magasinier/magasinier_home_screen.dart';
 import '../../features/magasinier/screens/material_out_screen.dart';
@@ -34,6 +35,7 @@ import '../../features/shared/interventions_history_screen.dart';
 import '../../features/agent/screens/planning_screen.dart';
 import '../../features/agent/screens/pointages_history_screen.dart';
 import '../../features/agent/screens/remuneration_screen.dart';
+import '../../features/agent/screens/permanence_offers_screen.dart';
 import '../../features/chef/screens/site_details_screen.dart';
 import '../widgets/role_shell.dart';
 
@@ -44,8 +46,6 @@ class AppRouter {
     initialLocation: '/login',
     routes: [
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-
-      /// Coque avec nav bas fixe pour tous les rôles authentifiés
       ShellRoute(
         builder: (context, state, child) {
           return RoleShell(
@@ -64,6 +64,7 @@ class AppRouter {
               GoRoute(path: 'pointages', builder: (_, __) => const PointagesHistoryScreen()),
               GoRoute(path: 'remuneration', builder: (_, __) => const RemunerationScreen()),
               GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
+              GoRoute(path: 'offers', builder: (_, __) => const PermanenceOffersScreen()),
             ],
           ),
           GoRoute(
@@ -76,6 +77,13 @@ class AppRouter {
                 builder: (_, state) => SiteDetailsScreen(
                   siteId: state.pathParameters['siteId']!,
                   site: state.extra as SiteModel,
+                ),
+              ),
+              GoRoute(
+                path: 'permanence/:siteId',
+                builder: (_, state) => PermanenceOpsScreen(
+                  siteId: state.pathParameters['siteId']!,
+                  site: state.extra as SiteModel?,
                 ),
               ),
               GoRoute(
