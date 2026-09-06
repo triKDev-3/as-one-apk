@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/providers.dart';
 import '../network/realtime_service.dart';
@@ -25,7 +26,15 @@ class _RealtimeListenerState extends ConsumerState<RealtimeListener> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _listen());
   }
 
+  Future<void> _ring() async {
+    try {
+      await SystemSound.play(SystemSoundType.alert);
+      await HapticFeedback.mediumImpact();
+    } catch (_) {}
+  }
+
   void _show(String title, String body, Color color) {
+    _ring();
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) return;
     messenger.hideCurrentSnackBar();
@@ -50,12 +59,14 @@ class _RealtimeListenerState extends ConsumerState<RealtimeListener> {
     if (type.contains('incident') ||
         type.contains('penalty') ||
         type.contains('refus') ||
+        type.contains('unavailable') ||
         type.contains('suspend')) {
       return AppColors.danger;
     }
     if (type.contains('pointage') ||
         type.contains('valid') ||
-        type.contains('confirm')) {
+        type.contains('confirm') ||
+        type.contains('offer')) {
       return AppColors.accent;
     }
     return AppColors.primary;
@@ -77,7 +88,7 @@ class _RealtimeListenerState extends ConsumerState<RealtimeListener> {
         final body = event.data['body'] as String? ?? '';
         final type = event.data['type'] as String? ?? '';
         _show(title, body, _colorFor(type));
-        if (type.startsWith('assignment')) {
+        if (type.startsWith('assignment') || type.startsWith('offer')) {
           ref.invalidate(agentDashboardProvider);
         }
         return;
@@ -113,6 +124,15 @@ class _RealtimeListenerState extends ConsumerState<RealtimeListener> {
           _show(
             'Incident',
             event.data['message']?.toString() ?? 'Nouvel incident',
+            AppColors.danger,
+          );
+          break;
+        case 'availability:unavailable':
+          _show(
+            'Indisponibilité agent',
+            event.data['message']?.toString() ??
+                event.data['body']?.toString() ??
+                'Un agent s\'est déclaré indisponible',
             AppColors.danger,
           );
           break;

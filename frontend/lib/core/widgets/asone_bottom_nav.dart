@@ -69,9 +69,15 @@ class AsOneBottomNav extends StatelessWidget {
     final idx = currentIndex.clamp(0, items.length - 1);
     return NavigationBar(
       selectedIndex: idx,
-      height: 64,
+      height: 68,
       backgroundColor: Colors.white,
-      indicatorColor: AppColors.primary.withValues(alpha: 0.12),
+      elevation: 8,
+      shadowColor: Colors.black26,
+      // Indicateur plus marqué pour l'onglet actif
+      indicatorColor: AppColors.primary.withValues(alpha: 0.18),
+      indicatorShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       onDestinationSelected: (i) {
         final dest = items[i].route;
@@ -80,11 +86,26 @@ class AsOneBottomNav extends StatelessWidget {
         context.go(dest);
       },
       destinations: [
-        for (final it in items)
+        for (var i = 0; i < items.length; i++)
           NavigationDestination(
-            icon: Icon(it.icon, color: AppColors.textSecondary, size: 22),
-            selectedIcon: Icon(it.icon, color: AppColors.primary, size: 22),
-            label: it.label,
+            icon: Icon(
+              items[i].icon,
+              color: AppColors.textSecondary,
+              size: 22,
+            ),
+            selectedIcon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                items[i].icon,
+                color: AppColors.primary,
+                size: 24,
+              ),
+            ),
+            label: items[i].label,
           ),
       ],
     );

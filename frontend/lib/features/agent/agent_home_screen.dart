@@ -6,7 +6,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/custom_card.dart';
 import '../../core/widgets/hero_banner.dart';
-import '../../core/widgets/asone_bottom_nav.dart';
 import 'agent_repository.dart';
 
 final agentDashboardProvider =
@@ -95,9 +94,9 @@ class _AgentHomeScreenState extends ConsumerState<AgentHomeScreen> {
     final dashboardAsync = ref.watch(agentDashboardProvider);
     final authUser = ref.watch(authProvider).user;
 
+    // Nav bas fournie uniquement par RoleShell (évite double barre)
     return Scaffold(
       backgroundColor: AppColors.background,
-      bottomNavigationBar: const AsOneBottomNav(role: 'AGENT', currentIndex: 0),
       body: dashboardAsync.when(
         loading: () => const Center(
           child: CircularProgressIndicator(color: AppColors.primary),
@@ -181,6 +180,33 @@ class _AgentHomeScreenState extends ConsumerState<AgentHomeScreen> {
                         loading: _toggling,
                         onTap: () => _toggleAvailability(isAvailable),
                       ).animate().fadeIn().slideY(begin: 0.1, end: 0),
+                      const SizedBox(height: 16),
+                      CustomCard(
+                        onTap: () => context.push('/agent/offers'),
+                        padding: const EdgeInsets.all(16),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.work_outline_rounded, color: AppColors.secondary),
+                            SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Offres de permanence',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w800, fontSize: 15)),
+                                  Text('Postuler à un créneau horaire',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.textSecondary)),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.arrow_forward_ios_rounded,
+                                size: 14, color: AppColors.textTertiary),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 20),
                       if (dashboard.pendingAssignments.isNotEmpty) ...[
                         const Text(
