@@ -5,7 +5,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { Role } from '@prisma/client';
+import { Role, AssignmentStatus } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 
 type DayCell = {
   status: string;
@@ -16,7 +17,69 @@ type DayCell = {
 
 @Injectable()
 export class AgentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notify: NotificationsService,
+  ) {}
+
+  /** Notifie les chefs des sites où l'agent a une affectation active. */
+  private async notifyChefsOfUnavailability(
+    agentId: string,
+    agentName: string,
+    opts: { continuous?: boolean; date?: string },
+  ) {
+    const assignments = await this.prisma.assignment.findMany({
+      where: {
+        agentId,
+        status: {
+          in: [
+            AssignmentStatus.PENDING_CONFIRMATION,
+            AssignmentStatus.CONFIRMED,
+            AssignmentStatus.LOCKED,
+          ],
+        },
+      },
+      include: {
+        site: {
+          include: {
+            chefs: { select: { chefId: true } },
+          },
+        },
+      },
+    });
+
+    const chefIds = new Set<string>();
+    const siteNames: string[] = [];
+
+    for (const a of assignments) {
+      siteNames.push(a.site.name);
+      for (const c of a.site.chefs) chefIds.add(c.chefId);
+      if (a.createdById) chefIds.add(a.createdById);
+    }
+
+    if (chefIds.size === 0) return;
+
+    const sitesLabel =
+      siteNames.length > 0
+        ? [...new Set(siteNames)].slice(0, 3).join(', ')
+        : 'un site';
+
+    const body = opts.continuous
+      ? `${agentName} s'est déclaré(e) indisponible (bouton continu) alors qu'il/elle est affecté(e) sur ${sitesLabel}.`
+      : `${agentName} a marqué le ${opts.date} comme indisponible (affecté(e) sur ${sitesLabel}).`;
+
+    await this.notify.pushMany([...chefIds], {
+      title: 'Agent indisponible',
+      body,
+      type: 'availability:unavailable',
+      data: {
+        agentId,
+        date: opts.date ?? null,
+        continuous: !!opts.continuous,
+        sites: [...new Set(siteNames)],
+      },
+    });
+  }
 
   async toggleAvailability(userId: string, isAvailable: boolean) {
     const user = await this.prisma.user.findUnique({
@@ -57,6 +120,14 @@ export class AgentService {
     if (profile) {
       await this.prisma.availabilityLog.create({
         data: { agentId: profile.id, isAvailable },
+      });
+    }
+
+    // Notif chefs si passage en indisponible
+    if (!isAvailable) {
+      const name = `${user.firstName} ${user.lastName}`.trim();
+      await this.notifyChefsOfUnavailability(userId, name, {
+        continuous: true,
       });
     }
 
@@ -166,15 +237,6 @@ export class AgentService {
     }));
   }
 
-  /**
-   * Planning optimisé :
-   * - filtre strict au mois demandé
-   * - requêtes parallèles
-   * - affectations bornées (pas d'expansion infinie)
-   * - priorité : worked > absent > assigned > pending > routine > unavailable
-   * - multi-sites le même jour → sites[]
-   * - stats du mois
-   */
   async getPlanning(agentId: string, monthKey?: string) {
     const now = new Date();
     let startDate: Date;
@@ -210,7 +272,6 @@ export class AgentService {
         },
         orderBy: { notedAt: 'asc' },
       }),
-      // Uniquement les missions qui chevauchent le mois
       this.prisma.assignment.findMany({
         where: {
           agentId,
@@ -256,7 +317,6 @@ export class AgentService {
         };
         return;
       }
-      // Accumuler multi-sites
       if (siteName) {
         const sites = new Set(existing.sites || []);
         sites.add(siteName);
@@ -269,19 +329,16 @@ export class AgentService {
       if (opts?.conflict) existing.conflict = true;
     };
 
-    // 1) Affectations → jours hors dimanche, bornés au mois
     for (const asg of assignments) {
       const aStart = new Date(asg.startDate);
       aStart.setUTCHours(0, 0, 0, 0);
 
-      // Fin : endDate si définie, sinon min(start+60j, fin du mois) pour éviter l'infini
       let aEnd: Date;
       if (asg.endDate) {
         aEnd = new Date(asg.endDate);
       } else if (asg.missionType === 'PERMANENTE' || asg.missionType === 'ROUTINE') {
         aEnd = new Date(endDate);
       } else {
-        // TEMPORAIRE sans fin → seulement le jour de début
         aEnd = new Date(aStart);
       }
       aEnd.setUTCHours(23, 59, 59, 999);
@@ -290,7 +347,7 @@ export class AgentService {
       const limit = new Date(Math.min(aEnd.getTime(), endDate.getTime()));
 
       while (cursor <= limit) {
-        const dow = cursor.getUTCDay(); // 0 dimanche
+        const dow = cursor.getUTCDay();
         if (dow !== 0) {
           const dateKey = cursor.toISOString().slice(0, 10);
 
@@ -305,7 +362,6 @@ export class AgentService {
               asg.status === 'PENDING_CONFIRMATION'
                 ? 'assigned_pending'
                 : 'assigned';
-            // pending n'écrase pas assigned confirmé
             const cur = calendarMap[dateKey];
             if (!cur || cur.status === 'routine' || cur.status === 'assigned_pending') {
               setDay(dateKey, status, asg.site.name);
@@ -318,7 +374,6 @@ export class AgentService {
       }
     }
 
-    // 2) Indispos — n'écrase pas worked ; marque conflict si déjà assigné
     for (const d of unavailableDates) {
       if (d < startDate.toISOString().slice(0, 10) || d > endDate.toISOString().slice(0, 10)) {
         continue;
@@ -331,14 +386,10 @@ export class AgentService {
         cur.status === 'assigned_pending' ||
         cur.status === 'routine'
       ) {
-        // Conflit calendrier : mission + indispo déclarée
         cur.conflict = true;
-        // on garde le statut mission (priorité terrain/mission sur pure indispo)
       }
-      // worked / absent ne sont pas encore posés
     }
 
-    // 3) Pointages — priorité max
     for (const p of pointages) {
       const dateKey = p.notedAt.toISOString().slice(0, 10);
       if (p.type === 'ABSENT') {
@@ -351,7 +402,6 @@ export class AgentService {
       }
     }
 
-    // Stats mois
     let worked = 0;
     let absent = 0;
     let assigned = 0;
@@ -478,6 +528,9 @@ export class AgentService {
       );
     }
 
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException();
+
     const profile = await this.prisma.agentProfile.findUnique({
       where: { userId },
     });
@@ -499,6 +552,11 @@ export class AgentService {
       where: { userId },
       data: { unavailableDates },
     });
+
+    if (!available) {
+      const name = `${user.firstName} ${user.lastName}`.trim();
+      await this.notifyChefsOfUnavailability(userId, name, { date });
+    }
 
     return { success: true, date, available };
   }
