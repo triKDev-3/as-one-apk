@@ -40,6 +40,13 @@ class _PermanenceOpsScreenState extends ConsumerState<PermanenceOpsScreen> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _daysCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
@@ -228,22 +235,24 @@ class _PermanenceOpsScreenState extends ConsumerState<PermanenceOpsScreen> {
                           Row(
                             children: [
                               Expanded(
-                                child: TextFormField<String>(
+                                child: TextFormField(
                                   initialValue: s.start,
                                   decoration: const InputDecoration(
-                                      labelText: 'Début',
-                                      border: OutlineInputBorder()),
-                                  onChanged: (v) => s.start = v ?? s.start,
+                                    labelText: 'Début',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  onChanged: (v) => s.start = v,
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: TextFormField<String>(
+                                child: TextFormField(
                                   initialValue: s.end,
                                   decoration: const InputDecoration(
-                                      labelText: 'Fin',
-                                      border: OutlineInputBorder()),
-                                  onChanged: (v) => s.end = v ?? s.end,
+                                    labelText: 'Fin',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  onChanged: (v) => s.end = v,
                                 ),
                               ),
                             ],
@@ -252,25 +261,26 @@ class _PermanenceOpsScreenState extends ConsumerState<PermanenceOpsScreen> {
                           Row(
                             children: [
                               Expanded(
-                                child: TextFormField<String>(
+                                child: TextFormField(
                                   initialValue: s.salary,
                                   decoration: const InputDecoration(
-                                      labelText: 'Salaire / intervalle',
-                                      border: OutlineInputBorder()),
+                                    labelText: 'Salaire / intervalle',
+                                    border: OutlineInputBorder(),
+                                  ),
                                   keyboardType: TextInputType.number,
-                                  onChanged: (v) => s.salary = v ?? s.salary,
+                                  onChanged: (v) => s.salary = v,
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: TextFormField<String>(
+                                child: TextFormField(
                                   initialValue: s.required,
                                   decoration: const InputDecoration(
-                                      labelText: 'Effectif',
-                                      border: OutlineInputBorder()),
+                                    labelText: 'Effectif',
+                                    border: OutlineInputBorder(),
+                                  ),
                                   keyboardType: TextInputType.number,
-                                  onChanged: (v) =>
-                                      s.required = v ?? s.required,
+                                  onChanged: (v) => s.required = v,
                                 ),
                               ),
                             ],
@@ -288,7 +298,8 @@ class _PermanenceOpsScreenState extends ConsumerState<PermanenceOpsScreen> {
                 const SizedBox(height: 8),
                 ElevatedButton(
                   onPressed: _saving ? null : _create,
-                  child: Text(_saving ? 'Enregistrement…' : 'Créer le planning'),
+                  child:
+                      Text(_saving ? 'Enregistrement…' : 'Créer le planning'),
                 ),
                 const Divider(height: 32),
                 const Text(
@@ -367,7 +378,8 @@ class _PermanenceOpsScreenState extends ConsumerState<PermanenceOpsScreen> {
                                                   IconButton(
                                                     icon: const Icon(
                                                         Icons.check,
-                                                        color: AppColors.accent),
+                                                        color:
+                                                            AppColors.accent),
                                                     onPressed: () => _resolve(
                                                         a['id'] as String,
                                                         true),
@@ -375,7 +387,8 @@ class _PermanenceOpsScreenState extends ConsumerState<PermanenceOpsScreen> {
                                                   IconButton(
                                                     icon: const Icon(
                                                         Icons.close,
-                                                        color: AppColors.danger),
+                                                        color:
+                                                            AppColors.danger),
                                                     onPressed: () => _resolve(
                                                         a['id'] as String,
                                                         false),
