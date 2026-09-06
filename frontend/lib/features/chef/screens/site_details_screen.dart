@@ -36,7 +36,6 @@ class SiteDetailsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Site Header Info
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -56,7 +55,9 @@ class SiteDetailsScreen extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
-                          isPermanence ? Icons.home_work_outlined : Icons.construction,
+                          isPermanence
+                              ? Icons.home_work_outlined
+                              : Icons.construction,
                           color: color,
                           size: 28,
                         ),
@@ -73,7 +74,8 @@ class SiteDetailsScreen extends ConsumerWidget {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            if (site.address != null && site.address!.isNotEmpty) ...[
+                            if (site.address != null &&
+                                site.address!.isNotEmpty) ...[
                               const SizedBox(height: 4),
                               Text(
                                 site.address!,
@@ -89,14 +91,14 @@ class SiteDetailsScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 24),
-
             if (!isAssigned) ...[
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: AppColors.warning.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                  border: Border.all(
+                      color: AppColors.warning.withValues(alpha: 0.3)),
                 ),
                 child: const Row(
                   children: [
@@ -105,7 +107,9 @@ class SiteDetailsScreen extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         'Vous n\'êtes pas affecté à ce chantier. Les opérations sont désactivées.',
-                        style: TextStyle(color: AppColors.warning, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            color: AppColors.warning,
+                            fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -113,41 +117,65 @@ class SiteDetailsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
             ],
-
             Text(
               'Opérations',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
+            if (isPermanence)
+              _ActionTile(
+                title: 'Ops permanence (créneaux & offres)',
+                icon: Icons.schedule_rounded,
+                color: AppColors.secondary,
+                onTap: isAssigned
+                    ? () => context.push(
+                          '/chef/permanence/${site.id}',
+                          extra: site,
+                        )
+                    : null,
+              ),
             _ActionTile(
               title: 'Composer l\'équipe',
               icon: Icons.group_add,
               color: AppColors.primary,
-              onTap: isAssigned ? () => context.push('/chef/compose/${site.id}', extra: site) : null,
+              onTap: isAssigned
+                  ? () =>
+                      context.push('/chef/compose/${site.id}', extra: site)
+                  : null,
             ),
             _ActionTile(
               title: 'Faire le pointage',
               icon: Icons.fact_check,
               color: AppColors.accent,
-              onTap: isAssigned ? () => context.push('/chef/pointage/${site.id}', extra: site) : null,
+              onTap: isAssigned
+                  ? () =>
+                      context.push('/chef/pointage/${site.id}', extra: site)
+                  : null,
             ),
             _ActionTile(
               title: 'Noter les agents',
               icon: Icons.star_rate,
               color: AppColors.warning,
-              onTap: isAssigned ? () => context.push('/chef/rate/${site.id}', extra: site) : null,
+              onTap: isAssigned
+                  ? () => context.push('/chef/rate/${site.id}', extra: site)
+                  : null,
             ),
             _ActionTile(
               title: 'Journal des tâches',
               icon: Icons.task_alt,
               color: AppColors.accent,
-              onTap: isAssigned ? () => context.push('/chef/tasks/${site.id}', extra: site) : null,
+              onTap: isAssigned
+                  ? () => context.push('/chef/tasks/${site.id}', extra: site)
+                  : null,
             ),
             _ActionTile(
               title: 'Rapport fin de chantier',
               icon: Icons.assignment_turned_in,
               color: AppColors.primary,
-              onTap: isAssigned ? () => context.push('/chef/report/${site.id}', extra: site) : null,
+              onTap: isAssigned
+                  ? () =>
+                      context.push('/chef/report/${site.id}', extra: site)
+                  : null,
             ),
           ],
         ),
@@ -195,13 +223,17 @@ class _ActionTile extends StatelessWidget {
                     title,
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: isDisabled ? AppColors.textTertiary : AppColors.textPrimary,
+                      color: isDisabled
+                          ? AppColors.textTertiary
+                          : AppColors.textPrimary,
                     ),
                   ),
                 ),
                 Icon(
                   Icons.chevron_right,
-                  color: isDisabled ? AppColors.textTertiary : AppColors.textSecondary,
+                  color: isDisabled
+                      ? AppColors.textTertiary
+                      : AppColors.textSecondary,
                 ),
               ],
             ),
