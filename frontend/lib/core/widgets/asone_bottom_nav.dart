@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../theme/app_colors.dart';
 
 /// Navigation bas type mobile — un jeu d'onglets par rôle.
+/// L'onglet sélectionné se démarque nettement (pilule bleue + label gras).
 class AsOneBottomNav extends StatelessWidget {
   final String role;
   final int currentIndex;
@@ -67,47 +68,101 @@ class AsOneBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = _items;
     final idx = currentIndex.clamp(0, items.length - 1);
-    return NavigationBar(
-      selectedIndex: idx,
-      height: 68,
-      backgroundColor: Colors.white,
-      elevation: 8,
-      shadowColor: Colors.black26,
-      // Indicateur plus marqué pour l'onglet actif
-      indicatorColor: AppColors.primary.withValues(alpha: 0.18),
-      indicatorShape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-      onDestinationSelected: (i) {
-        final dest = items[i].route;
-        final current = GoRouterState.of(context).uri.path;
-        if (current == dest) return;
-        context.go(dest);
-      },
-      destinations: [
-        for (var i = 0; i < items.length; i++)
-          NavigationDestination(
-            icon: Icon(
-              items[i].icon,
-              color: AppColors.textSecondary,
-              size: 22,
+
+    return Material(
+      elevation: 12,
+      shadowColor: Colors.black38,
+      color: Colors.white,
+      child: SafeArea(
+        top: false,
+        child: Container(
+          height: 64,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              top: BorderSide(color: AppColors.border, width: 1),
             ),
-            selectedIcon: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                items[i].icon,
-                color: AppColors.primary,
-                size: 24,
-              ),
-            ),
-            label: items[i].label,
           ),
-      ],
+          child: Row(
+            children: [
+              for (var i = 0; i < items.length; i++)
+                Expanded(
+                  child: _NavTab(
+                    item: items[i],
+                    selected: i == idx,
+                    onTap: () {
+                      final dest = items[i].route;
+                      final current = GoRouterState.of(context).uri.path;
+                      if (current == dest) return;
+                      context.go(dest);
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavTab extends StatelessWidget {
+  final _NavItem item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _NavTab({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? AppColors.primary : AppColors.textTertiary;
+
+    return InkWell(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary.withValues(alpha: 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          border: selected
+              ? Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.35),
+                  width: 1.2,
+                )
+              : null,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              item.icon,
+              size: selected ? 24 : 22,
+              color: color,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              item.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: selected ? 11.5 : 10.5,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                color: color,
+                letterSpacing: selected ? -0.2 : 0,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
