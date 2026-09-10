@@ -22,10 +22,13 @@ export class RatingController {
   ranking(
     @Query('limit') limit?: string,
     @Query('sortBy') sortBy?: string,
+    @Query('month') month?: string,
   ) {
     const parsedLimit = limit ? parseInt(limit, 10) : 50;
     const sort = sortBy === 'days' ? 'days' : 'score';
-    return this.service.getRanking(parsedLimit, sort);
+    const monthKey =
+      month && /^\d{4}-\d{2}$/.test(month) ? month : undefined;
+    return this.service.getRanking(parsedLimit, sort, monthKey);
   }
 
   @Get('assignment/:assignmentId')

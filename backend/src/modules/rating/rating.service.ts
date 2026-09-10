@@ -73,9 +73,23 @@ export class RatingService {
   }
 
   /**
-   * Classement : score = moyenne notes ; jours = jours distincts avec DEPART ou PRESENCE_PERMANENCE.
+   * Classement : par mois (défaut = mois en cours).
+   * score = moyenne des notes du mois ; jours = jours distincts DEPART / PRESENCE_PERMANENCE du mois.
    */
-  async getRanking(limit = 50, sortBy: 'score' | 'days' = 'score') {
+  async getRanking(
+    limit = 50,
+    sortBy: 'score' | 'days' = 'score',
+    monthKey?: string,
+  ) {
+    const now = new Date();
+    const resolvedMonth =
+      monthKey && /^\d{4}-\d{2}$/.test(monthKey)
+        ? monthKey
+        : `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+    const [year, month] = resolvedMonth.split('-').map(Number);
+    const start = new Date(Date.UTC(year, month - 1, 1));
+    const end = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+
     const agents = await this.prisma.user.findMany({
       where: { role: Role.AGENT, isActive: true },
       select: {
@@ -87,13 +101,27 @@ export class RatingService {
       },
     });
 
-    const pointages = await this.prisma.pointage.findMany({
-      where: {
-        agentId: { in: agents.map((a) => a.id) },
-        type: { in: ['DEPART', 'PRESENCE_PERMANENCE'] },
-      },
-      select: { agentId: true, notedAt: true },
-    });
+    const agentIds = agents.map((a) => a.id);
+
+    const [pointages, ratingAggs] = await Promise.all([
+      this.prisma.pointage.findMany({
+        where: {
+          agentId: { in: agentIds },
+          type: { in: ['DEPART', 'PRESENCE_PERMANENCE'] },
+          notedAt: { gte: start, lte: end },
+        },
+        select: { agentId: true, notedAt: true },
+      }),
+      this.prisma.rating.groupBy({
+        by: ['agentId'],
+        where: {
+          agentId: { in: agentIds },
+          createdAt: { gte: start, lte: end },
+        },
+        _avg: { score: true },
+        _count: { score: true },
+      }),
+    ]);
 
     const daysByAgent = new Map<string, Set<string>>();
     for (const p of pointages) {
@@ -102,19 +130,42 @@ export class RatingService {
       daysByAgent.get(p.agentId)!.add(key);
     }
 
-    const enriched = agents.map((a) => ({
-      id: a.id,
-      firstName: a.firstName,
-      lastName: a.lastName,
-      rankingScore: a.rankingScore,
-      agentType: a.agentType,
-      daysWorked: daysByAgent.get(a.id)?.size ?? 0,
-    }));
+    const ratingByAgent = new Map<
+      string,
+      { avg: number; count: number }
+    >();
+    for (const r of ratingAggs) {
+      ratingByAgent.set(r.agentId, {
+        avg: Math.round((r._avg.score ?? 0) * 100) / 100,
+        count: r._count.score,
+      });
+    }
+
+    const enriched = agents.map((a) => {
+      const rating = ratingByAgent.get(a.id);
+      return {
+        id: a.id,
+        firstName: a.firstName,
+        lastName: a.lastName,
+        rankingScore: rating?.avg ?? 0,
+        ratingsCount: rating?.count ?? 0,
+        lifetimeScore: a.rankingScore,
+        agentType: a.agentType,
+        daysWorked: daysByAgent.get(a.id)?.size ?? 0,
+        month: resolvedMonth,
+      };
+    });
 
     if (sortBy === 'days') {
-      enriched.sort((a, b) => b.daysWorked - a.daysWorked || b.rankingScore - a.rankingScore);
+      enriched.sort(
+        (a, b) =>
+          b.daysWorked - a.daysWorked || b.rankingScore - a.rankingScore,
+      );
     } else {
-      enriched.sort((a, b) => b.rankingScore - a.rankingScore || b.daysWorked - a.daysWorked);
+      enriched.sort(
+        (a, b) =>
+          b.rankingScore - a.rankingScore || b.daysWorked - a.daysWorked,
+      );
     }
 
     return enriched.slice(0, limit);

@@ -3,22 +3,36 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/providers/providers.dart';
 import '../../core/network/api_client.dart';
 import '../../core/widgets/custom_card.dart';
 
-// ─── Sort mode enum ───────────────────────────────────────────────────────────
 enum RankingSortMode { score, days }
 
-// ─── Provider family: fetches ranking sorted by score OR days ────────────────
+class RankingQuery {
+  final RankingSortMode mode;
+  final String month; // yyyy-MM
+  const RankingQuery(this.mode, this.month);
+
+  @override
+  bool operator ==(Object other) =>
+      other is RankingQuery && other.mode == mode && other.month == month;
+
+  @override
+  int get hashCode => Object.hash(mode, month);
+}
+
 final rankingProvider = FutureProvider.autoDispose
-    .family<List<dynamic>, RankingSortMode>((ref, mode) async {
+    .family<List<dynamic>, RankingQuery>((ref, q) async {
   final api = ref.watch(apiClientProvider);
-  final sortBy = mode == RankingSortMode.days ? 'days' : 'score';
+  final sortBy = q.mode == RankingSortMode.days ? 'days' : 'score';
   try {
-    final response =
-        await api.dio.get('/ratings/ranking', queryParameters: {'sortBy': sortBy});
+    final response = await api.dio.get('/ratings/ranking', queryParameters: {
+      'sortBy': sortBy,
+      'month': q.month,
+    });
     return response.data as List<dynamic>;
   } on DioException catch (e) {
     throw ApiClient.extractError(e);
@@ -34,16 +48,38 @@ class RankingScreen extends ConsumerStatefulWidget {
 
 class _RankingScreenState extends ConsumerState<RankingScreen> {
   RankingSortMode _sortMode = RankingSortMode.score;
+  late DateTime _month;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _month = DateTime(now.year, now.month);
+  }
+
+  String get _monthKey => DateFormat('yyyy-MM').format(_month);
+
+  RankingQuery get _query => RankingQuery(_sortMode, _monthKey);
+
+  void _shiftMonth(int delta) {
+    setState(() {
+      _month = DateTime(_month.year, _month.month + delta);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final rankingAsync = ref.watch(rankingProvider(_sortMode));
+    final rankingAsync = ref.watch(rankingProvider(_query));
     final currentUserId = ref.watch(authProvider).user?.id;
+    final monthLabel = DateFormat('MMMM yyyy', 'fr').format(_month);
+    final now = DateTime.now();
+    final isCurrentMonth =
+        _month.year == now.year && _month.month == now.month;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Classement Général'),
+        title: const Text('Classement du mois'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => context.pop(),
@@ -74,7 +110,7 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
                 Text(e.toString(), textAlign: TextAlign.center),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () => ref.invalidate(rankingProvider(_sortMode)),
+                  onPressed: () => ref.invalidate(rankingProvider(_query)),
                   child: const Text('Réessayer'),
                 ),
               ],
@@ -101,10 +137,53 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
           final topThree = list.take(3).toList();
 
           return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(rankingProvider(_sortMode)),
+            onRefresh: () async => ref.invalidate(rankingProvider(_query)),
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               children: [
+                // Sélecteur de mois
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => _shiftMonth(-1),
+                        icon: const Icon(Icons.chevron_left_rounded),
+                      ),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text(
+                              monthLabel[0].toUpperCase() + monthLabel.substring(1),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                              ),
+                            ),
+                            Text(
+                              isCurrentMonth ? 'Mois en cours' : 'Mois clôturé',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: isCurrentMonth ? null : () => _shiftMonth(1),
+                        icon: const Icon(Icons.chevron_right_rounded),
+                      ),
+                    ],
+                  ),
+                ),
                 // ── Sort mode info chip ─────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
@@ -141,8 +220,8 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
                           const SizedBox(width: 6),
                           Text(
                             _sortMode == RankingSortMode.score
-                                ? 'Trié par score de notation'
-                                : 'Trié par jours travaillés',
+                                ? 'Trié par note moyenne du mois'
+                                : 'Trié par jours travaillés du mois',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -176,8 +255,8 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
                       children: [
                         Text(
                           _sortMode == RankingSortMode.score
-                              ? 'TOP AGENTS DU MOIS'
-                              : 'TOP AGENTS — JOURS TRAVAILLÉS',
+                              ? 'TOP DU MOIS — NOTES'
+                              : 'TOP DU MOIS — JOURS TRAVAILLÉS',
                           style: const TextStyle(
                             color: AppColors.secondary,
                             fontSize: 12,

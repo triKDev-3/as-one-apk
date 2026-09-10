@@ -113,9 +113,17 @@ class PlanningScreen extends ConsumerStatefulWidget {
 }
 
 class _PlanningScreenState extends ConsumerState<PlanningScreen> {
-  DateTime _focusedDay = DateTime.now();
-  DateTime? _selectedDay;
+  late DateTime _focusedDay;
+  late DateTime _selectedDay;
   bool _syncing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _focusedDay = now;
+    _selectedDay = DateTime(now.year, now.month, now.day);
+  }
 
   String get _monthKey => DateFormat('yyyy-MM').format(_focusedDay);
 
@@ -396,8 +404,7 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
                 firstDay: DateTime(2024),
                 lastDay: DateTime(2030),
                 focusedDay: _focusedDay,
-                selectedDayPredicate: (d) =>
-                    _selectedDay != null && isSameDay(d, _selectedDay),
+                selectedDayPredicate: (d) => isSameDay(d, _selectedDay),
                 onDaySelected: (selected, focused) {
                   setState(() {
                     _selectedDay = selected;
@@ -458,29 +465,15 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
               ),
               const Divider(height: 1),
               Expanded(
-                child: _selectedDay == null
-                    ? const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Text(
-                            'Touchez un jour pour le détail.\nUtilisez le bouton pour déclarer une indisponibilité future.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      )
-                    : _DayDetail(
-                        day: _selectedDay!,
-                        info: calDays[
-                            DateFormat('yyyy-MM-dd').format(_selectedDay!)],
-                        labelOf: _label,
-                        colorOf: _bg,
-                        onToggle: () =>
-                            _toggleDayAvailability(_selectedDay!, calDays),
-                      ),
+                child: _DayDetail(
+                  day: _selectedDay,
+                  info: calDays[
+                      DateFormat('yyyy-MM-dd').format(_selectedDay)],
+                  labelOf: _label,
+                  colorOf: _bg,
+                  onToggle: () =>
+                      _toggleDayAvailability(_selectedDay, calDays),
+                ),
               ),
             ],
           );
