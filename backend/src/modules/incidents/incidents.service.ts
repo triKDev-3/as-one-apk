@@ -4,6 +4,7 @@ import { CreateIncidentDto } from './dto/create-incident.dto';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { Role, RetentionTarget, AssignmentStatus } from '@prisma/client';
 import { ApplyPenaltyDto } from './dto/apply-penalty.dto';
+import { assertCanOperateOnSite } from '../../common/site-access';
 
 @Injectable()
 export class IncidentsService {
@@ -15,6 +16,7 @@ export class IncidentsService {
   async create(dto: CreateIncidentDto, reportedById: string) {
     const site = await this.prisma.site.findUnique({ where: { id: dto.siteId } });
     if (!site) throw new NotFoundException('Site introuvable');
+    await assertCanOperateOnSite(this.prisma, dto.siteId, reportedById);
 
     const incident = await this.prisma.incident.create({
       data: {

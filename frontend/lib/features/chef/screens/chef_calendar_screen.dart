@@ -8,23 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/providers.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/widgets/asone_loader.dart';
-
-String _kindLabelFr(String kind) {
-  switch (kind) {
-    case 'assignment':
-      return 'Assigné';
-    case 'assignment_pending':
-      return 'En attente';
-    case 'pointage':
-      return 'Pointé';
-    case 'absent':
-      return 'Absent';
-    case 'incident':
-      return 'Incident';
-    default:
-      return kind;
-  }
-}
+import '../../shared/ops_history.dart';
 
 final chefCalendarProvider = FutureProvider.autoDispose
     .family<Map<String, dynamic>, String>((ref, monthKey) async {
@@ -52,6 +36,7 @@ class ChefCalendarScreen extends ConsumerStatefulWidget {
 class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
   late DateTime _focused;
   late DateTime _selected;
+  OpsHistoryFilter _filter = OpsHistoryFilter.all;
 
   @override
   void initState() {
@@ -102,6 +87,7 @@ class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
                 _Dot(color: AppColors.accent, label: 'Pointages'),
                 _Dot(color: AppColors.danger, label: 'Absents / Incidents'),
                 _Dot(color: AppColors.warning, label: 'En attente'),
+                _Dot(color: AppColors.secondary, label: 'Tâches'),
               ],
             ),
           ),
@@ -166,6 +152,8 @@ class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
                             const _Mark(AppColors.danger),
                           if ((s['pending'] as num? ?? 0) > 0)
                             const _Mark(AppColors.warning),
+                          if ((s['tasks'] as num? ?? 0) > 0)
+                            const _Mark(AppColors.secondary),
                         ],
                       ),
                     );
@@ -183,7 +171,12 @@ class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
                     (data['days'] as Map<String, dynamic>?)?[key]
                         as Map<String, dynamic>?;
                 final events =
-                    (dayMap?['events'] as List<dynamic>?) ?? [];
+                    ((dayMap?['events'] as List<dynamic>?) ?? [])
+                        .where((e) => opsHistoryMatches(
+                              (e as Map)['kind'] as String? ?? '',
+                              _filter,
+                            ))
+                        .toList();
                 final summary =
                     (data['summary'] as Map<String, dynamic>?)?[key]
                         as Map<String, dynamic>?;
@@ -204,6 +197,7 @@ class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
                         '${summary['pointages'] ?? 0} pointage(s) · '
                         '${summary['absents'] ?? 0} absent(s) · '
                         '${summary['incidents'] ?? 0} incident(s) · '
+                        '${summary['tasks'] ?? 0} tâche(s) · '
                         '${summary['pending'] ?? 0} en attente',
                         style: const TextStyle(
                           fontSize: 12,
@@ -211,64 +205,61 @@ class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
                         ),
                       ),
                     const SizedBox(height: 12),
-                    Row(
+                    OpsHistoryFilterBar(
+                      value: _filter,
+                      onChanged: (f) => setState(() => _filter = f),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => context.push(
-                              '$base/pointages?date=$key',
-                            ),
-                            icon: const Icon(Icons.fingerprint),
-                            label: const Text('Pointages'),
+                        OutlinedButton.icon(
+                          onPressed: () => context.push(
+                            '$base/pointages?date=$key',
                           ),
+                          icon: const Icon(Icons.fingerprint, size: 18),
+                          label: const Text('Pointages'),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => context.push(
-                              '$base/incidents?date=$key',
-                            ),
-                            icon: const Icon(Icons.warning_amber),
-                            label: const Text('Incidents'),
+                        OutlinedButton.icon(
+                          onPressed: () => context.push(
+                            '$base/incidents?date=$key',
                           ),
+                          icon: const Icon(Icons.warning_amber, size: 18),
+                          label: const Text('Incidents'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => context.push(
+                            '$base/taches?date=$key',
+                          ),
+                          icon: const Icon(Icons.task_alt, size: 18),
+                          label: const Text('Tâches'),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
                     if (events.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 24),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 24),
                         child: Center(
                           child: Text(
-                            'Aucune affectation pour ce jour',
-                            style:
-                                TextStyle(color: AppColors.textSecondary),
+                            opsHistoryEmptyLabel(_filter),
+                            style: const TextStyle(
+                                color: AppColors.textSecondary),
                           ),
                         ),
                       )
-                    else ...[
-                      if (!events.any((e) {
-                        final k = (e as Map)['kind'] as String? ?? '';
-                        return k == 'assignment' || k == 'assignment_pending';
-                      }))
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 12),
-                          child: Text(
-                            'Aucune affectation pour ce jour',
-                            style: TextStyle(
-                              color: AppColors.warning,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
+                    else
                       ...events.map((e) {
                         final m = e as Map<String, dynamic>;
                         final kind = m['kind'] as String? ?? '';
                         final color = kind == 'incident' || kind == 'absent'
                             ? AppColors.danger
-                            : kind.contains('pending')
-                                ? AppColors.warning
-                                : AppColors.accent;
+                            : kind == 'task'
+                                ? AppColors.secondary
+                                : kind.contains('pending')
+                                    ? AppColors.warning
+                                    : AppColors.accent;
                         return Container(
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(12),
@@ -310,7 +301,7 @@ class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
                                 ),
                               ),
                               Text(
-                                _kindLabelFr(kind),
+                                opsKindLabelFr(kind),
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: color,
@@ -321,7 +312,6 @@ class _ChefCalendarScreenState extends ConsumerState<ChefCalendarScreen> {
                           ),
                         );
                       }),
-                    ],
                   ],
                 );
               },

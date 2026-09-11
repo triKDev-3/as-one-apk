@@ -11,6 +11,7 @@ import { AssignmentStatus, Role, Prisma } from '@prisma/client';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
+import { assertCanOperateOnSite } from '../../common/site-access';
 
 function dateKey(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -90,6 +91,8 @@ export class AssignmentsService {
   }
 
   async create(dto: CreateAssignmentDto, chefId: string) {
+    await assertCanOperateOnSite(this.prisma, dto.siteId, chefId);
+
     const agent = await this.prisma.user.findUnique({
       where: { id: dto.agentId },
       include: { agentProfile: true },
@@ -372,6 +375,7 @@ export class AssignmentsService {
     if (!assignment || !assignment.isLocked) {
       throw new BadRequestException('Transfert impossible sur cette affectation');
     }
+    await assertCanOperateOnSite(this.prisma, assignment.siteId, fromChefId);
 
     const tr = await this.prisma.transferRequest.create({
       data: { assignmentId, fromChefId, toChefId },
@@ -578,8 +582,7 @@ export class AssignmentsService {
     });
 
     if (!assignment) throw new NotFoundException('Affectation introuvable');
-    if (assignment.createdById !== chefId)
-      throw new ForbiddenException('Action non autorisée');
+    await assertCanOperateOnSite(this.prisma, assignment.siteId, chefId);
 
     const updated = await this.prisma.assignment.update({
       where: { id: assignmentId },

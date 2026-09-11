@@ -9,23 +9,8 @@ import '../../../core/providers/providers.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/widgets/asone_loader.dart';
 import '../repositories/sites_repository.dart';
-
-String _kindLabelFr(String kind) {
-  switch (kind) {
-    case 'assignment':
-      return 'Assigné';
-    case 'assignment_pending':
-      return 'En attente';
-    case 'pointage':
-      return 'Pointé';
-    case 'absent':
-      return 'Absent';
-    case 'incident':
-      return 'Incident';
-    default:
-      return kind;
-  }
-}
+import '../../shared/ops_history.dart';
+import 'select_site_screen.dart';
 
 final siteCalendarProvider = FutureProvider.autoDispose
     .family<Map<String, dynamic>, ({String siteId, String month})>((ref, args) async {
@@ -64,6 +49,7 @@ class _ChefSiteAgendaScreenState extends ConsumerState<ChefSiteAgendaScreen>
   late DateTime _selected;
   bool _opsOpen = false;
   late AnimationController _opsCtrl;
+  OpsHistoryFilter _filter = OpsHistoryFilter.all;
 
   @override
   void initState() {
@@ -111,7 +97,21 @@ class _ChefSiteAgendaScreenState extends ConsumerState<ChefSiteAgendaScreen>
 
   @override
   Widget build(BuildContext context) {
-    final title = _site?.name ?? 'Agenda site';
+    final user = ref.watch(authProvider).user;
+    final sites = ref.watch(sitesListProvider).valueOrNull;
+    SiteModel? site = widget.site;
+    if (site == null && sites != null) {
+      for (final s in sites) {
+        if (s.id == widget.siteId) {
+          site = s;
+          break;
+        }
+      }
+    }
+    final isMine = user?.isAdmin == true ||
+        !ref.watch(viewAllProvider) ||
+        (user != null && (site?.chefIds.contains(user.id) ?? false));
+    final title = site?.name ?? widget.site?.name ?? 'Agenda site';
     final calAsync = ref.watch(
       siteCalendarProvider((siteId: widget.siteId, month: _monthKey)),
     );
@@ -132,7 +132,29 @@ class _ChefSiteAgendaScreenState extends ConsumerState<ChefSiteAgendaScreen>
       ),
       body: Column(
         children: [
-          // ── Bouton + Ops (haut) ──────────────────────────────────
+          if (!isMine)
+            Container(
+              width: double.infinity,
+              color: AppColors.warning.withValues(alpha: 0.12),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: const Row(
+                children: [
+                  Icon(Icons.lock_outline_rounded, color: AppColors.warning),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Consultation uniquement. Vous n\'êtes pas affecté à ce site — les opérations sont bloquées.',
+                      style: TextStyle(
+                        color: AppColors.warning,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
           Material(
             color: Colors.white,
             elevation: 1,
@@ -284,6 +306,7 @@ class _ChefSiteAgendaScreenState extends ConsumerState<ChefSiteAgendaScreen>
                 _Dot(color: AppColors.accent, label: 'Pointages'),
                 _Dot(color: AppColors.danger, label: 'Absents / Incidents'),
                 _Dot(color: AppColors.warning, label: 'En attente'),
+                _Dot(color: AppColors.secondary, label: 'Tâches'),
               ],
             ),
           ),
@@ -350,6 +373,8 @@ class _ChefSiteAgendaScreenState extends ConsumerState<ChefSiteAgendaScreen>
                             const _Mark(AppColors.danger),
                           if ((s['pending'] as num? ?? 0) > 0)
                             const _Mark(AppColors.warning),
+                          if ((s['tasks'] as num? ?? 0) > 0)
+                            const _Mark(AppColors.secondary),
                         ],
                       ),
                     );
@@ -369,7 +394,12 @@ class _ChefSiteAgendaScreenState extends ConsumerState<ChefSiteAgendaScreen>
                     (data['days'] as Map<String, dynamic>?)?[_dayKey]
                         as Map<String, dynamic>?;
                 final events =
-                    (dayMap?['events'] as List<dynamic>?) ?? [];
+                    ((dayMap?['events'] as List<dynamic>?) ?? [])
+                        .where((e) => opsHistoryMatches(
+                              (e as Map)['kind'] as String? ?? '',
+                              _filter,
+                            ))
+                        .toList();
                 final summary =
                     (data['summary'] as Map<String, dynamic>?)?[_dayKey]
                         as Map<String, dynamic>?;
@@ -390,6 +420,7 @@ class _ChefSiteAgendaScreenState extends ConsumerState<ChefSiteAgendaScreen>
                         '${summary['pointages'] ?? 0} présent(s) · '
                         '${summary['absents'] ?? 0} absent(s) · '
                         '${summary['incidents'] ?? 0} incident(s) · '
+                        '${summary['tasks'] ?? 0} tâche(s) · '
                         '${summary['pending'] ?? 0} en attente',
                         style: const TextStyle(
                           fontSize: 12,
@@ -397,63 +428,61 @@ class _ChefSiteAgendaScreenState extends ConsumerState<ChefSiteAgendaScreen>
                         ),
                       ),
                     const SizedBox(height: 12),
-                    Row(
+                    OpsHistoryFilterBar(
+                      value: _filter,
+                      onChanged: (f) => setState(() => _filter = f),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => context.push(
-                              '/chef/pointages?date=$_dayKey',
-                            ),
-                            icon: const Icon(Icons.fingerprint, size: 18),
-                            label: const Text('Pointages'),
+                        OutlinedButton.icon(
+                          onPressed: () => context.push(
+                            '/chef/pointages?date=$_dayKey',
                           ),
+                          icon: const Icon(Icons.fingerprint, size: 18),
+                          label: const Text('Pointages'),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => context.push(
-                              '/chef/incidents?date=$_dayKey',
-                            ),
-                            icon: const Icon(Icons.warning_amber, size: 18),
-                            label: const Text('Incidents'),
+                        OutlinedButton.icon(
+                          onPressed: () => context.push(
+                            '/chef/incidents?date=$_dayKey',
                           ),
+                          icon: const Icon(Icons.warning_amber, size: 18),
+                          label: const Text('Incidents'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => context.push(
+                            '/chef/taches?date=$_dayKey&siteId=${widget.siteId}',
+                          ),
+                          icon: const Icon(Icons.task_alt, size: 18),
+                          label: const Text('Tâches'),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
                     if (events.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 32),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 32),
                         child: Center(
                           child: Text(
-                            'Aucune affectation pour ce jour',
-                            style: TextStyle(color: AppColors.textSecondary),
+                            opsHistoryEmptyLabel(_filter),
+                            style: const TextStyle(
+                                color: AppColors.textSecondary),
                           ),
                         ),
                       )
-                    else ...[
-                      if (!events.any((e) {
-                        final k = (e as Map)['kind'] as String? ?? '';
-                        return k == 'assignment' || k == 'assignment_pending';
-                      }))
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 12),
-                          child: Text(
-                            'Aucune affectation pour ce jour',
-                            style: TextStyle(
-                              color: AppColors.warning,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
+                    else
                       ...events.map((e) {
                         final m = e as Map<String, dynamic>;
                         final kind = m['kind'] as String? ?? '';
                         final color = kind == 'incident' || kind == 'absent'
                             ? AppColors.danger
-                            : kind.contains('pending')
-                                ? AppColors.warning
-                                : AppColors.accent;
+                            : kind == 'task'
+                                ? AppColors.secondary
+                                : kind.contains('pending')
+                                    ? AppColors.warning
+                                    : AppColors.accent;
                         return Container(
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(12),
@@ -481,7 +510,7 @@ class _ChefSiteAgendaScreenState extends ConsumerState<ChefSiteAgendaScreen>
                                 ),
                               ),
                               Text(
-                                _kindLabelFr(kind),
+                                opsKindLabelFr(kind),
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: color,
@@ -492,7 +521,6 @@ class _ChefSiteAgendaScreenState extends ConsumerState<ChefSiteAgendaScreen>
                           ),
                         );
                       }),
-                    ],
                   ],
                 );
               },

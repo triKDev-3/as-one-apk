@@ -1,7 +1,8 @@
-import { IsString, IsOptional, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsDateString, MinLength } from 'class-validator';
 
 export class CreateTaskDto {
   @IsString()
+  @MinLength(1, { message: 'Veuillez d\'abord saisir la tâche.' })
   description: string;
 
   @IsOptional()

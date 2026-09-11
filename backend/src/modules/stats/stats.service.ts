@@ -289,7 +289,7 @@ export class StatsService {
     const siteWhere = Object.keys(siteFilter).length > 0 ? { site: siteFilter } : {};
     const siteIdWhere = siteId ? { siteId } : {};
 
-    const [pointages, incidents, assignments] = await Promise.all([
+    const [pointages, incidents, assignments, tasks] = await Promise.all([
       this.prisma.pointage.findMany({
         where: {
           notedAt: { gte: start, lte: end },
@@ -332,6 +332,17 @@ export class StatsService {
           agent: { select: { firstName: true, lastName: true } },
         },
       }),
+      this.prisma.siteTask.findMany({
+        where: {
+          performedAt: { gte: start, lte: end },
+          ...siteIdWhere,
+          ...(siteId ? {} : isFiltered ? { site: siteFilter } : {}),
+        },
+        include: {
+          site: { select: { id: true, name: true } },
+          createdBy: { select: { firstName: true, lastName: true } },
+        },
+      }),
     ]);
 
     type DayBucket = {
@@ -339,6 +350,7 @@ export class StatsService {
       absents: number;
       incidents: number;
       pending: number;
+      tasks: number;
       events: Array<{
         kind: string;
         label: string;
@@ -356,6 +368,7 @@ export class StatsService {
           absents: 0,
           incidents: 0,
           pending: 0,
+          tasks: 0,
           events: [],
         };
       }
@@ -419,6 +432,22 @@ export class StatsService {
       }
     }
 
+    for (const t of tasks) {
+      const key = t.performedAt.toISOString().slice(0, 10);
+      const b = ensure(key);
+      b.tasks += 1;
+      const desc =
+        t.description.length > 70
+          ? `${t.description.slice(0, 67)}…`
+          : t.description;
+      b.events.push({
+        kind: 'task',
+        label: desc,
+        siteName: t.site.name,
+        siteId: t.site.id,
+      });
+    }
+
     const summary: Record<
       string,
       {
@@ -426,6 +455,7 @@ export class StatsService {
         absents: number;
         incidents: number;
         pending: number;
+        tasks: number;
         hasActivity: boolean;
       }
     > = {};
@@ -436,8 +466,15 @@ export class StatsService {
         absents: b.absents,
         incidents: b.incidents,
         pending: b.pending,
+        tasks: b.tasks,
         hasActivity:
-          b.pointages + b.absents + b.incidents + b.pending + b.events.length > 0,
+          b.pointages +
+            b.absents +
+            b.incidents +
+            b.pending +
+            b.tasks +
+            b.events.length >
+          0,
       };
     }
 

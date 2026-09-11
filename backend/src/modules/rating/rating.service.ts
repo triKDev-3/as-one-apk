@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateRatingDto } from './dto/create-rating.dto';
 import { Role } from '@prisma/client';
+import { assertCanOperateOnSite } from '../../common/site-access';
 
 @Injectable()
 export class RatingService {
@@ -17,6 +18,7 @@ export class RatingService {
       where: { id: dto.assignmentId },
     });
     if (!assignment) throw new NotFoundException('Affectation introuvable');
+    await assertCanOperateOnSite(this.prisma, assignment.siteId, ratedById);
     if (assignment.agentId !== dto.agentId) {
       throw new BadRequestException('Cet agent n\'est pas lié à cette affectation');
     }

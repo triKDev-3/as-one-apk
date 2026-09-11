@@ -33,6 +33,7 @@ import '../../features/shared/pointages_log_screen.dart';
 import '../../features/shared/incidents_list_screen.dart';
 import '../../features/shared/notifications_screen.dart';
 import '../../features/shared/interventions_history_screen.dart';
+import '../../features/shared/tasks_log_screen.dart';
 import '../../features/agent/screens/planning_screen.dart';
 import '../../features/agent/screens/pointages_history_screen.dart';
 import '../../features/agent/screens/remuneration_screen.dart';
@@ -41,6 +42,7 @@ import '../../features/chef/screens/site_details_screen.dart';
 import '../widgets/role_shell.dart';
 
 String? _qDate(GoRouterState state) => state.uri.queryParameters['date'];
+String? _qSite(GoRouterState state) => state.uri.queryParameters['siteId'];
 
 class AppRouter {
   static final router = GoRouter(
@@ -124,6 +126,13 @@ class AppRouter {
                 builder: (_, state) => PointagesLogScreen(date: _qDate(state)),
               ),
               GoRoute(
+                path: 'taches',
+                builder: (_, state) => TasksLogScreen(
+                  date: _qDate(state),
+                  siteId: _qSite(state),
+                ),
+              ),
+              GoRoute(
                 path: 'interventions',
                 builder: (_, __) => const InterventionsHistoryScreen(),
               ),
@@ -198,6 +207,10 @@ class AppRouter {
                 builder: (_, state) => PointagesLogScreen(date: _qDate(state)),
               ),
               GoRoute(
+                path: 'taches',
+                builder: (_, state) => TasksLogScreen(date: _qDate(state)),
+              ),
+              GoRoute(
                 path: 'incidents',
                 builder: (_, state) => IncidentsListScreen(
                   canCreate: false,
@@ -224,6 +237,10 @@ class AppRouter {
               GoRoute(
                 path: 'pointages',
                 builder: (_, state) => PointagesLogScreen(date: _qDate(state)),
+              ),
+              GoRoute(
+                path: 'taches',
+                builder: (_, state) => TasksLogScreen(date: _qDate(state)),
               ),
               GoRoute(
                 path: 'incidents',

@@ -11,6 +11,7 @@ import {
   AssignmentStatus,
   Role,
 } from '@prisma/client';
+import { assertCanOperateOnSite } from '../../common/site-access';
 
 @Injectable()
 export class PermanenceService {
@@ -40,6 +41,7 @@ export class PermanenceService {
   ) {
     const site = await this.prisma.site.findUnique({ where: { id: body.siteId } });
     if (!site) throw new NotFoundException('Site introuvable');
+    await assertCanOperateOnSite(this.prisma, body.siteId, chefId);
     if (site.type !== 'PERMANENCE' && site.type !== 'ROUTINE') {
       // on autorise aussi CHANTIER transformé en permanence opérationnelle
     }
@@ -118,9 +120,7 @@ export class PermanenceService {
       },
     });
     if (!schedule) throw new NotFoundException('Planning introuvable');
-    if (schedule.createdById !== chefId) {
-      throw new ForbiddenException();
-    }
+    await assertCanOperateOnSite(this.prisma, schedule.siteId, chefId);
 
     const updated = await (this.prisma as any).permanenceSchedule.update({
       where: { id: scheduleId },
@@ -226,9 +226,11 @@ export class PermanenceService {
       },
     });
     if (!app) throw new NotFoundException();
-    if (app.slot.schedule.createdById !== chefId) {
-      throw new ForbiddenException();
-    }
+    await assertCanOperateOnSite(
+      this.prisma,
+      app.slot.schedule.siteId,
+      chefId,
+    );
     if (app.status !== 'PENDING') {
       throw new BadRequestException('Candidature déjà traitée');
     }

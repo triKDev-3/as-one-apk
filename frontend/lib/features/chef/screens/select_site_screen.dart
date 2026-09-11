@@ -52,6 +52,7 @@ class SelectSiteScreen extends ConsumerWidget {
           }
 
           final myId = ref.read(authProvider).user?.id ?? '';
+          final viewAll = ref.watch(viewAllProvider);
 
           final chantiers =
               sites.where((s) => s.type == 'CHANTIER').toList();
@@ -88,7 +89,10 @@ class SelectSiteScreen extends ConsumerWidget {
                   _SectionTitle(title: 'Chantiers', count: chantiers.length),
                   const SizedBox(height: 8),
                   ...chantiers.map(
-                      (s) => _SiteTile(site: s, isMine: s.chefIds.contains(myId))),
+                      (s) => _SiteTile(
+                        site: s,
+                        isMine: !viewAll || s.chefIds.contains(myId),
+                      )),
                   const SizedBox(height: 20),
                 ],
                 if (permanences.isNotEmpty) ...[
@@ -96,7 +100,10 @@ class SelectSiteScreen extends ConsumerWidget {
                       title: 'Sites de permanence', count: permanences.length),
                   const SizedBox(height: 8),
                   ...permanences.map(
-                      (s) => _SiteTile(site: s, isMine: s.chefIds.contains(myId))),
+                      (s) => _SiteTile(
+                        site: s,
+                        isMine: !viewAll || s.chefIds.contains(myId),
+                      )),
                 ],
               ],
             ),
@@ -220,15 +227,35 @@ class _SiteTile extends StatelessWidget {
                                   color: Colors.white,
                                 ),
                               ),
+                            )
+                          else
+                            Container(
+                              margin: const EdgeInsets.only(left: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.warning.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text(
+                                'Lecture',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.warning,
+                                ),
+                              ),
                             ),
                         ],
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Agenda & opérations →',
+                        isMine
+                            ? 'Agenda & opérations →'
+                            : 'Consultation uniquement',
                         style: TextStyle(
                           fontSize: 12,
-                          color: color,
+                          color: isMine ? color : AppColors.warning,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

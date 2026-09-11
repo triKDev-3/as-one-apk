@@ -191,24 +191,43 @@ class _ChefHomeScreenState extends ConsumerState<ChefHomeScreen>
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Toutes les activités de l\'entreprise',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Toutes les activités de l\'entreprise',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    Switch(
+                      value: ref.watch(viewAllProvider),
+                      onChanged: (val) {
+                        ref.read(viewAllProvider.notifier).state = val;
+                      },
+                      activeThumbColor: AppColors.accent,
+                    ),
+                  ],
+                ),
+                if (ref.watch(viewAllProvider))
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      'Les sites non assignés sont en consultation uniquement — aucune opération possible.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.warning,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                ),
-                Switch(
-                  value: ref.watch(viewAllProvider),
-                  onChanged: (val) {
-                    ref.read(viewAllProvider.notifier).state = val;
-                  },
-                  activeThumbColor: AppColors.accent,
-                ),
               ],
             ),
           ),

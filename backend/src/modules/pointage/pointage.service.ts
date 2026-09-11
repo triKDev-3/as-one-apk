@@ -7,6 +7,7 @@ import { CreatePointageDto } from './dto/create-pointage.dto';
 import { PointageType, AssignmentStatus } from '@prisma/client';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
+import { assertCanOperateOnSite } from '../../common/site-access';
 
 function dayBoundsTogo(date = new Date()) {
   const key = new Intl.DateTimeFormat('en-CA', {
@@ -158,6 +159,7 @@ export class PointageService {
   async create(dto: CreatePointageDto, createdById: string) {
     const site = await this.prisma.site.findUnique({ where: { id: dto.siteId } });
     if (!site) throw new NotFoundException('Site introuvable');
+    await assertCanOperateOnSite(this.prisma, dto.siteId, createdById);
 
     const type = dto.type ?? PointageType.DEPART;
     const notedDate = dto.notedAt ? new Date(dto.notedAt) : new Date();

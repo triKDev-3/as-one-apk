@@ -41,7 +41,17 @@ class _SiteTasksScreenState extends ConsumerState<SiteTasksScreen> {
 
   Future<void> _addTask() async {
     final text = _taskCtrl.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Veuillez d\'abord saisir la tâche avant d\'appuyer sur +',
+          ),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
     setState(() => _adding = true);
     try {
       final api = ref.read(apiClientProvider);

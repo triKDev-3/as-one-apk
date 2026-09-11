@@ -7,6 +7,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { CloseReportDto } from './dto/close-report.dto';
 import { AssignmentStatus } from '@prisma/client';
+import { assertCanOperateOnSite } from '../../common/site-access';
 
 @Injectable()
 export class ReportsService {
@@ -15,11 +16,17 @@ export class ReportsService {
   async addTask(siteId: string, dto: CreateTaskDto, createdById: string) {
     const site = await this.prisma.site.findUnique({ where: { id: siteId } });
     if (!site) throw new NotFoundException('Site introuvable');
+    await assertCanOperateOnSite(this.prisma, siteId, createdById);
+
+    const description = (dto.description || '').trim();
+    if (!description) {
+      throw new BadRequestException('Veuillez d\'abord saisir la tâche.');
+    }
 
     return this.prisma.siteTask.create({
       data: {
         siteId,
-        description: dto.description,
+        description,
         performedAt: dto.performedAt ? new Date(dto.performedAt) : new Date(),
         createdById,
       },
@@ -40,6 +47,28 @@ export class ReportsService {
         },
       },
       orderBy: { performedAt: 'asc' },
+    });
+  }
+
+  async listTasksHistory(opts: { date?: string; siteId?: string }) {
+    const where: { siteId?: string; performedAt?: { gte: Date; lte: Date } } = {};
+    if (opts.siteId) where.siteId = opts.siteId;
+    if (opts.date && /^\d{4}-\d{2}-\d{2}$/.test(opts.date)) {
+      where.performedAt = {
+        gte: new Date(`${opts.date}T00:00:00.000Z`),
+        lte: new Date(`${opts.date}T23:59:59.999Z`),
+      };
+    }
+    return this.prisma.siteTask.findMany({
+      where,
+      include: {
+        site: { select: { id: true, name: true } },
+        createdBy: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+      orderBy: { performedAt: 'desc' },
+      take: 500,
     });
   }
 
@@ -67,6 +96,7 @@ export class ReportsService {
       },
     });
     if (!site) throw new NotFoundException('Site introuvable');
+    await assertCanOperateOnSite(this.prisma, siteId, createdById);
 
     const [tasks, assignments, pointages, materials, incidents] =
       await Promise.all([

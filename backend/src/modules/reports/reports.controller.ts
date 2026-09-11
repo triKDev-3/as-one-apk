@@ -5,6 +5,7 @@ import {
   Patch,
   Body,
   Param,
+  Query,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -36,6 +37,15 @@ export class ReportsController {
   @Roles(Role.CHEF, Role.ADMIN, Role.COMPTABLE)
   listTasks(@Param('siteId') siteId: string) {
     return this.service.listTasks(siteId);
+  }
+
+  @Get('tasks')
+  @Roles(Role.CHEF, Role.ADMIN, Role.COMPTABLE)
+  listTasksHistory(
+    @Query('date') date?: string,
+    @Query('siteId') siteId?: string,
+  ) {
+    return this.service.listTasksHistory({ date, siteId });
   }
 
   // --- Rapport de fin de chantier ---
