@@ -3,6 +3,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { SetActiveDto } from './dto/set-active.dto';
 import { UpdateProfileDto, ChangePasswordDto } from './dto/update-profile.dto';
+import { UpdateRoleDto } from './dto/update-role.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -39,7 +40,7 @@ export class UsersController {
 
   @Patch(':id/role')
   @Roles(Role.ADMIN)
-  updateRole(@Param('id') id: string, @Body() dto: { role: Role }) {
+  updateRole(@Param('id') id: string, @Body() dto: UpdateRoleDto) {
     return this.usersService.updateRole(id, dto.role);
   }
 

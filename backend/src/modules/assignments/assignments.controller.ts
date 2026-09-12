@@ -2,6 +2,10 @@ import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards, Request } 
 import { AssignmentsService } from './assignments.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { RespondAssignmentDto } from './dto/respond-assignment.dto';
+import {
+  ResolveTransferDto,
+  RequestTransferDto,
+} from './dto/resolve-transfer.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -52,10 +56,10 @@ export class AssignmentsController {
   @Roles(Role.CHEF, Role.ADMIN)
   resolveTransfer(
     @Param('id') id: string,
-    @Body('accept') accept: boolean,
+    @Body() dto: ResolveTransferDto,
     @Request() req: any,
   ) {
-    return this.service.resolveTransfer(id, req.user.id, accept);
+    return this.service.resolveTransfer(id, req.user.id, dto.accept);
   }
 
   @Patch(':id/respond')
@@ -72,9 +76,9 @@ export class AssignmentsController {
   @Roles(Role.CHEF)
   requestTransfer(
     @Param('id') id: string,
-    @Body('toChefId') toChefId: string,
+    @Body() dto: RequestTransferDto,
     @Request() req: any,
   ) {
-    return this.service.requestTransfer(id, req.user.id, toChefId);
+    return this.service.requestTransfer(id, req.user.id, dto.toChefId);
   }
 }

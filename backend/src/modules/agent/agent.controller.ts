@@ -9,6 +9,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { ToggleAvailabilityDto } from './dto/toggle-availability.dto';
+import { MarkDayAvailabilityDto, MarkMonthPaidDto } from './dto/mark-day.dto';
 import { AgentService } from './agent.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -53,7 +54,7 @@ export class AgentController {
 
   @Post('remuneration/mark-paid')
   @Roles(Role.AGENT)
-  markMonthPaid(@Request() req: any, @Body() dto: { monthKey: string }) {
+  markMonthPaid(@Request() req: any, @Body() dto: MarkMonthPaidDto) {
     return this.agentService.markMonthPaid(req.user.id, dto.monthKey);
   }
 
@@ -67,7 +68,7 @@ export class AgentController {
   @Roles(Role.AGENT)
   markDayAvailability(
     @Request() req: any,
-    @Body() dto: { date: string; available: boolean },
+    @Body() dto: MarkDayAvailabilityDto,
   ) {
     return this.agentService.markDayAvailability(
       req.user.id,

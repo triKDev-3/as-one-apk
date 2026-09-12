@@ -13,6 +13,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
+import { CreatePermanenceScheduleDto } from './dto/create-schedule.dto';
+import { ResolvePermanenceApplicationDto } from './dto/resolve-application.dto';
 
 @Controller('permanence')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -21,7 +23,7 @@ export class PermanenceController {
 
   @Post('schedules')
   @Roles(Role.CHEF, Role.ADMIN)
-  create(@Request() req: any, @Body() body: any) {
+  create(@Request() req: any, @Body() body: CreatePermanenceScheduleDto) {
     return this.service.createSchedule(req.user.id, body);
   }
 
@@ -54,7 +56,7 @@ export class PermanenceController {
   resolve(
     @Request() req: any,
     @Param('id') id: string,
-    @Body() body: { accept: boolean; rejectMessage?: string },
+    @Body() body: ResolvePermanenceApplicationDto,
   ) {
     return this.service.resolveApplication(
       id,

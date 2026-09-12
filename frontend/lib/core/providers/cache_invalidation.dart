@@ -1,36 +1,32 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../features/chef/screens/select_site_screen.dart';
+import '../../features/shared/notifications_screen.dart';
+import '../../features/shared/pointages_log_screen.dart';
+import 'providers.dart';
 
-/// Central cache invalidation manager
-/// Used to coordinate invalidations across multiple providers
-final cacheInvalidationProvider = StateNotifierProvider<CacheInvalidationNotifier, void>((ref) {
-  return CacheInvalidationNotifier(ref);
-});
+/// Invalide les caches Riverpod après une mutation (pointage, équipe, notif).
+final cacheInvalidationProvider =
+    Provider<CacheInvalidation>((ref) => CacheInvalidation(ref));
 
-class CacheInvalidationNotifier extends StateNotifier<void> {
+class CacheInvalidation {
   final Ref ref;
+  CacheInvalidation(this.ref);
 
-  CacheInvalidationNotifier(this.ref) : super(null);
-
-  /// Invalidate all assignment-related caches
   void invalidateAssignments() {
-    // Implementation will reference actual provider names
-    // ref.invalidate(myAssignmentsProvider);
-    // ref.invalidate(assignmentsByStatusProvider);
+    ref.invalidate(siteAssignmentsProvider);
+    ref.invalidate(availableAgentsProvider);
+    ref.invalidate(sitesListProvider);
   }
 
-  /// Invalidate all pointage-related caches
   void invalidatePointages() {
-    // ref.invalidate(todayPointagesProvider);
-    // ref.invalidate(pointagesForAssignmentProvider);
+    ref.invalidate(pointagesLogProvider);
   }
 
-  /// Invalidate all notification caches
   void invalidateNotifications() {
-    // ref.invalidate(unreadNotificationsProvider);
-    // ref.invalidate(notificationBadgeCountProvider);
+    ref.invalidate(notificationsProvider);
+    ref.invalidate(unreadCountProvider);
   }
 
-  /// Invalidate all caches (full refresh)
   void invalidateAll() {
     invalidateAssignments();
     invalidatePointages();

@@ -3,6 +3,7 @@ import { MaterialService } from './material.service';
 import { CreateMaterialItemDto } from './dto/create-item.dto';
 import { MaterialOutDto } from './dto/material-out.dto';
 import { MaterialReturnDto } from './dto/material-return.dto';
+import { CreateVehicleAlertDto } from './dto/create-alert.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -50,7 +51,7 @@ export class MaterialController {
   // Alertes véhicules
   @Post('vehicle-alerts')
   @Roles(Role.MAGASINIER, Role.ADMIN)
-  createAlert(@Body() body: any) {
+  createAlert(@Body() body: CreateVehicleAlertDto) {
     return this.service.createVehicleAlert(body);
   }
 

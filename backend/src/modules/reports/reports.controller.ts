@@ -12,6 +12,7 @@ import {
 import { ReportsService } from './reports.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { CloseReportDto } from './dto/close-report.dto';
+import { UpdateReportSummaryDto } from './dto/update-summary.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -87,8 +88,8 @@ export class ReportsController {
   @Roles(Role.CHEF, Role.ADMIN)
   updateSummary(
     @Param('id') id: string,
-    @Body('summary') summary: string,
+    @Body() dto: UpdateReportSummaryDto,
   ) {
-    return this.service.updateReportSummary(id, summary);
+    return this.service.updateReportSummary(id, dto.summary);
   }
 }

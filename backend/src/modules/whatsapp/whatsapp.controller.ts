@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
+import { WhatsappPairDto } from './dto/pair.dto';
 
 @Controller('whatsapp')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -12,7 +13,7 @@ export class WhatsappController {
 
   @Post('pair')
   @Roles(Role.CHEF, Role.ADMIN)
-  async requestPairing(@Request() req: any, @Body() dto: { phone: string }) {
+  async requestPairing(@Request() req: any, @Body() dto: WhatsappPairDto) {
     const code = await this.whatsappService.requestPairingCode(req.user.id, dto.phone);
     return { code };
   }

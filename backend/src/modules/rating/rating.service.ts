@@ -109,7 +109,7 @@ export class RatingService {
       this.prisma.pointage.findMany({
         where: {
           agentId: { in: agentIds },
-          type: { in: ['DEPART', 'PRESENCE_PERMANENCE'] },
+          type: { not: 'ABSENT' },
           notedAt: { gte: start, lte: end },
         },
         select: { agentId: true, notedAt: true },
@@ -126,8 +126,10 @@ export class RatingService {
     ]);
 
     const daysByAgent = new Map<string, Set<string>>();
+    const lomeDay = (d: Date) =>
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lome' }).format(d);
     for (const p of pointages) {
-      const key = p.notedAt.toISOString().slice(0, 10);
+      const key = lomeDay(p.notedAt);
       if (!daysByAgent.has(p.agentId)) daysByAgent.set(p.agentId, new Set());
       daysByAgent.get(p.agentId)!.add(key);
     }
