@@ -100,6 +100,8 @@ model User {
   ratingsGiven  Rating[]      @relation("RatedBy")
   ratingsReceived Rating[]    @relation("RatedAgent")
   materialRetentions MaterialRetention[]
+  fichesRequested MaterialFiche[] @relation("FicheRequester")
+  fichesPrepared  MaterialFiche[] @relation("FicheMagasinier")
   incidentPenalties IncidentPenalty[] @relation("PenaltyAgent")
   penaltiesApplied IncidentPenalty[] @relation("PenaltyAppliedBy")
   payrollLines  PayrollLine[]
@@ -154,6 +156,7 @@ model Site {
   chefs       SiteChef[]
   assignments Assignment[]
   materials   MaterialMovement[]
+  materialFiches MaterialFiche[]
   pointages   Pointage[]
   incidents   Incident[]
   siteTasks   SiteTask[]
@@ -244,13 +247,59 @@ model Rating {
 }
 
 model MaterialItem {
-  id          String   @id @default(cuid())
-  name        String
-  category    String
-  unitPrice   Decimal  @db.Decimal(10, 2)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  movements   MaterialMovement[]
+  id             String   @id @default(cuid())
+  refCode        String?  @unique
+  name           String
+  category       String
+  unitPrice      Decimal  @db.Decimal(10, 2)
+  returnRequired Boolean  @default(false)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  movements      MaterialMovement[]
+  ficheLines     MaterialFicheLine[]
+}
+
+model MaterialFiche {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  siteId        String
+  status        String    @default("REQUESTED")
+  requestDate   DateTime  @default(now())
+  plannedReturn DateTime?
+  deliveredAt   DateTime?
+  closedAt      DateTime?
+  sector        String?
+  spaceCount    Int?
+  personCount   Int?
+  dayCount      Int?
+  requesterId   String?
+  magasinierId  String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  site          Site      @relation(fields: [siteId], references: [id])
+  requester     User?     @relation("FicheRequester", fields: [requesterId], references: [id])
+  magasinier    User?     @relation("FicheMagasinier", fields: [magasinierId], references: [id])
+  lines         MaterialFicheLine[]
+  @@index([siteId, status])
+}
+
+model MaterialFicheLine {
+  id           String         @id @default(cuid())
+  ficheId      String
+  itemId       String
+  qtyRequested Int            @default(0)
+  qtyDelivered Int            @default(0)
+  qtyReturned  Int            @default(0)
+  outNotes     String?
+  returnNotes  String?
+  returnState  MaterialState?
+  isLost       Boolean        @default(false)
+  isChecked    Boolean        @default(false)
+  fiche        MaterialFiche  @relation(fields: [ficheId], references: [id], onDelete: Cascade)
+  item         MaterialItem   @relation(fields: [itemId], references: [id])
+  retention    MaterialRetention?
+  @@unique([ficheId, itemId])
 }
 
 model MaterialMovement {
@@ -271,13 +320,17 @@ model MaterialMovement {
 
 model MaterialRetention {
   id              String          @id @default(cuid())
-  movementId      String          @unique
+  movementId      String?         @unique
+  ficheLineId     String?         @unique
   target          RetentionTarget
   agentId         String?
   amount          Decimal         @db.Decimal(10, 2)
-  isApplied       Boolean         @default(true)
+  isApplied       Boolean         @default(false)
+  reason          String?
+  appliedById     String?
   createdAt       DateTime        @default(now())
-  movement        MaterialMovement @relation(fields: [movementId], references: [id])
+  movement        MaterialMovement? @relation(fields: [movementId], references: [id])
+  ficheLine       MaterialFicheLine? @relation(fields: [ficheLineId], references: [id])
   agent           User?            @relation(fields: [agentId], references: [id])
 }
 

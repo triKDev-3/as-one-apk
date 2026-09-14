@@ -142,6 +142,42 @@ class AdminHomeScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 CustomCard(
+                  onTap: () => context.push('/admin/damages'),
+                  padding: const EdgeInsets.all(18),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.handyman_rounded, color: AppColors.danger),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Text('Dommages matériel & sanctions',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w700)),
+                      ),
+                      Icon(Icons.arrow_forward_ios_rounded,
+                          color: AppColors.textTertiary, size: 14),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                CustomCard(
+                  onTap: () => context.push('/admin/catalog'),
+                  padding: const EdgeInsets.all(18),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.inventory_2_rounded, color: AppColors.primary),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Text('Catalogue matériel',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w700)),
+                      ),
+                      Icon(Icons.arrow_forward_ios_rounded,
+                          color: AppColors.textTertiary, size: 14),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                CustomCard(
                   onTap: () => context.push('/admin/ranking'),
                   padding: const EdgeInsets.all(18),
                   child: const Row(

@@ -46,7 +46,9 @@ class RoleShell extends StatelessWidget {
           path.startsWith('/chef/tasks') ||
           path.startsWith('/chef/report') ||
           path.startsWith('/chef/permanence') ||
-          path.startsWith('/chef/incident')) {
+          path.startsWith('/chef/incident') ||
+          path.startsWith('/chef/material') ||
+          path.startsWith('/chef/fiches')) {
         return 2;
       }
       return 0;

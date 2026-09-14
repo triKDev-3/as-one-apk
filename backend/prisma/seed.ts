@@ -5,6 +5,7 @@
  */
 import { PrismaClient, Role, AgentType, SiteType } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { DEFAULT_MATERIAL_CATALOG } from '../src/modules/material/catalog';
 
 const prisma = new PrismaClient();
 
@@ -147,20 +148,32 @@ async function main() {
     create: { siteId: site2.id, chefId: chef2.id },
   });
 
-  // Matériel catalogue
-  const items = [
-    { name: 'Aspirateur industriel', category: 'consignable', unitPrice: 85000 },
-    { name: 'Monobrosse', category: 'consignable', unitPrice: 120000 },
-    { name: 'Balai microfibre', category: 'consommable', unitPrice: 2500 },
-    { name: 'Produit sol 5L', category: 'consommable', unitPrice: 8000 },
-  ];
-
-  for (const item of items) {
+  // Catalogue F-ACH-07
+  for (const row of DEFAULT_MATERIAL_CATALOG) {
     const existing = await prisma.materialItem.findFirst({
-      where: { name: item.name },
+      where: { OR: [{ refCode: row.refCode }, { name: row.name }] },
     });
-    if (!existing) {
-      await prisma.materialItem.create({ data: item });
+    if (existing) {
+      await prisma.materialItem.update({
+        where: { id: existing.id },
+        data: {
+          refCode: row.refCode,
+          name: row.name,
+          category: row.category,
+          returnRequired: row.returnRequired,
+          isActive: true,
+        },
+      });
+    } else {
+      await prisma.materialItem.create({
+        data: {
+          refCode: row.refCode,
+          name: row.name,
+          category: row.category,
+          returnRequired: row.returnRequired,
+          unitPrice: 0,
+        },
+      });
     }
   }
 

@@ -281,6 +281,15 @@ class _ChefSiteAgendaScreenState extends ConsumerState<ChefSiteAgendaScreen>
                               _go('/chef/report/${widget.siteId}', date: _dayKey),
                         ),
                         _OpsChip(
+                          icon: Icons.inventory_2_outlined,
+                          label: 'Demande matériel',
+                          color: AppColors.primaryDark,
+                          onTap: () => _go(
+                            '/chef/material/${widget.siteId}',
+                            date: _dayKey,
+                          ),
+                        ),
+                        _OpsChip(
                           icon: Icons.warning_amber_rounded,
                           label: 'Incident',
                           color: AppColors.danger,

@@ -21,6 +21,12 @@ import '../../features/chef/repositories/sites_repository.dart';
 import '../../features/magasinier/magasinier_home_screen.dart';
 import '../../features/magasinier/screens/material_out_screen.dart';
 import '../../features/magasinier/screens/material_return_screen.dart';
+import '../../features/magasinier/screens/catalog_screen.dart';
+import '../../features/magasinier/screens/fiches_list_screen.dart';
+import '../../features/magasinier/screens/fiche_form_screen.dart';
+import '../../features/magasinier/screens/fiche_return_screen.dart';
+import '../../features/magasinier/screens/fiche_print_screen.dart';
+import '../../features/admin/screens/damages_screen.dart';
 import '../../features/comptable/comptable_home_screen.dart';
 import '../../features/comptable/screens/period_detail_screen.dart';
 import '../../features/admin/admin_home_screen.dart';
@@ -167,6 +173,33 @@ class AppRouter {
                 ),
               ),
               GoRoute(path: 'profile', builder: (_, __) => const ChefProfileScreen()),
+              GoRoute(
+                path: 'material/:siteId',
+                builder: (_, state) => FicheFormScreen(
+                  siteId: state.pathParameters['siteId'],
+                  site: state.extra is SiteModel ? state.extra as SiteModel : null,
+                  chefMode: true,
+                ),
+              ),
+              GoRoute(
+                path: 'fiches',
+                builder: (_, state) => FichesListScreen(
+                  siteId: _qSite(state),
+                  chefMode: true,
+                ),
+              ),
+              GoRoute(
+                path: 'fiches/:id/print',
+                builder: (_, state) =>
+                    FichePrintScreen(ficheId: state.pathParameters['id']!),
+              ),
+              GoRoute(
+                path: 'fiches/:id',
+                builder: (_, state) => FicheFormScreen(
+                  ficheId: state.pathParameters['id'],
+                  chefMode: true,
+                ),
+              ),
             ],
           ),
           GoRoute(
@@ -175,7 +208,25 @@ class AppRouter {
             routes: [
               GoRoute(path: 'out', builder: (_, __) => const MaterialOutScreen()),
               GoRoute(path: 'return', builder: (_, __) => const MaterialReturnScreen()),
-              GoRoute(path: 'catalog', builder: (_, __) => const _PlaceholderScreen(title: 'Catalogue')),
+              GoRoute(path: 'catalog', builder: (_, __) => const CatalogScreen()),
+              GoRoute(path: 'fiches/new', builder: (_, __) => const FicheFormScreen()),
+              GoRoute(path: 'fiches', builder: (_, __) => const FichesListScreen()),
+              GoRoute(
+                path: 'fiches/:id/return',
+                builder: (_, state) =>
+                    FicheReturnScreen(ficheId: state.pathParameters['id']!),
+              ),
+              GoRoute(
+                path: 'fiches/:id/print',
+                builder: (_, state) =>
+                    FichePrintScreen(ficheId: state.pathParameters['id']!),
+              ),
+              GoRoute(
+                path: 'fiches/:id',
+                builder: (_, state) => FicheFormScreen(
+                  ficheId: state.pathParameters['id'],
+                ),
+              ),
               GoRoute(path: 'alerts', builder: (_, __) => const _PlaceholderScreen(title: 'Alertes véhicules')),
               GoRoute(
                 path: 'pointages',
@@ -253,6 +304,8 @@ class AppRouter {
               GoRoute(path: 'incident', builder: (_, __) => const ReportIncidentScreen()),
               GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
               GoRoute(path: 'calendar', builder: (_, __) => const ChefCalendarScreen()),
+              GoRoute(path: 'damages', builder: (_, __) => const DamagesScreen()),
+              GoRoute(path: 'catalog', builder: (_, __) => const CatalogScreen()),
             ],
           ),
         ],

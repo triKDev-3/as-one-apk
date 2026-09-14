@@ -31,7 +31,7 @@ class AsOneBottomNav extends StatelessWidget {
       case 'MAGASINIER':
         return const [
           _NavItem(Icons.dashboard_rounded, 'Accueil', '/magasinier'),
-          _NavItem(Icons.outbox_rounded, 'Sortie', '/magasinier/out'),
+          _NavItem(Icons.inventory_2_rounded, 'Fiches', '/magasinier/fiches'),
           _NavItem(Icons.move_to_inbox_rounded, 'Retour', '/magasinier/return'),
           _NavItem(Icons.notifications_rounded, 'Notifs', '/magasinier/notifications'),
           _NavItem(Icons.warning_amber_rounded, 'Incidents', '/magasinier/incidents'),
