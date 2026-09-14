@@ -7,7 +7,6 @@ import '../../core/providers/providers.dart';
 import '../../core/widgets/custom_card.dart';
 import '../../core/widgets/hero_banner.dart';
 import '../../core/widgets/action_grid_card.dart';
-import '../../core/widgets/asone_bottom_nav.dart';
 
 class MagasinierHomeScreen extends ConsumerWidget {
   const MagasinierHomeScreen({super.key});
@@ -18,8 +17,6 @@ class MagasinierHomeScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      bottomNavigationBar:
-          const AsOneBottomNav(role: 'MAGASINIER', currentIndex: 0),
       body: Column(
         children: [
           HeroBanner(

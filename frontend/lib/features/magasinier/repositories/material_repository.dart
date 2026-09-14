@@ -1,6 +1,19 @@
 import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
 
+double _toDouble(dynamic v) {
+  if (v == null) return 0;
+  if (v is num) return v.toDouble();
+  return double.tryParse(v.toString()) ?? 0;
+}
+
+int _toInt(dynamic v) {
+  if (v == null) return 0;
+  if (v is int) return v;
+  if (v is num) return v.toInt();
+  return int.tryParse(v.toString()) ?? 0;
+}
+
 class MaterialItem {
   final String id;
   final String name;
@@ -31,7 +44,7 @@ class MaterialItem {
       name: json['name'] as String? ?? '',
       category: json['category'] as String? ?? '',
       refCode: json['refCode'] as String?,
-      unitPrice: (json['unitPrice'] as num?)?.toDouble() ?? 0,
+      unitPrice: _toDouble(json['unitPrice']),
       returnRequired: json['returnRequired'] as bool? ?? false,
       isActive: json['isActive'] as bool? ?? true,
     );
@@ -71,9 +84,9 @@ class MaterialFicheLine {
     return MaterialFicheLine(
       id: json['id'] as String? ?? '',
       itemId: json['itemId'] as String? ?? '',
-      qtyRequested: (json['qtyRequested'] as num?)?.toInt() ?? 0,
-      qtyDelivered: (json['qtyDelivered'] as num?)?.toInt() ?? 0,
-      qtyReturned: (json['qtyReturned'] as num?)?.toInt() ?? 0,
+      qtyRequested: _toInt(json['qtyRequested']),
+      qtyDelivered: _toInt(json['qtyDelivered']),
+      qtyReturned: _toInt(json['qtyReturned']),
       outNotes: json['outNotes'] as String?,
       returnNotes: json['returnNotes'] as String?,
       returnState: json['returnState'] as String?,
@@ -162,9 +175,11 @@ class MaterialFiche {
       plannedReturn: json['plannedReturn'] as String?,
       deliveredAt: json['deliveredAt'] as String?,
       sector: json['sector'] as String?,
-      spaceCount: (json['spaceCount'] as num?)?.toInt(),
-      personCount: (json['personCount'] as num?)?.toInt(),
-      dayCount: (json['dayCount'] as num?)?.toInt(),
+      spaceCount: _toInt(json['spaceCount']) == 0 && json['spaceCount'] == null
+          ? null
+          : (json['spaceCount'] == null ? null : _toInt(json['spaceCount'])),
+      personCount: json['personCount'] == null ? null : _toInt(json['personCount']),
+      dayCount: json['dayCount'] == null ? null : _toInt(json['dayCount']),
       notes: json['notes'] as String?,
       site: json['site'] as Map<String, dynamic>?,
       requester: json['requester'] as Map<String, dynamic>?,

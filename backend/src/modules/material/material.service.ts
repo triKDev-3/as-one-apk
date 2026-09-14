@@ -126,7 +126,10 @@ export class MaterialService {
         orderBy: [{ category: 'asc' }, { refCode: 'asc' }, { name: 'asc' }],
       });
     }
-    return items;
+    return items.map((i) => ({
+      ...i,
+      unitPrice: Number(i.unitPrice),
+    }));
   }
 
   async materialOut(dto: MaterialOutDto, magasinierId: string) {
