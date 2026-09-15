@@ -30,4 +30,60 @@ export declare class StatsService {
             agentType: import(".prisma/client").$Enums.AgentType | null;
         }[];
     }[]>;
+    getChefCalendar(userId: string, role: string, monthKey: string, all: boolean, siteId?: string): Promise<{
+        month: string;
+        siteId: string | null;
+        summary: Record<string, {
+            pointages: number;
+            absents: number;
+            incidents: number;
+            pending: number;
+            tasks: number;
+            hasActivity: boolean;
+        }>;
+        days: Record<string, {
+            pointages: number;
+            absents: number;
+            incidents: number;
+            pending: number;
+            tasks: number;
+            events: Array<{
+                kind: string;
+                label: string;
+                siteName?: string;
+                siteId?: string;
+            }>;
+        }>;
+    }>;
+    getInterventionsHistory(params: {
+        userId: string;
+        role: string;
+        all: boolean;
+        from?: string;
+        to?: string;
+        siteId?: string;
+        status?: string;
+    }): Promise<{
+        count: number;
+        byStatus: Record<string, number>;
+        items: {
+            id: string;
+            status: import(".prisma/client").$Enums.AssignmentStatus;
+            missionType: string | null;
+            startDate: Date;
+            endDate: Date | null;
+            confirmedAt: Date | null;
+            refusedAt: Date | null;
+            isLocked: boolean;
+            siteId: string;
+            siteName: string;
+            siteType: import(".prisma/client").$Enums.SiteType;
+            agentId: string;
+            agentName: string;
+            agentPhone: string;
+            agentContract: string;
+            chefName: string | null;
+            createdAt: Date;
+        }[];
+    }>;
 }

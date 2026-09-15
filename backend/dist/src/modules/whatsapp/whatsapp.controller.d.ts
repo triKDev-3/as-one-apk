@@ -1,10 +1,9 @@
 import { WhatsappService } from './whatsapp.service';
+import { WhatsappPairDto } from './dto/pair.dto';
 export declare class WhatsappController {
     private readonly whatsappService;
     constructor(whatsappService: WhatsappService);
-    requestPairing(req: any, dto: {
-        phone: string;
-    }): Promise<{
+    requestPairing(req: any, dto: WhatsappPairDto): Promise<{
         code: string;
     }>;
     getStatus(req: any): Promise<{

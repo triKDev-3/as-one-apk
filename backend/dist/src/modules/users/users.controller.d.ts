@@ -2,6 +2,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { SetActiveDto } from './dto/set-active.dto';
 import { UpdateProfileDto, ChangePasswordDto } from './dto/update-profile.dto';
+import { UpdateRoleDto } from './dto/update-role.dto';
 import { Role } from '@prisma/client';
 export declare class UsersController {
     private readonly usersService;
@@ -59,11 +60,10 @@ export declare class UsersController {
         id: string;
         firstName: string;
         lastName: string;
+        role: import(".prisma/client").$Enums.Role;
         isActive: boolean;
     }>;
-    updateRole(id: string, dto: {
-        role: Role;
-    }): Promise<{
+    updateRole(id: string, dto: UpdateRoleDto): Promise<{
         id: string;
         firstName: string;
         lastName: string;

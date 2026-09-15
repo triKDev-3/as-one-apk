@@ -1,4 +1,4 @@
-import { Role, AgentType } from '@prisma/client';
+import { AgentType, Role } from '@prisma/client';
 export declare class CreateUserDto {
     phone: string;
     email?: string;

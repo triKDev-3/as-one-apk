@@ -27,6 +27,7 @@ import '../../features/magasinier/screens/fiche_form_screen.dart';
 import '../../features/magasinier/screens/fiche_return_screen.dart';
 import '../../features/magasinier/screens/fiche_print_screen.dart';
 import '../../features/admin/screens/damages_screen.dart';
+import '../../features/admin/screens/admin_training_videos_screen.dart';
 import '../../features/comptable/comptable_home_screen.dart';
 import '../../features/comptable/screens/period_detail_screen.dart';
 import '../../features/admin/admin_home_screen.dart';
@@ -45,6 +46,8 @@ import '../../features/agent/screens/pointages_history_screen.dart';
 import '../../features/agent/screens/remuneration_screen.dart';
 import '../../features/agent/screens/permanence_offers_screen.dart';
 import '../../features/chef/screens/site_details_screen.dart';
+import '../../features/shared/screens/training_lesson_screen.dart';
+import '../../features/shared/models/training_video.dart';
 import '../widgets/role_shell.dart';
 
 String? _qDate(GoRouterState state) => state.uri.queryParameters['date'];
@@ -74,6 +77,12 @@ class AppRouter {
               GoRoute(path: 'remuneration', builder: (_, __) => const RemunerationScreen()),
               GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
               GoRoute(path: 'offers', builder: (_, __) => const PermanenceOffersScreen()),
+              GoRoute(
+                path: 'lesson',
+                builder: (_, state) => TrainingLessonScreen(
+                  video: state.extra as TrainingVideo,
+                ),
+              ),
             ],
           ),
           GoRoute(
@@ -306,6 +315,7 @@ class AppRouter {
               GoRoute(path: 'calendar', builder: (_, __) => const ChefCalendarScreen()),
               GoRoute(path: 'damages', builder: (_, __) => const DamagesScreen()),
               GoRoute(path: 'catalog', builder: (_, __) => const CatalogScreen()),
+              GoRoute(path: 'training-videos', builder: (_, __) => const AdminTrainingVideosScreen()),
             ],
           ),
         ],

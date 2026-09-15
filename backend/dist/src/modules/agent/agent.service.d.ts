@@ -1,7 +1,16 @@
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+type DayCell = {
+    status: string;
+    siteName?: string;
+    sites?: string[];
+    conflict?: boolean;
+};
 export declare class AgentService {
     private readonly prisma;
-    constructor(prisma: PrismaService);
+    private readonly notify;
+    constructor(prisma: PrismaService, notify: NotificationsService);
+    private notifyChefsOfUnavailability;
     toggleAvailability(userId: string, isAvailable: boolean): Promise<{
         isAvailable: boolean;
         updatedAt: Date;
@@ -26,35 +35,35 @@ export declare class AgentService {
             };
         } & {
             id: string;
-            siteId: string;
-            agentId: string;
-            createdById: string;
-            status: import(".prisma/client").$Enums.AssignmentStatus;
+            createdAt: Date;
+            updatedAt: Date;
             startDate: Date;
             endDate: Date | null;
+            createdById: string;
+            siteId: string;
+            agentId: string;
+            status: import(".prisma/client").$Enums.AssignmentStatus;
             isLocked: boolean;
             missionType: string | null;
             routineDays: import("@prisma/client/runtime/library").JsonValue | null;
             fixedSalary: import("@prisma/client/runtime/library").Decimal | null;
             confirmedAt: Date | null;
             refusedAt: Date | null;
-            createdAt: Date;
-            updatedAt: Date;
         })[];
         recentPayroll: ({
             period: {
                 id: string;
-                createdById: string;
-                status: import(".prisma/client").$Enums.PayrollStatus;
+                createdAt: Date;
                 startDate: Date;
                 endDate: Date;
-                createdAt: Date;
+                createdById: string;
+                status: import(".prisma/client").$Enums.PayrollStatus;
                 validatedAt: Date | null;
             };
         } & {
             id: string;
-            agentId: string;
             createdAt: Date;
+            agentId: string;
             periodId: string;
             baseAmount: import("@prisma/client/runtime/library").Decimal;
             primes: import("@prisma/client/runtime/library").Decimal;
@@ -91,10 +100,18 @@ export declare class AgentService {
             lng: number;
         } | null;
     }[]>;
-    getPlanning(agentId: string, monthKey?: string): Promise<Record<string, {
-        status: string;
-        siteName?: string;
-    }>>;
+    getPlanning(agentId: string, monthKey?: string): Promise<{
+        month: string;
+        days: Record<string, DayCell>;
+        stats: {
+            worked: number;
+            absent: number;
+            assigned: number;
+            pending: number;
+            unavailable: number;
+            conflicts: number;
+        };
+    }>;
     getRemuneration(agentId: string): Promise<{
         monthKey: string;
         daysWorked: number;
@@ -114,3 +131,4 @@ export declare class AgentService {
         available: boolean;
     }>;
 }
+export {};

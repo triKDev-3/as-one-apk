@@ -16,6 +16,7 @@ class CreateTaskDto {
 exports.CreateTaskDto = CreateTaskDto;
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(1, { message: 'Veuillez d\'abord saisir la tâche.' }),
     __metadata("design:type", String)
 ], CreateTaskDto.prototype, "description", void 0);
 __decorate([

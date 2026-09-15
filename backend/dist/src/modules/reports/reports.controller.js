@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const reports_service_1 = require("./reports.service");
 const create_task_dto_1 = require("./dto/create-task.dto");
 const close_report_dto_1 = require("./dto/close-report.dto");
+const update_summary_dto_1 = require("./dto/update-summary.dto");
 const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
 const roles_guard_1 = require("../../common/guards/roles.guard");
 const roles_decorator_1 = require("../../common/decorators/roles.decorator");
@@ -30,6 +31,9 @@ let ReportsController = class ReportsController {
     }
     listTasks(siteId) {
         return this.service.listTasks(siteId);
+    }
+    listTasksHistory(date, siteId) {
+        return this.service.listTasksHistory({ date, siteId });
     }
     closeReport(siteId, dto, req) {
         return this.service.closeAndGenerateReport(siteId, dto, req.user.id);
@@ -46,8 +50,8 @@ let ReportsController = class ReportsController {
     getLatest(siteId) {
         return this.service.getLatestReportBySite(siteId);
     }
-    updateSummary(id, summary) {
-        return this.service.updateReportSummary(id, summary);
+    updateSummary(id, dto) {
+        return this.service.updateReportSummary(id, dto.summary);
     }
 };
 exports.ReportsController = ReportsController;
@@ -69,6 +73,15 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], ReportsController.prototype, "listTasks", null);
+__decorate([
+    (0, common_1.Get)('tasks'),
+    (0, roles_decorator_1.Roles)(client_1.Role.CHEF, client_1.Role.ADMIN, client_1.Role.COMPTABLE),
+    __param(0, (0, common_1.Query)('date')),
+    __param(1, (0, common_1.Query)('siteId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], ReportsController.prototype, "listTasksHistory", null);
 __decorate([
     (0, common_1.Post)('sites/:siteId/close-report'),
     (0, roles_decorator_1.Roles)(client_1.Role.CHEF, client_1.Role.ADMIN),
@@ -114,9 +127,9 @@ __decorate([
     (0, common_1.Patch)('reports/:id'),
     (0, roles_decorator_1.Roles)(client_1.Role.CHEF, client_1.Role.ADMIN),
     __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Body)('summary')),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, update_summary_dto_1.UpdateReportSummaryDto]),
     __metadata("design:returntype", void 0)
 ], ReportsController.prototype, "updateSummary", null);
 exports.ReportsController = ReportsController = __decorate([

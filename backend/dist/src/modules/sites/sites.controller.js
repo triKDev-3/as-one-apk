@@ -36,6 +36,9 @@ let SitesController = class SitesController {
     assignChef(siteId, chefId) {
         return this.sitesService.assignChef(siteId, chefId);
     }
+    removeChef(siteId, chefId) {
+        return this.sitesService.removeChef(siteId, chefId);
+    }
 };
 exports.SitesController = SitesController;
 __decorate([
@@ -74,6 +77,15 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], SitesController.prototype, "assignChef", null);
+__decorate([
+    (0, common_1.Delete)(':id/chefs/:chefId'),
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('chefId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], SitesController.prototype, "removeChef", null);
 exports.SitesController = SitesController = __decorate([
     (0, common_1.Controller)('sites'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),

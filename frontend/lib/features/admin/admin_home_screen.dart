@@ -178,6 +178,24 @@ class AdminHomeScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 CustomCard(
+                  onTap: () => context.push('/admin/training-videos'),
+                  padding: const EdgeInsets.all(18),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.play_lesson_rounded, color: AppColors.secondary),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Text('Vidéos de formation',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w700)),
+                      ),
+                      Icon(Icons.arrow_forward_ios_rounded,
+                          color: AppColors.textTertiary, size: 14),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                CustomCard(
                   onTap: () => context.push('/admin/ranking'),
                   padding: const EdgeInsets.all(18),
                   child: const Row(

@@ -14,6 +14,7 @@ const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const notifications_gateway_1 = require("../notifications/notifications.gateway");
 const client_1 = require("@prisma/client");
+const site_access_1 = require("../../common/site-access");
 let IncidentsService = class IncidentsService {
     constructor(prisma, notifications) {
         this.prisma = prisma;
@@ -23,6 +24,7 @@ let IncidentsService = class IncidentsService {
         const site = await this.prisma.site.findUnique({ where: { id: dto.siteId } });
         if (!site)
             throw new common_1.NotFoundException('Site introuvable');
+        await (0, site_access_1.assertCanOperateOnSite)(this.prisma, dto.siteId, reportedById);
         const incident = await this.prisma.incident.create({
             data: {
                 siteId: dto.siteId,

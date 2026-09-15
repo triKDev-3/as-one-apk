@@ -10,22 +10,26 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateRatingDto = void 0;
+const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 class CreateRatingDto {
 }
 exports.CreateRatingDto = CreateRatingDto;
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(8, { message: 'Affectation invalide' }),
     __metadata("design:type", String)
 ], CreateRatingDto.prototype, "assignmentId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(8, { message: 'Agent invalide' }),
     __metadata("design:type", String)
 ], CreateRatingDto.prototype, "agentId", void 0);
 __decorate([
+    (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsInt)(),
-    (0, class_validator_1.Min)(1),
-    (0, class_validator_1.Max)(5),
+    (0, class_validator_1.Min)(1, { message: 'Note entre 1 et 5' }),
+    (0, class_validator_1.Max)(5, { message: 'Note entre 1 et 5' }),
     __metadata("design:type", Number)
 ], CreateRatingDto.prototype, "score", void 0);
 __decorate([

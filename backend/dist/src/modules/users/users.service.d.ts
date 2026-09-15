@@ -58,6 +58,7 @@ export declare class UsersService {
         id: string;
         firstName: string;
         lastName: string;
+        role: import(".prisma/client").$Enums.Role;
         isActive: boolean;
     }>;
     updateRole(id: string, newRole: Role): Promise<{

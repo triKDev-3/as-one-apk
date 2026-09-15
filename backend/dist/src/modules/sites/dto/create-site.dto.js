@@ -10,6 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateSiteDto = void 0;
+const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 const client_1 = require("@prisma/client");
 class CreateSiteDto {
@@ -17,10 +18,11 @@ class CreateSiteDto {
 exports.CreateSiteDto = CreateSiteDto;
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(2, { message: 'Nom du site requis' }),
     __metadata("design:type", String)
 ], CreateSiteDto.prototype, "name", void 0);
 __decorate([
-    (0, class_validator_1.IsEnum)(client_1.SiteType),
+    (0, class_validator_1.IsEnum)(client_1.SiteType, { message: 'Type de site invalide' }),
     __metadata("design:type", String)
 ], CreateSiteDto.prototype, "type", void 0);
 __decorate([
@@ -35,42 +37,54 @@ __decorate([
 ], CreateSiteDto.prototype, "location", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDateString)(),
+    (0, class_validator_1.IsDateString)({}, { message: 'Date de début invalide' }),
     __metadata("design:type", String)
 ], CreateSiteDto.prototype, "startDate", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDateString)(),
+    (0, class_validator_1.IsDateString)({}, { message: 'Date de fin invalide' }),
     __metadata("design:type", String)
 ], CreateSiteDto.prototype, "endDate", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateSiteDto.prototype, "dailyRate", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateSiteDto.prototype, "nightRate", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateSiteDto.prototype, "sundayRate", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateSiteDto.prototype, "bonusAmount", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateSiteDto.prototype, "monthlySalary", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateSiteDto.prototype, "fixedAmount", void 0);
 //# sourceMappingURL=create-site.dto.js.map

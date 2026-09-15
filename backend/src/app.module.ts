@@ -17,6 +17,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { StatsModule } from './modules/stats/stats.module';
 import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
 import { PermanenceModule } from './modules/permanence/permanence.module';
+import { TrainingVideosModule } from './modules/training-videos/training-videos.module';
 
 @Module({
   controllers: [HealthController],
@@ -38,6 +39,7 @@ import { PermanenceModule } from './modules/permanence/permanence.module';
     StatsModule,
     WhatsappModule,
     PermanenceModule,
+    TrainingVideosModule,
   ],
 })
 export class AppModule {}

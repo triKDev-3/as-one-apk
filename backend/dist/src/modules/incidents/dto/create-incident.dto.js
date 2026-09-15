@@ -16,10 +16,12 @@ class CreateIncidentDto {
 exports.CreateIncidentDto = CreateIncidentDto;
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(8, { message: 'Site invalide' }),
     __metadata("design:type", String)
 ], CreateIncidentDto.prototype, "siteId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(3, { message: 'Décrivez l\'incident (3 caractères min.)' }),
     __metadata("design:type", String)
 ], CreateIncidentDto.prototype, "description", void 0);
 __decorate([
@@ -29,12 +31,14 @@ __decorate([
 ], CreateIncidentDto.prototype, "photoUrl", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsIn)(['DEGAT', 'MATERIEL', 'SECURITE', 'AUTRE']),
+    (0, class_validator_1.IsIn)(['DEGAT', 'MATERIEL', 'SECURITE', 'AUTRE'], {
+        message: 'Type d\'incident invalide',
+    }),
     __metadata("design:type", String)
 ], CreateIncidentDto.prototype, "type", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsIn)(['BASSE', 'MOYENNE', 'HAUTE']),
+    (0, class_validator_1.IsIn)(['BASSE', 'MOYENNE', 'HAUTE'], { message: 'Gravité invalide' }),
     __metadata("design:type", String)
 ], CreateIncidentDto.prototype, "severity", void 0);
 //# sourceMappingURL=create-incident.dto.js.map

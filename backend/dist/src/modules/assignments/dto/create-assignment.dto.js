@@ -10,40 +10,56 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateAssignmentDto = void 0;
+const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 class CreateAssignmentDto {
 }
 exports.CreateAssignmentDto = CreateAssignmentDto;
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(8, { message: 'Site invalide' }),
     __metadata("design:type", String)
 ], CreateAssignmentDto.prototype, "siteId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(8, { message: 'Agent invalide' }),
     __metadata("design:type", String)
 ], CreateAssignmentDto.prototype, "agentId", void 0);
 __decorate([
-    (0, class_validator_1.IsDateString)(),
+    (0, class_validator_1.IsDateString)({}, { message: 'Date de début invalide' }),
     __metadata("design:type", String)
 ], CreateAssignmentDto.prototype, "startDate", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDateString)(),
+    (0, class_validator_1.IsDateString)({}, { message: 'Date de fin invalide' }),
     __metadata("design:type", String)
 ], CreateAssignmentDto.prototype, "endDate", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsIn)(['TEMPORAIRE', 'PERMANENTE', 'ROUTINE', 'INTERVENTION', 'REMPLACEMENT'], {
+        message: 'Type de mission invalide',
+    }),
     __metadata("design:type", String)
 ], CreateAssignmentDto.prototype, "missionType", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayMaxSize)(7),
+    (0, class_validator_1.IsInt)({ each: true }),
+    (0, class_validator_1.Min)(0, { each: true }),
+    (0, class_validator_1.Max)(6, { each: true }),
     __metadata("design:type", Array)
 ], CreateAssignmentDto.prototype, "routineDays", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateAssignmentDto.prototype, "fixedSalary", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateAssignmentDto.prototype, "forceMultiSite", void 0);
 //# sourceMappingURL=create-assignment.dto.js.map

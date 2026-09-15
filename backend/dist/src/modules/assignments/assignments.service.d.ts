@@ -2,12 +2,16 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { Prisma } from '@prisma/client';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 export declare class AssignmentsService {
     private readonly prisma;
     private readonly notifications;
+    private readonly notify;
     private readonly whatsapp;
-    constructor(prisma: PrismaService, notifications: NotificationsGateway, whatsapp: WhatsappService);
+    constructor(prisma: PrismaService, notifications: NotificationsGateway, notify: NotificationsService, whatsapp: WhatsappService);
+    private findMultiSiteConflicts;
+    private hasDepartOnDate;
     create(dto: CreateAssignmentDto, chefId: string): Promise<any>;
     confirmOrRefuse(assignmentId: string, agentId: string, accept: boolean): Promise<{
         agent: {
@@ -16,20 +20,20 @@ export declare class AssignmentsService {
         };
     } & {
         id: string;
-        siteId: string;
-        agentId: string;
-        createdById: string;
-        status: import(".prisma/client").$Enums.AssignmentStatus;
+        createdAt: Date;
+        updatedAt: Date;
         startDate: Date;
         endDate: Date | null;
+        createdById: string;
+        siteId: string;
+        agentId: string;
+        status: import(".prisma/client").$Enums.AssignmentStatus;
         isLocked: boolean;
         missionType: string | null;
         routineDays: Prisma.JsonValue | null;
         fixedSalary: Prisma.Decimal | null;
         confirmedAt: Date | null;
         refusedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     getBySite(siteId: string): Promise<({
         agent: {
@@ -38,30 +42,34 @@ export declare class AssignmentsService {
             firstName: string;
             lastName: string;
             rankingScore: number;
+            agentProfile: {
+                isAvailable: boolean;
+                unavailableDates: Prisma.JsonValue;
+            } | null;
         };
     } & {
         id: string;
-        siteId: string;
-        agentId: string;
-        createdById: string;
-        status: import(".prisma/client").$Enums.AssignmentStatus;
+        createdAt: Date;
+        updatedAt: Date;
         startDate: Date;
         endDate: Date | null;
+        createdById: string;
+        siteId: string;
+        agentId: string;
+        status: import(".prisma/client").$Enums.AssignmentStatus;
         isLocked: boolean;
         missionType: string | null;
         routineDays: Prisma.JsonValue | null;
         fixedSalary: Prisma.Decimal | null;
         confirmedAt: Date | null;
         refusedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     })[]>;
     requestTransfer(assignmentId: string, fromChefId: string, toChefId: string): Promise<{
         id: string;
-        status: string;
         createdAt: Date;
-        resolvedAt: Date | null;
+        status: string;
         assignmentId: string;
+        resolvedAt: Date | null;
         fromChefId: string;
         toChefId: string;
     }>;
@@ -79,20 +87,20 @@ export declare class AssignmentsService {
             };
         } & {
             id: string;
-            siteId: string;
-            agentId: string;
-            createdById: string;
-            status: import(".prisma/client").$Enums.AssignmentStatus;
+            createdAt: Date;
+            updatedAt: Date;
             startDate: Date;
             endDate: Date | null;
+            createdById: string;
+            siteId: string;
+            agentId: string;
+            status: import(".prisma/client").$Enums.AssignmentStatus;
             isLocked: boolean;
             missionType: string | null;
             routineDays: Prisma.JsonValue | null;
             fixedSalary: Prisma.Decimal | null;
             confirmedAt: Date | null;
             refusedAt: Date | null;
-            createdAt: Date;
-            updatedAt: Date;
         };
         fromChef: {
             id: string;
@@ -106,10 +114,10 @@ export declare class AssignmentsService {
         };
     } & {
         id: string;
-        status: string;
         createdAt: Date;
-        resolvedAt: Date | null;
+        status: string;
         assignmentId: string;
+        resolvedAt: Date | null;
         fromChefId: string;
         toChefId: string;
     })[]>;
@@ -134,22 +142,30 @@ export declare class AssignmentsService {
         daysWorked: number;
         isAvailable: boolean;
         isLockedElsewhere: boolean;
+        canForceMultiSite: boolean;
+        lockedOnSites: {
+            siteId: string;
+            siteName: string;
+            status: import(".prisma/client").$Enums.AssignmentStatus;
+        }[];
+        unavailableDates: string[];
+        isUnavailableToday: boolean;
     }[]>;
     releaseAgent(assignmentId: string, chefId: string): Promise<{
         id: string;
-        siteId: string;
-        agentId: string;
-        createdById: string;
-        status: import(".prisma/client").$Enums.AssignmentStatus;
+        createdAt: Date;
+        updatedAt: Date;
         startDate: Date;
         endDate: Date | null;
+        createdById: string;
+        siteId: string;
+        agentId: string;
+        status: import(".prisma/client").$Enums.AssignmentStatus;
         isLocked: boolean;
         missionType: string | null;
         routineDays: Prisma.JsonValue | null;
         fixedSalary: Prisma.Decimal | null;
         confirmedAt: Date | null;
         refusedAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
 }

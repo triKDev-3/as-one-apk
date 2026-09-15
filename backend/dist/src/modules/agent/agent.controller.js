@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AgentController = void 0;
 const common_1 = require("@nestjs/common");
 const toggle_availability_dto_1 = require("./dto/toggle-availability.dto");
+const mark_day_dto_1 = require("./dto/mark-day.dto");
 const agent_service_1 = require("./agent.service");
 const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
 const roles_guard_1 = require("../../common/guards/roles.guard");
@@ -33,8 +34,8 @@ let AgentController = class AgentController {
     getPointagesHistory(req) {
         return this.agentService.getPointagesHistory(req.user.id);
     }
-    getPlanning(req) {
-        return this.agentService.getPlanning(req.user.id);
+    getPlanning(req, month) {
+        return this.agentService.getPlanning(req.user.id, month);
     }
     getRemuneration(req) {
         return this.agentService.getRemuneration(req.user.id);
@@ -79,8 +80,9 @@ __decorate([
     (0, common_1.Get)('calendar'),
     (0, roles_decorator_1.Roles)(client_1.Role.AGENT),
     __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('month')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], AgentController.prototype, "getPlanning", null);
 __decorate([
@@ -97,7 +99,7 @@ __decorate([
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:paramtypes", [Object, mark_day_dto_1.MarkMonthPaidDto]),
     __metadata("design:returntype", void 0)
 ], AgentController.prototype, "markMonthPaid", null);
 __decorate([
@@ -113,7 +115,7 @@ __decorate([
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:paramtypes", [Object, mark_day_dto_1.MarkDayAvailabilityDto]),
     __metadata("design:returntype", void 0)
 ], AgentController.prototype, "markDayAvailability", null);
 exports.AgentController = AgentController = __decorate([

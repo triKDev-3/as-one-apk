@@ -13,6 +13,7 @@ exports.ReportsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const client_1 = require("@prisma/client");
+const site_access_1 = require("../../common/site-access");
 let ReportsService = class ReportsService {
     constructor(prisma) {
         this.prisma = prisma;
@@ -21,10 +22,15 @@ let ReportsService = class ReportsService {
         const site = await this.prisma.site.findUnique({ where: { id: siteId } });
         if (!site)
             throw new common_1.NotFoundException('Site introuvable');
+        await (0, site_access_1.assertCanOperateOnSite)(this.prisma, siteId, createdById);
+        const description = (dto.description || '').trim();
+        if (!description) {
+            throw new common_1.BadRequestException('Veuillez d\'abord saisir la tâche.');
+        }
         return this.prisma.siteTask.create({
             data: {
                 siteId,
-                description: dto.description,
+                description,
                 performedAt: dto.performedAt ? new Date(dto.performedAt) : new Date(),
                 createdById,
             },
@@ -46,6 +52,28 @@ let ReportsService = class ReportsService {
             orderBy: { performedAt: 'asc' },
         });
     }
+    async listTasksHistory(opts) {
+        const where = {};
+        if (opts.siteId)
+            where.siteId = opts.siteId;
+        if (opts.date && /^\d{4}-\d{2}-\d{2}$/.test(opts.date)) {
+            where.performedAt = {
+                gte: new Date(`${opts.date}T00:00:00.000Z`),
+                lte: new Date(`${opts.date}T23:59:59.999Z`),
+            };
+        }
+        return this.prisma.siteTask.findMany({
+            where,
+            include: {
+                site: { select: { id: true, name: true } },
+                createdBy: {
+                    select: { id: true, firstName: true, lastName: true },
+                },
+            },
+            orderBy: { performedAt: 'desc' },
+            take: 500,
+        });
+    }
     async closeAndGenerateReport(siteId, dto, createdById) {
         const site = await this.prisma.site.findUnique({
             where: { id: siteId },
@@ -61,6 +89,7 @@ let ReportsService = class ReportsService {
         });
         if (!site)
             throw new common_1.NotFoundException('Site introuvable');
+        await (0, site_access_1.assertCanOperateOnSite)(this.prisma, siteId, createdById);
         const [tasks, assignments, pointages, materials, incidents] = await Promise.all([
             this.prisma.siteTask.findMany({
                 where: { siteId },

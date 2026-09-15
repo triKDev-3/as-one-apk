@@ -1,4 +1,5 @@
 import { ToggleAvailabilityDto } from './dto/toggle-availability.dto';
+import { MarkDayAvailabilityDto, MarkMonthPaidDto } from './dto/mark-day.dto';
 import { AgentService } from './agent.service';
 export declare class AgentController {
     private readonly agentService;
@@ -27,35 +28,35 @@ export declare class AgentController {
             };
         } & {
             id: string;
-            siteId: string;
-            agentId: string;
-            createdById: string;
-            status: import(".prisma/client").$Enums.AssignmentStatus;
+            createdAt: Date;
+            updatedAt: Date;
             startDate: Date;
             endDate: Date | null;
+            createdById: string;
+            siteId: string;
+            agentId: string;
+            status: import(".prisma/client").$Enums.AssignmentStatus;
             isLocked: boolean;
             missionType: string | null;
             routineDays: import("@prisma/client/runtime/library").JsonValue | null;
             fixedSalary: import("@prisma/client/runtime/library").Decimal | null;
             confirmedAt: Date | null;
             refusedAt: Date | null;
-            createdAt: Date;
-            updatedAt: Date;
         })[];
         recentPayroll: ({
             period: {
                 id: string;
-                createdById: string;
-                status: import(".prisma/client").$Enums.PayrollStatus;
+                createdAt: Date;
                 startDate: Date;
                 endDate: Date;
-                createdAt: Date;
+                createdById: string;
+                status: import(".prisma/client").$Enums.PayrollStatus;
                 validatedAt: Date | null;
             };
         } & {
             id: string;
-            agentId: string;
             createdAt: Date;
+            agentId: string;
             periodId: string;
             baseAmount: import("@prisma/client/runtime/library").Decimal;
             primes: import("@prisma/client/runtime/library").Decimal;
@@ -80,10 +81,23 @@ export declare class AgentController {
             lng: number;
         } | null;
     }[]>;
-    getPlanning(req: any): Promise<Record<string, {
-        status: string;
-        siteName?: string;
-    }>>;
+    getPlanning(req: any, month?: string): Promise<{
+        month: string;
+        days: Record<string, {
+            status: string;
+            siteName?: string;
+            sites?: string[];
+            conflict?: boolean;
+        }>;
+        stats: {
+            worked: number;
+            absent: number;
+            assigned: number;
+            pending: number;
+            unavailable: number;
+            conflicts: number;
+        };
+    }>;
     getRemuneration(req: any): Promise<{
         monthKey: string;
         daysWorked: number;
@@ -92,9 +106,7 @@ export declare class AgentController {
         paidAt: string | null;
         details: any[];
     }[]>;
-    markMonthPaid(req: any, dto: {
-        monthKey: string;
-    }): Promise<{
+    markMonthPaid(req: any, dto: MarkMonthPaidDto): Promise<{
         success: boolean;
         monthKey: string;
         paidAt: string;
@@ -111,10 +123,7 @@ export declare class AgentController {
             lastAvailabilityChange: Date;
         } | null;
     }[]>;
-    markDayAvailability(req: any, dto: {
-        date: string;
-        available: boolean;
-    }): Promise<{
+    markDayAvailability(req: any, dto: MarkDayAvailabilityDto): Promise<{
         success: boolean;
         date: string;
         available: boolean;

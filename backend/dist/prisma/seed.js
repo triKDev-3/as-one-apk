@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const client_1 = require("@prisma/client");
 const bcrypt = require("bcrypt");
+const catalog_1 = require("../src/modules/material/catalog");
 const prisma = new client_1.PrismaClient();
 async function main() {
     console.log('🌱 Seeding AS ONE...');
@@ -123,18 +124,32 @@ async function main() {
         update: {},
         create: { siteId: site2.id, chefId: chef2.id },
     });
-    const items = [
-        { name: 'Aspirateur industriel', category: 'consignable', unitPrice: 85000 },
-        { name: 'Monobrosse', category: 'consignable', unitPrice: 120000 },
-        { name: 'Balai microfibre', category: 'consommable', unitPrice: 2500 },
-        { name: 'Produit sol 5L', category: 'consommable', unitPrice: 8000 },
-    ];
-    for (const item of items) {
+    for (const row of catalog_1.DEFAULT_MATERIAL_CATALOG) {
         const existing = await prisma.materialItem.findFirst({
-            where: { name: item.name },
+            where: { OR: [{ refCode: row.refCode }, { name: row.name }] },
         });
-        if (!existing) {
-            await prisma.materialItem.create({ data: item });
+        if (existing) {
+            await prisma.materialItem.update({
+                where: { id: existing.id },
+                data: {
+                    refCode: row.refCode,
+                    name: row.name,
+                    category: row.category,
+                    returnRequired: row.returnRequired,
+                    isActive: true,
+                },
+            });
+        }
+        else {
+            await prisma.materialItem.create({
+                data: {
+                    refCode: row.refCode,
+                    name: row.name,
+                    category: row.category,
+                    returnRequired: row.returnRequired,
+                    unitPrice: 0,
+                },
+            });
         }
     }
     console.log('✅ Seed terminé');

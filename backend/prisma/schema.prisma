@@ -496,3 +496,16 @@ model PermanenceApplication {
   @@unique([slotId, agentId])
   @@index([agentId, status])
 }
+
+model TrainingVideo {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?  @db.Text
+  youtubeUrl    String
+  lessonContent String?  @db.Text
+  isActive      Boolean  @default(true)
+  orderIndex    Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+

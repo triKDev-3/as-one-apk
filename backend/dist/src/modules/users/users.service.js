@@ -79,18 +79,31 @@ let UsersService = class UsersService {
         return user;
     }
     async setActive(id, isActive) {
+        const target = await this.prisma.user.findUnique({ where: { id } });
+        if (!target)
+            throw new common_1.NotFoundException('Utilisateur introuvable');
+        if (!isActive && target.role === client_1.Role.ADMIN && target.isActive) {
+            const activeAdmins = await this.prisma.user.count({
+                where: { role: client_1.Role.ADMIN, isActive: true },
+            });
+            if (activeAdmins <= 1) {
+                throw new common_1.BadRequestException('Impossible de désactiver le dernier administrateur actif. '
+                    + 'Créez un autre compte ADMIN avant, ou réactivez-le via la base de données.');
+            }
+        }
         return this.prisma.user.update({
             where: { id },
             data: { isActive },
-            select: { id: true, isActive: true, firstName: true, lastName: true },
+            select: { id: true, isActive: true, firstName: true, lastName: true, role: true },
         });
     }
     async updateRole(id, newRole) {
         const user = await this.prisma.user.findUnique({ where: { id } });
         if (!user)
             throw new common_1.NotFoundException('Utilisateur introuvable');
-        if (user.role === client_1.Role.ADMIN)
-            throw new common_1.BadRequestException('Impossible de modifier le rôle d\'un admin');
+        if (user.role === client_1.Role.ADMIN) {
+            throw new common_1.BadRequestException("Impossible de modifier le rôle d'un admin");
+        }
         if (newRole === client_1.Role.AGENT && user.role !== client_1.Role.AGENT) {
             const existingProfile = await this.prisma.agentProfile.findUnique({ where: { userId: id } });
             if (!existingProfile) {

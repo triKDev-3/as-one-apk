@@ -25,6 +25,7 @@ const incidents_module_1 = require("./modules/incidents/incidents.module");
 const reports_module_1 = require("./modules/reports/reports.module");
 const stats_module_1 = require("./modules/stats/stats.module");
 const whatsapp_module_1 = require("./modules/whatsapp/whatsapp.module");
+const permanence_module_1 = require("./modules/permanence/permanence.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -48,6 +49,7 @@ exports.AppModule = AppModule = __decorate([
             reports_module_1.ReportsModule,
             stats_module_1.StatsModule,
             whatsapp_module_1.WhatsappModule,
+            permanence_module_1.PermanenceModule,
         ],
     })
 ], AppModule);

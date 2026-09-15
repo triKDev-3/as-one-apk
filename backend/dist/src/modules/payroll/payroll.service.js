@@ -66,7 +66,10 @@ let PayrollService = class PayrollService {
                         { target: 'WHOLE_GROUP' },
                     ],
                 },
-                include: { movement: { include: { item: true } } },
+                include: {
+                    movement: { include: { item: true } },
+                    ficheLine: { include: { item: true } },
+                },
             });
             let baseAmount = 0;
             const details = [];
@@ -95,7 +98,7 @@ let PayrollService = class PayrollService {
                     details.push({
                         type: 'retenue_materiel',
                         amount: Number(r.amount),
-                        item: r.movement?.item?.name,
+                        item: r.movement?.item?.name ?? r.ficheLine?.item?.name,
                     });
                 }
             }

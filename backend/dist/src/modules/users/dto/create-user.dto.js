@@ -17,35 +17,37 @@ class CreateUserDto {
 exports.CreateUserDto = CreateUserDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.Matches)(/^\+?[0-9]{8,15}$/),
+    (0, class_validator_1.Matches)(/^\+?[0-9]{8,15}$/, { message: 'Numéro de téléphone invalide' }),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "phone", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEmail)(),
+    (0, class_validator_1.IsEmail)({}, { message: 'Email invalide' }),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "email", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.MinLength)(6),
+    (0, class_validator_1.MinLength)(6, { message: 'Mot de passe : 6 caractères minimum' }),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "password", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(2, { message: 'Prénom trop court' }),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "firstName", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(2, { message: 'Nom trop court' }),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "lastName", void 0);
 __decorate([
-    (0, class_validator_1.IsEnum)(client_1.Role),
+    (0, class_validator_1.IsEnum)(client_1.Role, { message: 'Rôle invalide' }),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "role", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEnum)(client_1.AgentType),
+    (0, class_validator_1.IsEnum)(client_1.AgentType, { message: 'Type d\'agent invalide' }),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "agentType", void 0);
 __decorate([

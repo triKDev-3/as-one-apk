@@ -1,6 +1,7 @@
 import { ReportsService } from './reports.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { CloseReportDto } from './dto/close-report.dto';
+import { UpdateReportSummaryDto } from './dto/update-summary.dto';
 export declare class ReportsController {
     private readonly service;
     constructor(service: ReportsService);
@@ -19,6 +20,24 @@ export declare class ReportsController {
         performedAt: Date;
     }>;
     listTasks(siteId: string): Promise<({
+        createdBy: {
+            id: string;
+            firstName: string;
+            lastName: string;
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        createdById: string;
+        siteId: string;
+        description: string;
+        performedAt: Date;
+    })[]>;
+    listTasksHistory(date?: string, siteId?: string): Promise<({
+        site: {
+            id: string;
+            name: string;
+        };
         createdBy: {
             id: string;
             firstName: string;
@@ -52,8 +71,8 @@ export declare class ReportsController {
         siteId: string;
         status: string;
         details: import("@prisma/client/runtime/library").JsonValue;
-        summary: string | null;
         closedAt: Date;
+        summary: string | null;
     }>;
     listBySite(siteId: string): Promise<({
         createdBy: {
@@ -69,8 +88,8 @@ export declare class ReportsController {
         siteId: string;
         status: string;
         details: import("@prisma/client/runtime/library").JsonValue;
-        summary: string | null;
         closedAt: Date;
+        summary: string | null;
     })[]>;
     listAll(): Promise<({
         site: {
@@ -91,8 +110,8 @@ export declare class ReportsController {
         siteId: string;
         status: string;
         details: import("@prisma/client/runtime/library").JsonValue;
-        summary: string | null;
         closedAt: Date;
+        summary: string | null;
     })[]>;
     getOne(id: string): Promise<{
         site: {
@@ -128,8 +147,8 @@ export declare class ReportsController {
         siteId: string;
         status: string;
         details: import("@prisma/client/runtime/library").JsonValue;
-        summary: string | null;
         closedAt: Date;
+        summary: string | null;
     }>;
     getLatest(siteId: string): Promise<({
         site: {
@@ -165,10 +184,10 @@ export declare class ReportsController {
         siteId: string;
         status: string;
         details: import("@prisma/client/runtime/library").JsonValue;
-        summary: string | null;
         closedAt: Date;
+        summary: string | null;
     }) | null>;
-    updateSummary(id: string, summary: string): Promise<{
+    updateSummary(id: string, dto: UpdateReportSummaryDto): Promise<{
         site: {
             id: string;
             isActive: boolean;
@@ -202,7 +221,7 @@ export declare class ReportsController {
         siteId: string;
         status: string;
         details: import("@prisma/client/runtime/library").JsonValue;
-        summary: string | null;
         closedAt: Date;
+        summary: string | null;
     }>;
 }

@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/custom_card.dart';
 import '../../core/widgets/hero_banner.dart';
+import '../shared/widgets/training_carousel_widget.dart';
 import 'agent_repository.dart';
 
 final agentDashboardProvider =
@@ -180,6 +181,8 @@ class _AgentHomeScreenState extends ConsumerState<AgentHomeScreen> {
                         loading: _toggling,
                         onTap: () => _toggleAvailability(isAvailable),
                       ).animate().fadeIn().slideY(begin: 0.1, end: 0),
+                      const SizedBox(height: 16),
+                      const TrainingCarouselWidget(),
                       const SizedBox(height: 16),
                       CustomCard(
                         onTap: () => context.push('/agent/offers'),

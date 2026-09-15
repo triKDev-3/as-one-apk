@@ -32,6 +32,23 @@ let StatsController = class StatsController {
     getAgentsBySite(all, req) {
         return this.service.getAgentsBySite(req.user.id, req.user.role, all === 'true');
     }
+    getCalendar(month, all, siteId, req) {
+        const monthKey = month && /^\d{4}-\d{2}$/.test(month)
+            ? month
+            : new Date().toISOString().slice(0, 7);
+        return this.service.getChefCalendar(req.user.id, req.user.role, monthKey, all === 'true', siteId || undefined);
+    }
+    getInterventions(from, to, siteId, status, all, req) {
+        return this.service.getInterventionsHistory({
+            userId: req.user.id,
+            role: req.user.role,
+            all: all === 'true',
+            from,
+            to,
+            siteId,
+            status,
+        });
+    }
 };
 exports.StatsController = StatsController;
 __decorate([
@@ -62,6 +79,30 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], StatsController.prototype, "getAgentsBySite", null);
+__decorate([
+    (0, common_1.Get)('calendar'),
+    (0, roles_decorator_1.Roles)(client_1.Role.CHEF, client_1.Role.ADMIN, client_1.Role.COMPTABLE),
+    __param(0, (0, common_1.Query)('month')),
+    __param(1, (0, common_1.Query)('all')),
+    __param(2, (0, common_1.Query)('siteId')),
+    __param(3, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String, Object]),
+    __metadata("design:returntype", void 0)
+], StatsController.prototype, "getCalendar", null);
+__decorate([
+    (0, common_1.Get)('interventions'),
+    (0, roles_decorator_1.Roles)(client_1.Role.CHEF, client_1.Role.ADMIN, client_1.Role.COMPTABLE),
+    __param(0, (0, common_1.Query)('from')),
+    __param(1, (0, common_1.Query)('to')),
+    __param(2, (0, common_1.Query)('siteId')),
+    __param(3, (0, common_1.Query)('status')),
+    __param(4, (0, common_1.Query)('all')),
+    __param(5, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String, String, String, Object]),
+    __metadata("design:returntype", void 0)
+], StatsController.prototype, "getInterventions", null);
 exports.StatsController = StatsController = __decorate([
     (0, common_1.Controller)('stats'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),

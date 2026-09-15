@@ -6,7 +6,7 @@ class ApiConfig {
   /// - Production : https://ton-domaine.com
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.83.45:3000',
+    defaultValue: 'http://10.208.121.45:3000',
   );
 
   static const Duration connectTimeout = Duration(seconds: 15);

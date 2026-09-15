@@ -19,6 +19,7 @@ const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
 const roles_guard_1 = require("../../common/guards/roles.guard");
 const roles_decorator_1 = require("../../common/decorators/roles.decorator");
 const client_1 = require("@prisma/client");
+const pair_dto_1 = require("./dto/pair.dto");
 let WhatsappController = class WhatsappController {
     constructor(whatsappService) {
         this.whatsappService = whatsappService;
@@ -43,7 +44,7 @@ __decorate([
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:paramtypes", [Object, pair_dto_1.WhatsappPairDto]),
     __metadata("design:returntype", Promise)
 ], WhatsappController.prototype, "requestPairing", null);
 __decorate([

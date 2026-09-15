@@ -18,13 +18,16 @@ export declare class RatingController {
         score: number;
         comment: string | null;
     }>;
-    ranking(limit?: string, sortBy?: string): Promise<{
+    ranking(limit?: string, sortBy?: string, month?: string): Promise<{
         id: string;
         firstName: string;
         lastName: string;
         rankingScore: number;
+        ratingsCount: number;
+        lifetimeScore: number;
         agentType: import(".prisma/client").$Enums.AgentType | null;
         daysWorked: number;
+        month: string;
     }[]>;
     byAssignment(assignmentId: string): Promise<({
         agent: {

@@ -32,6 +32,27 @@ export declare class ReportsService {
         description: string;
         performedAt: Date;
     })[]>;
+    listTasksHistory(opts: {
+        date?: string;
+        siteId?: string;
+    }): Promise<({
+        site: {
+            id: string;
+            name: string;
+        };
+        createdBy: {
+            id: string;
+            firstName: string;
+            lastName: string;
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        createdById: string;
+        siteId: string;
+        description: string;
+        performedAt: Date;
+    })[]>;
     closeAndGenerateReport(siteId: string, dto: CloseReportDto, createdById: string): Promise<{
         site: {
             id: string;
@@ -52,8 +73,8 @@ export declare class ReportsService {
         siteId: string;
         status: string;
         details: import("@prisma/client/runtime/library").JsonValue;
-        summary: string | null;
         closedAt: Date;
+        summary: string | null;
     }>;
     getReport(reportId: string): Promise<{
         site: {
@@ -89,8 +110,8 @@ export declare class ReportsService {
         siteId: string;
         status: string;
         details: import("@prisma/client/runtime/library").JsonValue;
-        summary: string | null;
         closedAt: Date;
+        summary: string | null;
     }>;
     listReportsBySite(siteId: string): Promise<({
         createdBy: {
@@ -106,8 +127,8 @@ export declare class ReportsService {
         siteId: string;
         status: string;
         details: import("@prisma/client/runtime/library").JsonValue;
-        summary: string | null;
         closedAt: Date;
+        summary: string | null;
     })[]>;
     listAllReports(): Promise<({
         site: {
@@ -128,8 +149,8 @@ export declare class ReportsService {
         siteId: string;
         status: string;
         details: import("@prisma/client/runtime/library").JsonValue;
-        summary: string | null;
         closedAt: Date;
+        summary: string | null;
     })[]>;
     getLatestReportBySite(siteId: string): Promise<({
         site: {
@@ -165,8 +186,8 @@ export declare class ReportsService {
         siteId: string;
         status: string;
         details: import("@prisma/client/runtime/library").JsonValue;
-        summary: string | null;
         closedAt: Date;
+        summary: string | null;
     }) | null>;
     updateReportSummary(reportId: string, summary: string): Promise<{
         site: {
@@ -202,7 +223,7 @@ export declare class ReportsService {
         siteId: string;
         status: string;
         details: import("@prisma/client/runtime/library").JsonValue;
-        summary: string | null;
         closedAt: Date;
+        summary: string | null;
     }>;
 }

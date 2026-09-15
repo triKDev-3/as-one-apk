@@ -16,8 +16,8 @@ export declare class PayrollService {
             };
         } & {
             id: string;
-            agentId: string;
             createdAt: Date;
+            agentId: string;
             periodId: string;
             baseAmount: Decimal;
             primes: Decimal;
@@ -27,17 +27,17 @@ export declare class PayrollService {
         })[];
     } & {
         id: string;
-        createdById: string;
-        status: import(".prisma/client").$Enums.PayrollStatus;
+        createdAt: Date;
         startDate: Date;
         endDate: Date;
-        createdAt: Date;
+        createdById: string;
+        status: import(".prisma/client").$Enums.PayrollStatus;
         validatedAt: Date | null;
     }>;
     computeLines(periodId: string): Promise<{
         id: string;
-        agentId: string;
         createdAt: Date;
+        agentId: string;
         periodId: string;
         baseAmount: Decimal;
         primes: Decimal;
@@ -56,8 +56,8 @@ export declare class PayrollService {
             };
         } & {
             id: string;
-            agentId: string;
             createdAt: Date;
+            agentId: string;
             periodId: string;
             baseAmount: Decimal;
             primes: Decimal;
@@ -67,11 +67,11 @@ export declare class PayrollService {
         })[];
     } & {
         id: string;
-        createdById: string;
-        status: import(".prisma/client").$Enums.PayrollStatus;
+        createdAt: Date;
         startDate: Date;
         endDate: Date;
-        createdAt: Date;
+        createdById: string;
+        status: import(".prisma/client").$Enums.PayrollStatus;
         validatedAt: Date | null;
     }>;
     listPeriods(): Promise<({
@@ -80,17 +80,17 @@ export declare class PayrollService {
         };
     } & {
         id: string;
-        createdById: string;
-        status: import(".prisma/client").$Enums.PayrollStatus;
+        createdAt: Date;
         startDate: Date;
         endDate: Date;
-        createdAt: Date;
+        createdById: string;
+        status: import(".prisma/client").$Enums.PayrollStatus;
         validatedAt: Date | null;
     })[]>;
     adjustLine(lineId: string, dto: AdjustLineDto): Promise<{
         id: string;
-        agentId: string;
         createdAt: Date;
+        agentId: string;
         periodId: string;
         baseAmount: Decimal;
         primes: Decimal;
@@ -100,11 +100,11 @@ export declare class PayrollService {
     }>;
     validatePeriod(periodId: string): Promise<{
         id: string;
-        createdById: string;
-        status: import(".prisma/client").$Enums.PayrollStatus;
+        createdAt: Date;
         startDate: Date;
         endDate: Date;
-        createdAt: Date;
+        createdById: string;
+        status: import(".prisma/client").$Enums.PayrollStatus;
         validatedAt: Date | null;
     }>;
     getVirementListBySite(periodId: string, siteId: string): Promise<({
@@ -117,8 +117,8 @@ export declare class PayrollService {
         };
     } & {
         id: string;
-        agentId: string;
         createdAt: Date;
+        agentId: string;
         periodId: string;
         baseAmount: Decimal;
         primes: Decimal;

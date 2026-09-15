@@ -18,6 +18,7 @@ const users_service_1 = require("./users.service");
 const create_user_dto_1 = require("./dto/create-user.dto");
 const set_active_dto_1 = require("./dto/set-active.dto");
 const update_profile_dto_1 = require("./dto/update-profile.dto");
+const update_role_dto_1 = require("./dto/update-role.dto");
 const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
 const roles_guard_1 = require("../../common/guards/roles.guard");
 const roles_decorator_1 = require("../../common/decorators/roles.decorator");
@@ -91,7 +92,7 @@ __decorate([
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [String, update_role_dto_1.UpdateRoleDto]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "updateRole", null);
 __decorate([

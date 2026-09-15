@@ -20,41 +20,88 @@ export declare class IncidentsService {
         };
     } & {
         id: string;
+        createdAt: Date;
+        type: string;
         siteId: string;
         status: string;
-        createdAt: Date;
-        resolvedAt: Date | null;
-        type: string;
-        photoUrl: string | null;
         description: string;
+        resolvedAt: Date | null;
+        photoUrl: string | null;
         severity: string;
         reportedById: string;
     }>;
     list(filters?: {
         siteId?: string;
         status?: string;
-    }): Promise<{
+    }): Promise<({
+        site: {
+            id: string;
+            name: string;
+            type: import(".prisma/client").$Enums.SiteType;
+        };
+        reportedBy: {
+            id: string;
+            firstName: string;
+            lastName: string;
+            role: import(".prisma/client").$Enums.Role;
+        };
+        penalties: ({
+            agent: {
+                id: string;
+                firstName: string;
+                lastName: string;
+            } | null;
+        } & {
+            id: string;
+            createdAt: Date;
+            agentId: string | null;
+            target: import(".prisma/client").$Enums.RetentionTarget;
+            amount: import("@prisma/client/runtime/library").Decimal;
+            reason: string | null;
+            appliedById: string;
+            incidentId: string;
+        })[];
+    } & {
         id: string;
+        createdAt: Date;
+        type: string;
         siteId: string;
         status: string;
-        createdAt: Date;
-        resolvedAt: Date | null;
-        type: string;
-        photoUrl: string | null;
         description: string;
+        resolvedAt: Date | null;
+        photoUrl: string | null;
         severity: string;
         reportedById: string;
-    }[]>;
-    applyPenalty(incidentId: string, dto: ApplyPenaltyDto, appliedById: string): Promise<any>;
+    })[]>;
+    applyPenalty(incidentId: string, dto: ApplyPenaltyDto, appliedById: string): Promise<({
+        agent: {
+            id: string;
+            firstName: string;
+            lastName: string;
+        } | null;
+    } & {
+        id: string;
+        createdAt: Date;
+        agentId: string | null;
+        target: import(".prisma/client").$Enums.RetentionTarget;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        reason: string | null;
+        appliedById: string;
+        incidentId: string;
+    }) | {
+        ok: boolean;
+        agents: number;
+        amountEach: number;
+    }>;
     resolve(id: string, userId: string, role: Role): Promise<{
         id: string;
+        createdAt: Date;
+        type: string;
         siteId: string;
         status: string;
-        createdAt: Date;
-        resolvedAt: Date | null;
-        type: string;
-        photoUrl: string | null;
         description: string;
+        resolvedAt: Date | null;
+        photoUrl: string | null;
         severity: string;
         reportedById: string;
     }>;

@@ -6,4 +6,5 @@ export declare class CreateAssignmentDto {
     missionType?: string;
     routineDays?: number[];
     fixedSalary?: number;
+    forceMultiSite?: boolean;
 }

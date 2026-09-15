@@ -17,17 +17,19 @@ exports.UpdateProfileDto = UpdateProfileDto;
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(2, { message: 'Prénom trop court' }),
     __metadata("design:type", String)
 ], UpdateProfileDto.prototype, "firstName", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(2, { message: 'Nom trop court' }),
     __metadata("design:type", String)
 ], UpdateProfileDto.prototype, "lastName", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.Matches)(/^\+?[0-9]{8,15}$/),
+    (0, class_validator_1.Matches)(/^\+?[0-9]{8,15}$/, { message: 'Numéro de téléphone invalide' }),
     __metadata("design:type", String)
 ], UpdateProfileDto.prototype, "phone", void 0);
 __decorate([
@@ -40,12 +42,12 @@ class ChangePasswordDto {
 exports.ChangePasswordDto = ChangePasswordDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.MinLength)(6),
+    (0, class_validator_1.MinLength)(6, { message: 'Mot de passe actuel requis' }),
     __metadata("design:type", String)
 ], ChangePasswordDto.prototype, "currentPassword", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.MinLength)(6),
+    (0, class_validator_1.MinLength)(6, { message: 'Nouveau mot de passe : 6 caractères minimum' }),
     __metadata("design:type", String)
 ], ChangePasswordDto.prototype, "newPassword", void 0);
 //# sourceMappingURL=update-profile.dto.js.map

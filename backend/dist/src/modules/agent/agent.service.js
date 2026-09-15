@@ -13,9 +13,60 @@ exports.AgentService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const client_1 = require("@prisma/client");
+const notifications_service_1 = require("../notifications/notifications.service");
 let AgentService = class AgentService {
-    constructor(prisma) {
+    constructor(prisma, notify) {
         this.prisma = prisma;
+        this.notify = notify;
+    }
+    async notifyChefsOfUnavailability(agentId, agentName, opts) {
+        const assignments = await this.prisma.assignment.findMany({
+            where: {
+                agentId,
+                status: {
+                    in: [
+                        client_1.AssignmentStatus.PENDING_CONFIRMATION,
+                        client_1.AssignmentStatus.CONFIRMED,
+                        client_1.AssignmentStatus.LOCKED,
+                    ],
+                },
+            },
+            include: {
+                site: {
+                    include: {
+                        chefs: { select: { chefId: true } },
+                    },
+                },
+            },
+        });
+        const chefIds = new Set();
+        const siteNames = [];
+        for (const a of assignments) {
+            siteNames.push(a.site.name);
+            for (const c of a.site.chefs)
+                chefIds.add(c.chefId);
+            if (a.createdById)
+                chefIds.add(a.createdById);
+        }
+        if (chefIds.size === 0)
+            return;
+        const sitesLabel = siteNames.length > 0
+            ? [...new Set(siteNames)].slice(0, 3).join(', ')
+            : 'un site';
+        const body = opts.continuous
+            ? `${agentName} s'est déclaré(e) indisponible (bouton continu) alors qu'il/elle est affecté(e) sur ${sitesLabel}.`
+            : `${agentName} a marqué le ${opts.date} comme indisponible (affecté(e) sur ${sitesLabel}).`;
+        await this.notify.pushMany([...chefIds], {
+            title: 'Agent indisponible',
+            body,
+            type: 'availability:unavailable',
+            data: {
+                agentId,
+                date: opts.date ?? null,
+                continuous: !!opts.continuous,
+                sites: [...new Set(siteNames)],
+            },
+        });
     }
     async toggleAvailability(userId, isAvailable) {
         const user = await this.prisma.user.findUnique({
@@ -26,30 +77,35 @@ let AgentService = class AgentService {
             throw new common_1.ForbiddenException('Seul un agent peut modifier sa disponibilité');
         }
         const now = new Date();
-        if (now.getHours() >= 22) {
+        const hourTogo = Number(new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Africa/Lome',
+            hour: 'numeric',
+            hour12: false,
+        }).format(now));
+        if ((hourTogo === 24 ? 0 : hourTogo) >= 22) {
             throw new common_1.BadRequestException('Les disponibilités ne sont plus modifiables après 22h');
         }
         if (!user.agentProfile) {
-            await this.prisma.agentProfile.create({
-                data: { userId, isAvailable },
-            });
+            await this.prisma.agentProfile.create({ data: { userId, isAvailable } });
         }
         else {
             await this.prisma.agentProfile.update({
                 where: { userId },
-                data: {
-                    isAvailable,
-                    lastAvailabilityChange: now,
-                },
+                data: { isAvailable, lastAvailabilityChange: now },
             });
         }
-        const profile = await this.prisma.agentProfile.findUnique({ where: { userId } });
+        const profile = await this.prisma.agentProfile.findUnique({
+            where: { userId },
+        });
         if (profile) {
             await this.prisma.availabilityLog.create({
-                data: {
-                    agentId: profile.id,
-                    isAvailable,
-                },
+                data: { agentId: profile.id, isAvailable },
+            });
+        }
+        if (!isAvailable) {
+            const name = `${user.firstName} ${user.lastName}`.trim();
+            await this.notifyChefsOfUnavailability(userId, name, {
+                continuous: true,
             });
         }
         return { isAvailable, updatedAt: now };
@@ -64,7 +120,9 @@ let AgentService = class AgentService {
                         status: { in: ['CONFIRMED', 'LOCKED', 'PENDING_CONFIRMATION'] },
                     },
                     include: {
-                        site: { select: { id: true, name: true, type: true, address: true } },
+                        site: {
+                            select: { id: true, name: true, type: true, address: true },
+                        },
                     },
                     orderBy: { startDate: 'desc' },
                     take: 20,
@@ -108,10 +166,7 @@ let AgentService = class AgentService {
     }
     async getAvailableAgents() {
         const agents = await this.prisma.user.findMany({
-            where: {
-                role: client_1.Role.AGENT,
-                isActive: true,
-            },
+            where: { role: client_1.Role.AGENT, isActive: true },
             select: {
                 id: true,
                 firstName: true,
@@ -119,7 +174,9 @@ let AgentService = class AgentService {
                 phone: true,
                 agentType: true,
                 rankingScore: true,
-                agentProfile: { select: { isAvailable: true, lastAvailabilityChange: true } },
+                agentProfile: {
+                    select: { isAvailable: true, lastAvailabilityChange: true },
+                },
             },
             orderBy: [{ rankingScore: 'desc' }, { lastName: 'asc' }],
         });
@@ -134,83 +191,212 @@ let AgentService = class AgentService {
     async getPointagesHistory(agentId) {
         const pointages = await this.prisma.pointage.findMany({
             where: { agentId },
-            include: {
-                site: { select: { name: true } },
-            },
+            include: { site: { select: { name: true } } },
             orderBy: { notedAt: 'desc' },
+            take: 120,
         });
         return pointages.map((p) => ({
             id: p.id,
             siteName: p.site.name,
             type: p.type,
             date: p.notedAt.toISOString(),
-            location: p.latitude && p.longitude ? { lat: p.latitude, lng: p.longitude } : null,
+            location: p.latitude && p.longitude
+                ? { lat: p.latitude, lng: p.longitude }
+                : null,
         }));
     }
     async getPlanning(agentId, monthKey) {
         const now = new Date();
         let startDate;
         let endDate;
+        let resolvedMonth;
         if (monthKey && /^\d{4}-\d{2}$/.test(monthKey)) {
             const [year, month] = monthKey.split('-').map(Number);
-            startDate = new Date(year, month - 1, 1);
-            endDate = new Date(year, month, 0, 23, 59, 59);
+            startDate = new Date(Date.UTC(year, month - 1, 1));
+            endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+            resolvedMonth = monthKey;
         }
         else {
-            startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+            const y = now.getUTCFullYear();
+            const m = now.getUTCMonth();
+            startDate = new Date(Date.UTC(y, m, 1));
+            endDate = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999));
+            resolvedMonth = `${y}-${String(m + 1).padStart(2, '0')}`;
         }
-        const pointages = await this.prisma.pointage.findMany({
-            where: {
-                agentId,
-                notedAt: { gte: startDate, lte: endDate },
-                type: { in: ['DEPART', 'PRESENCE_PERMANENCE', 'ARRIVEE'] }
-            },
-            include: { site: { select: { name: true } } },
-            orderBy: { notedAt: 'asc' },
-        });
-        const routines = await this.prisma.assignment.findMany({
-            where: {
-                agentId,
-                status: { in: ['CONFIRMED', 'PENDING_CONFIRMATION', 'LOCKED'] },
-                missionType: 'ROUTINE'
-            },
-            include: { site: { select: { name: true } } }
-        });
-        const profile = await this.prisma.agentProfile.findUnique({ where: { userId: agentId } });
-        const unavailableDates = profile?.unavailableDates ?? [];
+        const [pointages, assignments, profile] = await Promise.all([
+            this.prisma.pointage.findMany({
+                where: {
+                    agentId,
+                    notedAt: { gte: startDate, lte: endDate },
+                    type: {
+                        in: ['DEPART', 'PRESENCE_PERMANENCE', 'ARRIVEE', 'ABSENT'],
+                    },
+                },
+                select: {
+                    type: true,
+                    notedAt: true,
+                    site: { select: { name: true } },
+                },
+                orderBy: { notedAt: 'asc' },
+            }),
+            this.prisma.assignment.findMany({
+                where: {
+                    agentId,
+                    status: {
+                        in: ['CONFIRMED', 'LOCKED', 'PENDING_CONFIRMATION'],
+                    },
+                    startDate: { lte: endDate },
+                    OR: [{ endDate: null }, { endDate: { gte: startDate } }],
+                },
+                select: {
+                    status: true,
+                    startDate: true,
+                    endDate: true,
+                    missionType: true,
+                    routineDays: true,
+                    site: { select: { name: true } },
+                },
+            }),
+            this.prisma.agentProfile.findUnique({
+                where: { userId: agentId },
+                select: { unavailableDates: true },
+            }),
+        ]);
+        const unavailableDates = profile?.unavailableDates || [];
         const calendarMap = {};
-        for (const routine of routines) {
-            const days = routine.routineDays;
-            if (!Array.isArray(days) || days.length === 0)
-                continue;
-            let current = new Date(startDate);
-            while (current <= endDate) {
-                const dayOfWeek = current.getDay() === 0 ? 7 : current.getDay();
-                if (days.includes(dayOfWeek)) {
-                    const rStart = new Date(routine.startDate);
-                    rStart.setHours(0, 0, 0, 0);
-                    let rEnd = routine.endDate ? new Date(routine.endDate) : null;
-                    if (rEnd)
-                        rEnd.setHours(23, 59, 59, 999);
-                    if (current >= rStart && (!rEnd || current <= rEnd)) {
-                        const dateKey = current.toISOString().split('T')[0];
-                        calendarMap[dateKey] = { status: 'routine', siteName: routine.site.name };
+        const setDay = (key, status, siteName, opts) => {
+            const existing = calendarMap[key];
+            if (!existing) {
+                calendarMap[key] = {
+                    status,
+                    siteName,
+                    sites: siteName ? [siteName] : [],
+                    conflict: opts?.conflict,
+                };
+                return;
+            }
+            if (siteName) {
+                const sites = new Set(existing.sites || []);
+                sites.add(siteName);
+                existing.sites = [...sites];
+                if (!existing.siteName)
+                    existing.siteName = siteName;
+                else if (existing.siteName !== siteName && sites.size > 1) {
+                    existing.siteName = existing.sites.join(' · ');
+                }
+            }
+            if (opts?.conflict)
+                existing.conflict = true;
+        };
+        for (const asg of assignments) {
+            const aStart = new Date(asg.startDate);
+            aStart.setUTCHours(0, 0, 0, 0);
+            let aEnd;
+            if (asg.endDate) {
+                aEnd = new Date(asg.endDate);
+            }
+            else if (asg.missionType === 'PERMANENTE' || asg.missionType === 'ROUTINE') {
+                aEnd = new Date(endDate);
+            }
+            else {
+                aEnd = new Date(aStart);
+            }
+            aEnd.setUTCHours(23, 59, 59, 999);
+            const cursor = new Date(Math.max(aStart.getTime(), startDate.getTime()));
+            const limit = new Date(Math.min(aEnd.getTime(), endDate.getTime()));
+            while (cursor <= limit) {
+                const dow = cursor.getUTCDay();
+                if (dow !== 0) {
+                    const dateKey = cursor.toISOString().slice(0, 10);
+                    if (asg.missionType === 'ROUTINE') {
+                        const days = asg.routineDays;
+                        const dayOfWeek = dow === 0 ? 7 : dow;
+                        if (Array.isArray(days) && days.includes(dayOfWeek)) {
+                            setDay(dateKey, 'routine', asg.site.name);
+                        }
+                    }
+                    else {
+                        const status = asg.status === 'PENDING_CONFIRMATION'
+                            ? 'assigned_pending'
+                            : 'assigned';
+                        const cur = calendarMap[dateKey];
+                        if (!cur || cur.status === 'routine' || cur.status === 'assigned_pending') {
+                            setDay(dateKey, status, asg.site.name);
+                        }
+                        else if (cur.status === 'assigned') {
+                            setDay(dateKey, 'assigned', asg.site.name);
+                        }
                     }
                 }
-                current.setDate(current.getDate() + 1);
+                cursor.setUTCDate(cursor.getUTCDate() + 1);
+            }
+        }
+        for (const d of unavailableDates) {
+            if (d < startDate.toISOString().slice(0, 10) || d > endDate.toISOString().slice(0, 10)) {
+                continue;
+            }
+            const cur = calendarMap[d];
+            if (!cur) {
+                calendarMap[d] = { status: 'unavailable' };
+            }
+            else if (cur.status === 'assigned' ||
+                cur.status === 'assigned_pending' ||
+                cur.status === 'routine') {
+                cur.conflict = true;
             }
         }
         for (const p of pointages) {
-            const dateKey = p.notedAt.toISOString().split('T')[0];
-            calendarMap[dateKey] = { status: 'worked', siteName: p.site.name };
-        }
-        for (const d of unavailableDates) {
-            if (!calendarMap[d]) {
-                calendarMap[d] = { status: 'unavailable' };
+            const dateKey = p.notedAt.toISOString().slice(0, 10);
+            if (p.type === 'ABSENT') {
+                const cur = calendarMap[dateKey];
+                if (!cur || cur.status !== 'worked') {
+                    setDay(dateKey, 'absent', p.site.name);
+                }
+            }
+            else {
+                setDay(dateKey, 'worked', p.site.name);
             }
         }
-        return calendarMap;
+        let worked = 0;
+        let absent = 0;
+        let assigned = 0;
+        let pending = 0;
+        let unavailable = 0;
+        let conflicts = 0;
+        for (const cell of Object.values(calendarMap)) {
+            if (cell.conflict)
+                conflicts++;
+            switch (cell.status) {
+                case 'worked':
+                    worked++;
+                    break;
+                case 'absent':
+                    absent++;
+                    break;
+                case 'assigned':
+                case 'routine':
+                    assigned++;
+                    break;
+                case 'assigned_pending':
+                    pending++;
+                    break;
+                case 'unavailable':
+                    unavailable++;
+                    break;
+            }
+        }
+        return {
+            month: resolvedMonth,
+            days: calendarMap,
+            stats: {
+                worked,
+                absent,
+                assigned,
+                pending,
+                unavailable,
+                conflicts,
+            },
+        };
     }
     async getRemuneration(agentId) {
         const user = await this.prisma.user.findUnique({
@@ -220,35 +406,43 @@ let AgentService = class AgentService {
         if (!user)
             throw new common_1.NotFoundException('Agent non trouvé');
         const pointages = await this.prisma.pointage.findMany({
-            where: { agentId, type: { in: ['DEPART', 'PRESENCE_PERMANENCE', 'ARRIVEE'] } },
+            where: {
+                agentId,
+                type: { in: ['DEPART', 'PRESENCE_PERMANENCE', 'ARRIVEE'] },
+            },
             orderBy: { notedAt: 'desc' },
             include: { site: true },
         });
         const monthlyData = {};
         for (const p of pointages) {
-            const monthKey = p.notedAt.toISOString().substring(0, 7);
-            if (!monthlyData[monthKey]) {
-                monthlyData[monthKey] = { daysWorked: 0, totalAmount: 0, details: [] };
+            const mk = p.notedAt.toISOString().substring(0, 7);
+            if (!monthlyData[mk]) {
+                monthlyData[mk] = { daysWorked: 0, totalAmount: 0, details: [] };
             }
-            const rate = p.site.dailyRate ? Number(p.site.dailyRate) : (user.agentType === 'PERMANENT' ? 5000 : 3000);
-            monthlyData[monthKey].daysWorked += 1;
-            monthlyData[monthKey].totalAmount += rate;
-            monthlyData[monthKey].details.push({
+            const rate = p.site.dailyRate
+                ? Number(p.site.dailyRate)
+                : user.agentType === 'PERMANENT'
+                    ? 5000
+                    : 3000;
+            monthlyData[mk].daysWorked += 1;
+            monthlyData[mk].totalAmount += rate;
+            monthlyData[mk].details.push({
                 date: p.notedAt,
                 siteName: p.site.name,
                 amount: rate,
             });
         }
         const paidMonths = user.agentProfile?.paidMonths || {};
-        const result = Object.entries(monthlyData).map(([monthKey, data]) => ({
+        return Object.entries(monthlyData)
+            .map(([monthKey, data]) => ({
             monthKey,
             daysWorked: data.daysWorked,
             totalAmount: data.totalAmount,
             isPaid: !!paidMonths[monthKey],
             paidAt: paidMonths[monthKey] || null,
             details: data.details,
-        }));
-        return result.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+        }))
+            .sort((a, b) => b.monthKey.localeCompare(a.monthKey));
     }
     async markMonthPaid(agentId, monthKey) {
         const profile = await this.prisma.agentProfile.findUnique({
@@ -256,7 +450,7 @@ let AgentService = class AgentService {
         });
         if (!profile)
             throw new common_1.NotFoundException('Profil agent non trouvé');
-        const paidMonths = (profile.paidMonths || {});
+        const paidMonths = profile.paidMonths || {};
         paidMonths[monthKey] = new Date().toISOString();
         await this.prisma.agentProfile.update({
             where: { userId: agentId },
@@ -268,6 +462,9 @@ let AgentService = class AgentService {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
             throw new common_1.BadRequestException('Format de date invalide (YYYY-MM-DD attendu)');
         }
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user)
+            throw new common_1.NotFoundException();
         const profile = await this.prisma.agentProfile.findUnique({
             where: { userId },
         });
@@ -278,23 +475,24 @@ let AgentService = class AgentService {
         if (available) {
             unavailableDates = unavailableDates.filter((d) => d !== date);
         }
-        else {
-            if (!unavailableDates.includes(date)) {
-                unavailableDates.push(date);
-            }
+        else if (!unavailableDates.includes(date)) {
+            unavailableDates.push(date);
         }
         await this.prisma.agentProfile.update({
             where: { userId },
-            data: {
-                unavailableDates,
-            },
+            data: { unavailableDates },
         });
+        if (!available) {
+            const name = `${user.firstName} ${user.lastName}`.trim();
+            await this.notifyChefsOfUnavailability(userId, name, { date });
+        }
         return { success: true, date, available };
     }
 };
 exports.AgentService = AgentService;
 exports.AgentService = AgentService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        notifications_service_1.NotificationsService])
 ], AgentService);
 //# sourceMappingURL=agent.service.js.map
