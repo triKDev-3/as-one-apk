@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/providers/providers.dart';
@@ -20,22 +21,34 @@ class TrainingVideoRepository {
       return (res.data as List)
           .map((e) => TrainingVideo.fromJson(e as Map<String, dynamic>))
           .toList();
-    } on Exception catch (e) {
-      throw ApiClient.extractError(e is Exception ? e as dynamic : e);
+    } on DioException catch (e) {
+      throw ApiClient.extractError(e);
     }
   }
 
   Future<TrainingVideo> create(Map<String, dynamic> data) async {
-    final res = await _api.dio.post('/training-videos', data: data);
-    return TrainingVideo.fromJson(res.data as Map<String, dynamic>);
+    try {
+      final res = await _api.dio.post('/training-videos', data: data);
+      return TrainingVideo.fromJson(res.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.extractError(e);
+    }
   }
 
   Future<TrainingVideo> update(String id, Map<String, dynamic> data) async {
-    final res = await _api.dio.patch('/training-videos/$id', data: data);
-    return TrainingVideo.fromJson(res.data as Map<String, dynamic>);
+    try {
+      final res = await _api.dio.patch('/training-videos/$id', data: data);
+      return TrainingVideo.fromJson(res.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.extractError(e);
+    }
   }
 
   Future<void> remove(String id) async {
-    await _api.dio.delete('/training-videos/$id');
+    try {
+      await _api.dio.delete('/training-videos/$id');
+    } on DioException catch (e) {
+      throw ApiClient.extractError(e);
+    }
   }
 }
