@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/training_video.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import '../widgets/training_carousel_widget.dart';
 
 class TrainingLessonScreen extends StatefulWidget {
   final TrainingVideo video;
@@ -18,12 +19,14 @@ class _TrainingLessonScreenState extends State<TrainingLessonScreen> {
   @override
   void initState() {
     super.initState();
-    final videoId = YoutubePlayer.convertUrlToId(widget.video.youtubeUrl);
+    final videoId = extractYoutubeId(widget.video.youtubeUrl);
     if (videoId != null) {
-      _controller = YoutubePlayerController(
-        initialVideoId: videoId,
-        flags: const YoutubePlayerFlags(
-          autoPlay: false,
+      _controller = YoutubePlayerController.fromVideoId(
+        videoId: videoId,
+        autoPlay: false,
+        params: const YoutubePlayerParams(
+          showControls: true,
+          showFullscreenButton: true,
           mute: false,
         ),
       );
@@ -32,7 +35,7 @@ class _TrainingLessonScreenState extends State<TrainingLessonScreen> {
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _controller?.close();
     super.dispose();
   }
 
@@ -48,7 +51,7 @@ class _TrainingLessonScreenState extends State<TrainingLessonScreen> {
             if (_controller != null)
               YoutubePlayer(
                 controller: _controller!,
-                showVideoProgressIndicator: true,
+                aspectRatio: 16 / 9,
               )
             else
               Container(
@@ -57,30 +60,35 @@ class _TrainingLessonScreenState extends State<TrainingLessonScreen> {
                 child: const Center(child: Text('Vidéo indisponible')),
               ),
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     widget.video.title,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                  if (widget.video.description != null && widget.video.description!.isNotEmpty) ...[
+                  if (widget.video.description != null &&
+                      widget.video.description!.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text(
                       widget.video.description!,
-                      style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                      style: const TextStyle(
+                          fontSize: 14, color: AppColors.textSecondary),
                     ),
                   ],
                   const SizedBox(height: 16),
                   const Divider(),
                   const SizedBox(height: 16),
-                  if (widget.video.lessonContent != null && widget.video.lessonContent!.isNotEmpty)
-                    MarkdownBody(
-                      data: widget.video.lessonContent!,
-                    )
+                  if (widget.video.lessonContent != null &&
+                      widget.video.lessonContent!.isNotEmpty)
+                    MarkdownBody(data: widget.video.lessonContent!)
                   else
-                    const Text('Aucune leçon détaillée pour cette vidéo.', style: TextStyle(color: AppColors.textTertiary)),
+                    const Text(
+                      'Aucune leçon détaillée pour cette vidéo.',
+                      style: TextStyle(color: AppColors.textTertiary),
+                    ),
                 ],
               ),
             ),
