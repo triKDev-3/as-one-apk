@@ -21,6 +21,9 @@ on:
           - debug
           - release
 
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
+
 jobs:
   build:
     name: Flutter APK
@@ -30,6 +33,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: false
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -57,7 +62,7 @@ jobs:
         continue-on-error: true
         run: flutter analyze --no-fatal-infos || true
 
-      - name: Build APK
+      - name: Build APK (arm64 uniquement — moins de RAM)
         working-directory: frontend
         env:
           API_URL: ${{ github.event.inputs.api_base_url || 'http://10.208.121.45:3000' }}
@@ -65,12 +70,15 @@ jobs:
         run: |
           echo "API_BASE_URL=$API_URL"
           echo "BUILD_TYPE=$BUILD_TYPE"
+          # arm64 uniquement = téléphones récents + bien moins de mémoire en CI
           if [ "$BUILD_TYPE" = "release" ]; then
             flutter build apk --release \
+              --target-platform android-arm64 \
               --dart-define=API_BASE_URL="$API_URL"
             SRC="build/app/outputs/flutter-apk/app-release.apk"
           else
             flutter build apk --debug \
+              --target-platform android-arm64 \
               --dart-define=API_BASE_URL="$API_URL"
             SRC="build/app/outputs/flutter-apk/app-debug.apk"
           fi
@@ -90,9 +98,8 @@ jobs:
         run: |
           echo "### APK AS ONE prêt" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. Ouvre cet run → section **Artifacts**" >> $GITHUB_STEP_SUMMARY
-          echo "2. Télécharge **asone-apk-debug** (ou release)" >> $GITHUB_STEP_SUMMARY
-          echo "3. Sur le téléphone : autorise l’install depuis sources inconnues" >> $GITHUB_STEP_SUMMARY
-          echo "4. Ouvre le fichier .apk et installe" >> $GITHUB_STEP_SUMMARY
+          echo "1. Ouvre ce run → section **Artifacts**" >> $GITHUB_STEP_SUMMARY
+          echo "2. Télécharge **asone-apk-debug** (zip)" >> $GITHUB_STEP_SUMMARY
+          echo "3. Dézippe → installe asone-debug.apk" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "API utilisée : \`${{ github.event.inputs.api_base_url || 'http://10.208.121.45:3000' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "API : \`${{ github.event.inputs.api_base_url || 'http://10.208.121.45:3000' }}\`" >> $GITHUB_STEP_SUMMARY
