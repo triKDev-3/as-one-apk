@@ -62,7 +62,7 @@ jobs:
         continue-on-error: true
         run: flutter analyze --no-fatal-infos || true
 
-      - name: Build APK (arm64 uniquement — moins de RAM)
+      - name: Build APK universel
         working-directory: frontend
         env:
           API_URL: ${{ github.event.inputs.api_base_url || 'http://10.208.121.45:3000' }}
@@ -70,15 +70,13 @@ jobs:
         run: |
           echo "API_BASE_URL=$API_URL"
           echo "BUILD_TYPE=$BUILD_TYPE"
-          # arm64 uniquement = téléphones récents + bien moins de mémoire en CI
+          # APK universel (arm64 + armeabi-v7a + x86_64) pour tous les téléphones
           if [ "$BUILD_TYPE" = "release" ]; then
             flutter build apk --release \
-              --target-platform android-arm64 \
               --dart-define=API_BASE_URL="$API_URL"
             SRC="build/app/outputs/flutter-apk/app-release.apk"
           else
             flutter build apk --debug \
-              --target-platform android-arm64 \
               --dart-define=API_BASE_URL="$API_URL"
             SRC="build/app/outputs/flutter-apk/app-debug.apk"
           fi
@@ -98,8 +96,10 @@ jobs:
         run: |
           echo "### APK AS ONE prêt" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. Ouvre ce run → section **Artifacts**" >> $GITHUB_STEP_SUMMARY
-          echo "2. Télécharge **asone-apk-debug** (zip)" >> $GITHUB_STEP_SUMMARY
-          echo "3. Dézippe → installe asone-debug.apk" >> $GITHUB_STEP_SUMMARY
+          echo "**Package ID :** \`services.asone.app\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. Désinstalle toute ancienne app **asone** / **asone_app** sur le téléphone" >> $GITHUB_STEP_SUMMARY
+          echo "2. Télécharge l’artifact **asone-apk-debug**" >> $GITHUB_STEP_SUMMARY
+          echo "3. Dézippe → installe \`asone-debug.apk\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "API : \`${{ github.event.inputs.api_base_url || 'http://10.208.121.45:3000' }}\`" >> $GITHUB_STEP_SUMMARY
