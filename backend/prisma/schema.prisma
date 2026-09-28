@@ -1,12 +1,12 @@
 // AS ONE — Prisma Schema
-// Version 1.3 — Permanence offers + notifications
+// Version 1.4 — PostgreSQL (Supabase / Render free)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -488,7 +488,7 @@ model PermanenceApplication {
   slotId        String
   agentId       String
   status        PermanenceApplicationStatus @default(PENDING)
-  rejectMessage String?  @db.Text
+  rejectMessage String?
   createdAt     DateTime @default(now())
   resolvedAt    DateTime?
   slot          PermanenceSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
@@ -500,12 +500,11 @@ model PermanenceApplication {
 model TrainingVideo {
   id            String   @id @default(cuid())
   title         String
-  description   String?  @db.Text
+  description   String?
   youtubeUrl    String
-  lessonContent String?  @db.Text
+  lessonContent String?
   isActive      Boolean  @default(true)
   orderIndex    Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
-

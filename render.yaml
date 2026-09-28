@@ -1,6 +1,3 @@
-# Blueprint Render — optionnel (New → Blueprint)
-# Ou configure manuellement selon docs/DEPLOY_FREE.md
-
 services:
   - type: web
     name: asone-api
@@ -8,7 +5,7 @@ services:
     rootDir: backend
     plan: free
     buildCommand: npm ci && npx prisma generate && npm run build
-    startCommand: npx prisma migrate deploy && node dist/main
+    startCommand: npx prisma db push --accept-data-loss && node dist/main
     envVars:
       - key: NODE_ENV
         value: production
