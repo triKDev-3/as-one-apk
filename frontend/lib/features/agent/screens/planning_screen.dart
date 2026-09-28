@@ -46,6 +46,11 @@ class AgentCalendarData {
   });
 }
 
+String _ymd(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-'
+    '${d.month.toString().padLeft(2, '0')}-'
+    '${d.day.toString().padLeft(2, '0')}';
+
 final agentCalendarProvider = FutureProvider.autoDispose
     .family<AgentCalendarData, String>((ref, monthKey) async {
   final api = ref.watch(apiClientProvider);
@@ -129,6 +134,7 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
   late DateTime _focusedDay;
   late DateTime _selectedDay;
   bool _syncing = false;
+  bool _marking = false;
 
   @override
   void initState() {
@@ -138,13 +144,16 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
     _selectedDay = DateTime(now.year, now.month, now.day);
   }
 
-  String get _monthKey => DateFormat('yyyy-MM').format(_focusedDay);
+  String get _monthKey =>
+      '${_focusedDay.year}-${_focusedDay.month.toString().padLeft(2, '0')}';
 
   Future<void> _toggleDayAvailability(
     DateTime day,
     AgentCalendarData data,
   ) async {
-    final key = DateFormat('yyyy-MM-dd').format(day);
+    if (_marking) return;
+
+    final key = _ymd(day);
     final existing = data.days[key];
 
     final today = DateTime.now();
@@ -168,14 +177,13 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
       return;
     }
 
-    // Source de vérité : liste unavailableDates + statut
     final isUnavailable = existing?.status == DayStatus.unavailable ||
         data.unavailableDates.contains(key);
 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(DateFormat('EEEE d MMMM yyyy', 'fr').format(day)),
+        title: Text(key),
         content: Text(
           isUnavailable
               ? 'Marquer ce jour comme DISPONIBLE ?'
@@ -201,23 +209,44 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
 
     if (confirm != true) return;
 
+    setState(() => _marking = true);
     try {
       final api = ref.read(apiClientProvider);
-      await api.dio.post('/agent/availability-mark', data: {
-        'date': key,
-        'available': isUnavailable, // true = retirer indispo
-      });
+      final res = await api.dio.post(
+        '/agent/availability-mark',
+        data: {
+          'date': key,
+          'available': isUnavailable,
+        },
+      );
+
+      // Force refresh calendrier
       ref.invalidate(agentCalendarProvider(_monthKey));
+      await ref.read(agentCalendarProvider(_monthKey).future);
+
       if (mounted) {
+        final ok = res.data is Map && res.data['success'] == true;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              isUnavailable
-                  ? 'Jour marqué disponible'
-                  : 'Jour marqué indisponible',
+              ok
+                  ? (isUnavailable
+                      ? 'Jour marqué disponible'
+                      : 'Jour marqué indisponible')
+                  : 'Réponse serveur inattendue',
             ),
             backgroundColor:
                 isUnavailable ? AppColors.accent : AppColors.danger,
+          ),
+        );
+      }
+    } on DioException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ApiClient.extractError(e)),
+            backgroundColor: AppColors.danger,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -225,11 +254,14 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text('$e'),
             backgroundColor: AppColors.danger,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
+    } finally {
+      if (mounted) setState(() => _marking = false);
     }
   }
 
@@ -452,7 +484,7 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
                 ),
                 calendarBuilders: CalendarBuilders(
                   defaultBuilder: (ctx, day, focusedDay) {
-                    final key = DateFormat('yyyy-MM-dd').format(day);
+                    final key = _ymd(day);
                     final info = calDays[key];
                     if (info == null) return null;
                     final bgColor = _bg(info.status);
@@ -483,10 +515,10 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
               Expanded(
                 child: _DayDetail(
                   day: _selectedDay,
-                  info: calDays[
-                      DateFormat('yyyy-MM-dd').format(_selectedDay)],
+                  info: calDays[_ymd(_selectedDay)],
                   labelOf: _label,
                   colorOf: _bg,
+                  marking: _marking,
                   onToggle: () => _toggleDayAvailability(_selectedDay, data),
                 ),
               ),
@@ -504,6 +536,7 @@ class _DayDetail extends StatelessWidget {
   final String Function(DayStatus) labelOf;
   final Color? Function(DayStatus) colorOf;
   final VoidCallback onToggle;
+  final bool marking;
 
   const _DayDetail({
     required this.day,
@@ -511,6 +544,7 @@ class _DayDetail extends StatelessWidget {
     required this.labelOf,
     required this.colorOf,
     required this.onToggle,
+    this.marking = false,
   });
 
   @override
@@ -526,7 +560,7 @@ class _DayDetail extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         Text(
-          DateFormat('EEEE d MMMM yyyy', 'fr').format(day),
+          _ymd(day),
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 8),
@@ -579,12 +613,21 @@ class _DayDetail extends StatelessWidget {
         const SizedBox(height: 16),
         if (canEdit)
           ElevatedButton.icon(
-            onPressed: onToggle,
-            icon: Icon(
-              status == DayStatus.unavailable
-                  ? Icons.event_available
-                  : Icons.event_busy,
-            ),
+            onPressed: marking ? null : onToggle,
+            icon: marking
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Icon(
+                    status == DayStatus.unavailable
+                        ? Icons.event_available
+                        : Icons.event_busy,
+                  ),
             style: ElevatedButton.styleFrom(
               backgroundColor: status == DayStatus.unavailable
                   ? AppColors.accent
@@ -592,9 +635,11 @@ class _DayDetail extends StatelessWidget {
               foregroundColor: Colors.white,
             ),
             label: Text(
-              status == DayStatus.unavailable
-                  ? 'Marquer disponible'
-                  : 'Marquer indisponible',
+              marking
+                  ? 'Enregistrement…'
+                  : status == DayStatus.unavailable
+                      ? 'Marquer disponible'
+                      : 'Marquer indisponible',
             ),
           ),
       ],
