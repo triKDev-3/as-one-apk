@@ -1,9 +1,14 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/asone_loader.dart';
+import '../../core/widgets/pointage_photo.dart';
 import '../../core/utils/whatsapp_helper.dart';
 
 final pointagesLogProvider =
@@ -46,9 +51,8 @@ class PointagesLogScreen extends ConsumerWidget {
     final dateLabel = date == null
         ? 'Tous les pointages'
         : DateFormat('dd/MM/yyyy').format(DateTime.parse(date!));
-    final maps = rows
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .toList();
+    final maps =
+        rows.map((e) => Map<String, dynamic>.from(e as Map)).toList();
     final text = WhatsAppHelper.dailyPointagesReport(
       dateLabel: dateLabel,
       rows: maps,
@@ -71,8 +75,14 @@ class PointagesLogScreen extends ConsumerWidget {
             ),
             ListTile(
               leading: const Icon(Icons.chat, color: Color(0xFF25D366)),
-              title: const Text('Envoyer par WhatsApp'),
+              title: const Text('WhatsApp (texte)'),
               onTap: () => Navigator.pop(ctx, 'wa'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Partager texte + photos'),
+              subtitle: const Text('Ouvre le menu de partage système'),
+              onTap: () => Navigator.pop(ctx, 'photos'),
             ),
             ListTile(
               leading: const Icon(Icons.copy_rounded),
@@ -92,6 +102,54 @@ class PointagesLogScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Rapport copié')),
+        );
+      }
+    } else if (action == 'photos') {
+      await _shareWithPhotos(context, text, maps);
+    }
+  }
+
+  Future<void> _shareWithPhotos(
+    BuildContext context,
+    String text,
+    List<Map<String, dynamic>> maps,
+  ) async {
+    try {
+      final dir = await getTemporaryDirectory();
+      final files = <XFile>[];
+      var i = 0;
+      for (final p in maps) {
+        final url = p['photoUrl'] as String?;
+        if (url == null || url.isEmpty) continue;
+        if (url.startsWith('data:image')) {
+          final b64 = url.split(',').last;
+          final bytes = base64Decode(b64);
+          final path = '${dir.path}/pointage_${i++}.jpg';
+          final f = File(path);
+          await f.writeAsBytes(bytes);
+          files.add(XFile(path));
+        } else if (url.startsWith('http')) {
+          // Lien distant : on laisse le texte mentionner
+        }
+      }
+
+      if (files.isEmpty) {
+        await WhatsAppHelper.openWhatsApp(message: text);
+        return;
+      }
+
+      await Share.shareXFiles(
+        files,
+        text: text,
+        subject: 'Rapport pointages AS ONE',
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Partage photos : $e'),
+            backgroundColor: AppColors.danger,
+          ),
         );
       }
     }
@@ -161,7 +219,6 @@ class PointagesLogScreen extends ConsumerWidget {
 
           return Column(
             children: [
-              // Barre d'actions visibles (même après création)
               Material(
                 color: Colors.white,
                 child: Padding(
@@ -256,6 +313,7 @@ class PointagesLogScreen extends ConsumerWidget {
                                     .trim();
                             final noted = DateTime.tryParse(
                                 p['notedAt'] as String? ?? '');
+                            final photoUrl = p['photoUrl'] as String?;
                             final color = _color(type);
                             return Container(
                               margin: const EdgeInsets.only(bottom: 10),
@@ -267,12 +325,21 @@ class PointagesLogScreen extends ConsumerWidget {
                               ),
                               child: Row(
                                 children: [
-                                  CircleAvatar(
-                                    backgroundColor:
-                                        color.withValues(alpha: 0.12),
-                                    child: Icon(Icons.fingerprint,
-                                        color: color, size: 20),
-                                  ),
+                                  if (photoUrl != null &&
+                                      photoUrl.isNotEmpty)
+                                    GestureDetector(
+                                      onTap: () => showPointagePhotoFull(
+                                          context, photoUrl),
+                                      child: PointagePhoto(
+                                          photoUrl: photoUrl, size: 52),
+                                    )
+                                  else
+                                    CircleAvatar(
+                                      backgroundColor:
+                                          color.withValues(alpha: 0.12),
+                                      child: Icon(Icons.fingerprint,
+                                          color: color, size: 20),
+                                    ),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
@@ -291,6 +358,15 @@ class PointagesLogScreen extends ConsumerWidget {
                                             style: const TextStyle(
                                               fontSize: 11,
                                               color: AppColors.textTertiary,
+                                            ),
+                                          ),
+                                        if (photoUrl != null &&
+                                            photoUrl.isNotEmpty)
+                                          const Text(
+                                            '📷 Photo jointe — appuyer pour agrandir',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: AppColors.textSecondary,
                                             ),
                                           ),
                                       ],
