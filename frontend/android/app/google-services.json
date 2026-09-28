@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "45147739566",
+    "project_id": "as-one-dfa5b",
+    "storage_bucket": "as-one-dfa5b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:45147739566:android:a16def4a2a9ab26ff7643f",
+        "android_client_info": {
+          "package_name": "services.asone.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBnDo5C2d-k-aVILmu8CJk08LwW8Lr4S8M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../network/api_client.dart';
 import '../network/token_storage.dart';
+import '../services/push_notification_service.dart';
 import '../../features/auth/auth_repository.dart';
 import '../../features/auth/models/user_model.dart';
 import '../../features/agent/agent_repository.dart';
@@ -69,8 +70,9 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repo;
   final RealtimeService _realtime;
+  final ApiClient _api;
 
-  AuthNotifier(this._repo, this._realtime) : super(const AuthState()) {
+  AuthNotifier(this._repo, this._realtime, this._api) : super(const AuthState()) {
     _tryRestoreSession();
   }
 
@@ -79,6 +81,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final user = await _repo.getSavedUser();
     if (user != null) {
       _realtime.connect(userId: user.id);
+      await PushNotificationService.instance.registerWithBackend(_api);
     }
     state = state.copyWith(
       user: user,
@@ -92,6 +95,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _repo.login(phone: phone, password: password);
       _realtime.connect(userId: user.id);
+      await PushNotificationService.instance.registerWithBackend(_api);
       state = state.copyWith(user: user, isLoading: false);
       return true;
     } catch (e) {
@@ -104,6 +108,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    await PushNotificationService.instance.unregisterFromBackend(_api);
     _realtime.disconnect();
     await _repo.logout();
     state = const AuthState();
@@ -121,6 +126,7 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier(
     ref.watch(authRepositoryProvider),
     ref.watch(realtimeServiceProvider),
+    ref.watch(apiClientProvider),
   );
 });
 
@@ -155,7 +161,6 @@ final materialRepositoryProvider = Provider<MaterialRepository>((ref) {
 final payrollRepositoryProvider = Provider<PayrollRepository>((ref) {
   return PayrollRepository(ref.watch(apiClientProvider));
 });
-
 
 final realtimeServiceProvider = Provider<RealtimeService>((ref) {
   final service = RealtimeService();
