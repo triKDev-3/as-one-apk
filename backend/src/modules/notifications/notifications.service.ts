@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsGateway } from './notifications.gateway';
+import { FcmService } from './fcm.service';
 import { Prisma } from '@prisma/client';
 
 export type PushInput = {
@@ -15,6 +16,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: NotificationsGateway,
+    private readonly fcm: FcmService,
   ) {}
 
   async push(userId: string, input: PushInput) {
@@ -37,12 +39,21 @@ export class NotificationsService {
       createdAt: row.createdAt,
     };
 
+    // Temps réel (app ouverte)
     this.gateway.notifyUser(userId, 'notification', payload);
     this.gateway.notifyUser(userId, input.type, {
       message: input.body,
       title: input.title,
       ...(input.data || {}),
     });
+
+    // Push système (app en arrière-plan / fermée) si FCM configuré
+    void this.fcm.sendToUser(userId, input.title, input.body, {
+      type: input.type,
+      notificationId: row.id,
+      ...(input.data || {}),
+    });
+
     return row;
   }
 
@@ -77,5 +88,13 @@ export class NotificationsService {
     return this.prisma.appNotification.count({
       where: { userId, readAt: null },
     });
+  }
+
+  registerDevice(userId: string, token: string, platform?: string) {
+    return this.fcm.registerToken(userId, token, platform || 'android');
+  }
+
+  removeDevice(userId: string, token: string) {
+    return this.fcm.removeToken(userId, token);
   }
 }
