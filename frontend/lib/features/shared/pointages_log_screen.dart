@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/asone_loader.dart';
+import '../../core/utils/whatsapp_helper.dart';
 
 final pointagesLogProvider =
     FutureProvider.autoDispose.family<List<dynamic>, String?>((ref, date) {
@@ -15,7 +16,6 @@ class PointagesLogScreen extends ConsumerWidget {
 
   const PointagesLogScreen({super.key, this.date});
 
-  /// Libellés métier clairs (DEPART = présence fin de journée)
   String _label(String type) {
     switch (type) {
       case 'DEPART':
@@ -42,6 +42,61 @@ class PointagesLogScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _share(BuildContext context, List<dynamic> rows) async {
+    final dateLabel = date == null
+        ? 'Tous les pointages'
+        : DateFormat('dd/MM/yyyy').format(DateTime.parse(date!));
+    final maps = rows
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+    final text = WhatsAppHelper.dailyPointagesReport(
+      dateLabel: dateLabel,
+      rows: maps,
+    );
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(
+              title: Text(
+                'Exporter le rapport',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.chat, color: Color(0xFF25D366)),
+              title: const Text('Envoyer par WhatsApp'),
+              onTap: () => Navigator.pop(ctx, 'wa'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy_rounded),
+              title: const Text('Copier le texte'),
+              onTap: () => Navigator.pop(ctx, 'copy'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    if (action == 'wa') {
+      await WhatsAppHelper.openWhatsApp(message: text);
+    } else if (action == 'copy') {
+      await WhatsAppHelper.copyMessage(text);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Rapport copié')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(pointagesLogProvider(date));
@@ -55,6 +110,18 @@ class PointagesLogScreen extends ConsumerWidget {
         title: Text(title),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: [
+          async.maybeWhen(
+            data: (rows) => rows.isEmpty
+                ? const SizedBox.shrink()
+                : IconButton(
+                    icon: const Icon(Icons.ios_share_rounded),
+                    tooltip: 'Exporter / WhatsApp',
+                    onPressed: () => _share(context, rows),
+                  ),
+            orElse: () => const SizedBox.shrink(),
+          ),
+        ],
       ),
       body: async.when(
         loading: () => const AsOneLoader(message: 'Chargement des pointages…'),
@@ -92,116 +159,171 @@ class PointagesLogScreen extends ConsumerWidget {
 
           final siteNames = bySite.keys.toList()..sort();
 
-          return RefreshIndicator(
-            onRefresh: () async =>
-                ref.invalidate(pointagesLogProvider(date)),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: siteNames.length,
-              itemBuilder: (_, i) {
-                final siteName = siteNames[i];
-                final list = bySite[siteName]!;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8, top: 4),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 4,
-                            height: 18,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              '$siteName · ${list.length} pointage(s)',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 13,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    ...list.map((p) {
-                      final agent =
-                          p['agent'] as Map<String, dynamic>? ?? {};
-                      final type = p['type'] as String? ?? 'DEPART';
-                      final name =
-                          '${agent['firstName'] ?? ''} ${agent['lastName'] ?? ''}'
-                              .trim();
-                      final noted =
-                          DateTime.tryParse(p['notedAt'] as String? ?? '');
-                      final color = _color(type);
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.border),
+          return Column(
+            children: [
+              // Barre d'actions visibles (même après création)
+              Material(
+                color: Colors.white,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _share(context, rows),
+                          icon: const Icon(Icons.chat, size: 18),
+                          label: const Text('WhatsApp'),
                         ),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: color.withValues(alpha: 0.12),
-                              child: Icon(Icons.fingerprint,
-                                  color: color, size: 20),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    name.isEmpty ? 'Agent' : name,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final dateLabel = date == null
+                                ? 'Tous'
+                                : DateFormat('dd/MM/yyyy')
+                                    .format(DateTime.parse(date!));
+                            final text = WhatsAppHelper.dailyPointagesReport(
+                              dateLabel: dateLabel,
+                              rows: rows
+                                  .map((e) =>
+                                      Map<String, dynamic>.from(e as Map))
+                                  .toList(),
+                            );
+                            await WhatsAppHelper.copyMessage(text);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Rapport copié')),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.copy_rounded, size: 18),
+                          label: const Text('Copier'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: () async =>
+                      ref.invalidate(pointagesLogProvider(date)),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: siteNames.length,
+                    itemBuilder: (_, i) {
+                      final siteName = siteNames[i];
+                      final list = bySite[siteName]!;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8, top: 4),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 4,
+                                  height: 18,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(2),
                                   ),
-                                  if (noted != null)
-                                    Text(
-                                      DateFormat('dd/MM/yyyy HH:mm')
-                                          .format(noted.toLocal()),
-                                      style: const TextStyle(
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '$siteName · ${list.length} pointage(s)',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ...list.map((p) {
+                            final agent =
+                                p['agent'] as Map<String, dynamic>? ?? {};
+                            final type = p['type'] as String? ?? 'DEPART';
+                            final name =
+                                '${agent['firstName'] ?? ''} ${agent['lastName'] ?? ''}'
+                                    .trim();
+                            final noted = DateTime.tryParse(
+                                p['notedAt'] as String? ?? '');
+                            final color = _color(type);
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor:
+                                        color.withValues(alpha: 0.12),
+                                    child: Icon(Icons.fingerprint,
+                                        color: color, size: 20),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          name.isEmpty ? 'Agent' : name,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w700),
+                                        ),
+                                        if (noted != null)
+                                          Text(
+                                            DateFormat('dd/MM/yyyy HH:mm')
+                                                .format(noted.toLocal()),
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: AppColors.textTertiary,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: color.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      _label(type),
+                                      style: TextStyle(
                                         fontSize: 11,
-                                        color: AppColors.textTertiary,
+                                        fontWeight: FontWeight.w800,
+                                        color: color,
                                       ),
                                     ),
+                                  ),
                                 ],
                               ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: color.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                _label(type),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: color,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                            );
+                          }),
+                          const SizedBox(height: 8),
+                        ],
                       );
-                    }),
-                    const SizedBox(height: 8),
-                  ],
-                );
-              },
-            ),
+                    },
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),

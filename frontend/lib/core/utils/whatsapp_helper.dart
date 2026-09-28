@@ -3,7 +3,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 /// Génère le texte métier et ouvre WhatsApp / SMS / copie.
 class WhatsAppHelper {
-  /// Message standard d'affectation
   static String assignmentMessage({
     required String agentName,
     required String siteName,
@@ -16,9 +15,19 @@ class WhatsAppHelper {
     String typeText = '';
     String periodText = '';
 
-    if (missionType == 'ROUTINE' && routineDays != null && routineDays.isNotEmpty) {
+    if (missionType == 'ROUTINE' &&
+        routineDays != null &&
+        routineDays.isNotEmpty) {
       typeText = 'pour une mission de routine';
-      final labels = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+      final labels = [
+        'lundi',
+        'mardi',
+        'mercredi',
+        'jeudi',
+        'vendredi',
+        'samedi',
+        'dimanche',
+      ];
       final days = routineDays.map((d) => labels[d - 1]).join(', ');
       periodText = 'chaque $days à partir du $startDate';
     } else if (missionType == 'PERMANENTE') {
@@ -42,11 +51,10 @@ Merci de confirmer votre disponibilité dans l'application AS ONE avant 22h.
 ${chefName != null ? '— $chefName' : '— AS ONE Facility Management'}''';
   }
 
-  /// Petit rapport de pointage par WhatsApp
   static String pointageReportMessage({
     required String siteName,
     required String date,
-    required String type, // ARRIVEE, DEPART, PRESENCE_PERMANENCE
+    required String type,
     required List<Map<String, dynamic>> agents,
   }) {
     final buf = StringBuffer();
@@ -55,12 +63,14 @@ ${chefName != null ? '— $chefName' : '— AS ONE Facility Management'}''';
     final typeLabel = type == 'ARRIVEE'
         ? 'Arrivée'
         : type == 'DEPART'
-            ? 'Départ'
-            : 'Présence';
+            ? 'Présent'
+            : type == 'ABSENT'
+                ? 'Absent'
+                : 'Présence';
     buf.writeln('🏷️ *Type :* $typeLabel');
     buf.writeln('');
-    buf.writeln('👥 *Agents pointés (${agents.length}) :*');
-    
+    buf.writeln('👥 *Agents (${agents.length}) :*');
+
     for (final agent in agents) {
       final name = agent['name'] ?? 'Inconnu';
       final phone = agent['phone'] ?? '—';
@@ -72,7 +82,75 @@ ${chefName != null ? '— $chefName' : '— AS ONE Facility Management'}''';
     return buf.toString();
   }
 
-  /// Rapport de fin de chantier (texte WhatsApp)
+  /// Rapport journalier de pointages (historique / agenda)
+  static String dailyPointagesReport({
+    required String dateLabel,
+    required List<Map<String, dynamic>> rows,
+  }) {
+    final buf = StringBuffer();
+    buf.writeln('📋 *RAPPORT POINTAGES — AS ONE*');
+    buf.writeln('📅 *$dateLabel*');
+    buf.writeln('');
+
+    final Map<String, List<Map<String, dynamic>>> bySite = {};
+    for (final p in rows) {
+      final site = p['site'] as Map<String, dynamic>? ?? {};
+      final name = site['name'] as String? ?? 'Site';
+      bySite.putIfAbsent(name, () => []).add(p);
+    }
+
+    for (final entry in bySite.entries) {
+      buf.writeln('📍 *${entry.key}* (${entry.value.length})');
+      for (final p in entry.value) {
+        final agent = p['agent'] as Map<String, dynamic>? ?? {};
+        final name =
+            '${agent['firstName'] ?? ''} ${agent['lastName'] ?? ''}'.trim();
+        final type = p['type'] as String? ?? 'DEPART';
+        final label = type == 'ABSENT'
+            ? 'Absent'
+            : type == 'ARRIVEE'
+                ? 'Arrivée'
+                : type == 'PRESENCE_PERMANENCE'
+                    ? 'Présence'
+                    : 'Présent';
+        buf.writeln('• ${name.isEmpty ? 'Agent' : name} — $label');
+      }
+      buf.writeln('');
+    }
+
+    buf.writeln('Total : ${rows.length} pointage(s)');
+    buf.writeln('— AS ONE Facility Management');
+    return buf.toString();
+  }
+
+  /// Rapport journalier d'incidents
+  static String dailyIncidentsReport({
+    required String dateLabel,
+    required List<Map<String, dynamic>> rows,
+  }) {
+    final buf = StringBuffer();
+    buf.writeln('⚠️ *RAPPORT INCIDENTS — AS ONE*');
+    buf.writeln('📅 *$dateLabel*');
+    buf.writeln('');
+
+    for (final p in rows) {
+      final site = p['site'] as Map<String, dynamic>? ?? {};
+      final siteName = site['name'] as String? ?? 'Site';
+      final desc = p['description'] as String? ?? '';
+      final status = p['status'] as String? ?? '';
+      final type = p['type'] as String? ?? '';
+      final severity = p['severity'] as String? ?? '';
+      buf.writeln('📍 *$siteName*');
+      buf.writeln('• $type · $severity · $status');
+      if (desc.isNotEmpty) buf.writeln('  $desc');
+      buf.writeln('');
+    }
+
+    buf.writeln('Total : ${rows.length} incident(s)');
+    buf.writeln('— AS ONE Facility Management');
+    return buf.toString();
+  }
+
   static String siteReportMessage(Map<String, dynamic> report) {
     final details = report['details'] as Map<String, dynamic>? ?? {};
     final site = details['site'] as Map<String, dynamic>? ?? {};
@@ -87,7 +165,6 @@ ${chefName != null ? '— $chefName' : '— AS ONE Facility Management'}''';
       if (d == null) return '—';
       final s = d.toString();
       if (s.length >= 10) {
-        // ISO → JJ/MM/AAAA
         try {
           final dt = DateTime.parse(s);
           final dd = dt.day.toString().padLeft(2, '0');
@@ -167,12 +244,10 @@ ${chefName != null ? '— $chefName' : '— AS ONE Facility Management'}''';
     return buf.toString();
   }
 
-  /// Nettoie le numéro pour wa.me
   static String cleanPhone(String phone) {
     return phone.replaceAll(RegExp(r'[^\d+]'), '').replaceAll('+', '');
   }
 
-  /// Ouvre WhatsApp (avec ou sans numéro — si vide, choix du contact)
   static Future<bool> openWhatsApp({
     String phone = '',
     required String message,
@@ -206,5 +281,13 @@ ${chefName != null ? '— $chefName' : '— AS ONE Facility Management'}''';
 
   static Future<void> copyMessage(String message) async {
     await Clipboard.setData(ClipboardData(text: message));
+  }
+
+  /// Menu d'actions partagées (WhatsApp / Copier)
+  static Future<void> shareReportActions({
+    required dynamic context,
+    required String message,
+  }) async {
+    // Utilisé via callbacks dans les écrans pour éviter import material ici
   }
 }
