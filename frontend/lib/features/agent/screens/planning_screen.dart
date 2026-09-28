@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/providers/providers.dart';
@@ -180,34 +179,42 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
     final isUnavailable = existing?.status == DayStatus.unavailable ||
         data.unavailableDates.contains(key);
 
+    // IMPORTANT: utiliser le context du dialogue (go_router),
+    // sinon Navigator.pop(context) peut ne rien faire ou fermer la route.
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(key),
-        content: Text(
-          isUnavailable
-              ? 'Marquer ce jour comme DISPONIBLE ?'
-              : 'Marquer ce jour comme INDISPONIBLE ?\n\n'
-                  'Le chef pourra toujours vous pointer si vous êtes présent.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(key),
+          content: Text(
+            isUnavailable
+                ? 'Marquer ce jour comme DISPONIBLE ?'
+                : 'Marquer ce jour comme INDISPONIBLE ?\n\n'
+                    'Le chef pourra toujours vous pointer si vous êtes présent.',
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  isUnavailable ? AppColors.accent : AppColors.danger,
+          actionsAlignment: MainAxisAlignment.spaceBetween,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Annuler'),
             ),
-            child: Text(isUnavailable ? 'Disponible' : 'Indisponible'),
-          ),
-        ],
-      ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor:
+                    isUnavailable ? AppColors.accent : AppColors.danger,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(140, 44),
+              ),
+              child: Text(isUnavailable ? 'Disponible' : 'Indisponible'),
+            ),
+          ],
+        );
+      },
     );
 
-    if (confirm != true) return;
+    if (confirm != true || !mounted) return;
 
     setState(() => _marking = true);
     try {
@@ -216,11 +223,10 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
         '/agent/availability-mark',
         data: {
           'date': key,
-          'available': isUnavailable,
+          'available': isUnavailable, // true = repasser dispo
         },
       );
 
-      // Force refresh calendrier
       ref.invalidate(agentCalendarProvider(_monthKey));
       await ref.read(agentCalendarProvider(_monthKey).future);
 
@@ -612,7 +618,7 @@ class _DayDetail extends StatelessWidget {
         ],
         const SizedBox(height: 16),
         if (canEdit)
-          ElevatedButton.icon(
+          FilledButton.icon(
             onPressed: marking ? null : onToggle,
             icon: marking
                 ? const SizedBox(
@@ -628,11 +634,12 @@ class _DayDetail extends StatelessWidget {
                         ? Icons.event_available
                         : Icons.event_busy,
                   ),
-            style: ElevatedButton.styleFrom(
+            style: FilledButton.styleFrom(
               backgroundColor: status == DayStatus.unavailable
                   ? AppColors.accent
                   : AppColors.danger,
               foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 48),
             ),
             label: Text(
               marking
