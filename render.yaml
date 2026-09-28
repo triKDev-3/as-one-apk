@@ -1,0 +1,18 @@
+# Blueprint Render — optionnel (New → Blueprint)
+# Ou configure manuellement selon docs/DEPLOY_FREE.md
+
+services:
+  - type: web
+    name: asone-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && node dist/main
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
