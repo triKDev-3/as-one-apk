@@ -13,14 +13,12 @@ export class UploadService {
     }
   }
 
-  /**
-   * Génère un nom de fichier unique et retourne l'URL relative.
-   * En prod, remplacer par Cloudinary si CLOUDINARY_URL est défini.
-   */
   buildPublicUrl(filename: string, reqHost?: string): string {
     const base =
       process.env.PUBLIC_API_URL ||
-      (reqHost ? `http://${reqHost}` : 'http://localhost:3000');
+      (reqHost
+        ? `${reqHost.includes('localhost') ? 'http' : 'https'}://${reqHost}`
+        : 'http://localhost:3000');
     return `${base}/uploads/${filename}`;
   }
 
