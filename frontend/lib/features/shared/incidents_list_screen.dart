@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/providers/providers.dart';
 import '../../core/network/api_client.dart';
+import '../../core/utils/whatsapp_helper.dart';
 import 'package:dio/dio.dart';
 
 final incidentsListProvider =
@@ -23,7 +24,6 @@ class IncidentsListScreen extends ConsumerWidget {
   final bool canResolve;
   final bool canApplyPenalty;
   final String reportRoute;
-  /// yyyy-MM-dd — filtre le jour (côté client)
   final String? date;
 
   const IncidentsListScreen({
@@ -42,6 +42,61 @@ class IncidentsListScreen extends ConsumerWidget {
     return key == day;
   }
 
+  Future<void> _share(
+    BuildContext context,
+    List<Map<String, dynamic>> rows,
+  ) async {
+    final dateLabel = date == null
+        ? 'Tous les incidents'
+        : DateFormat('dd/MM/yyyy').format(DateTime.parse(date!));
+    final text = WhatsAppHelper.dailyIncidentsReport(
+      dateLabel: dateLabel,
+      rows: rows,
+    );
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(
+              title: Text(
+                'Exporter le rapport',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.chat, color: Color(0xFF25D366)),
+              title: const Text('Envoyer par WhatsApp'),
+              onTap: () => Navigator.pop(ctx, 'wa'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy_rounded),
+              title: const Text('Copier le texte'),
+              onTap: () => Navigator.pop(ctx, 'copy'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    if (action == 'wa') {
+      await WhatsAppHelper.openWhatsApp(message: text);
+    } else if (action == 'copy') {
+      await WhatsAppHelper.copyMessage(text);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Rapport copié')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(incidentsListProvider);
@@ -55,6 +110,26 @@ class IncidentsListScreen extends ConsumerWidget {
         title: Text(title),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: [
+          async.maybeWhen(
+            data: (rows) {
+              var filtered = rows
+                  .map((e) => Map<String, dynamic>.from(e as Map))
+                  .toList();
+              if (date != null) {
+                filtered =
+                    filtered.where((p) => _matchesDate(p, date!)).toList();
+              }
+              if (filtered.isEmpty) return const SizedBox.shrink();
+              return IconButton(
+                icon: const Icon(Icons.ios_share_rounded),
+                tooltip: 'Exporter / WhatsApp',
+                onPressed: () => _share(context, filtered),
+              );
+            },
+            orElse: () => const SizedBox.shrink(),
+          ),
+        ],
       ),
       floatingActionButton: canCreate
           ? FloatingActionButton.extended(
@@ -99,7 +174,6 @@ class IncidentsListScreen extends ConsumerWidget {
             );
           }
 
-          // Regroupement par site
           final Map<String, List<Map<String, dynamic>>> bySite = {};
           for (final p in filtered) {
             final site = p['site'] as Map<String, dynamic>? ?? {};
@@ -108,53 +182,104 @@ class IncidentsListScreen extends ConsumerWidget {
           }
           final siteNames = bySite.keys.toList()..sort();
 
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(incidentsListProvider),
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
-              itemCount: siteNames.length,
-              itemBuilder: (_, i) {
-                final siteName = siteNames[i];
-                final list = bySite[siteName]!;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8, top: 4),
-                      child: Row(
+          return Column(
+            children: [
+              Material(
+                color: Colors.white,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _share(context, filtered),
+                          icon: const Icon(Icons.chat, size: 18),
+                          label: const Text('WhatsApp'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final dateLabel = date == null
+                                ? 'Tous'
+                                : DateFormat('dd/MM/yyyy')
+                                    .format(DateTime.parse(date!));
+                            final text = WhatsAppHelper.dailyIncidentsReport(
+                              dateLabel: dateLabel,
+                              rows: filtered,
+                            );
+                            await WhatsAppHelper.copyMessage(text);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Rapport copié')),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.copy_rounded, size: 18),
+                          label: const Text('Copier'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: () async =>
+                      ref.invalidate(incidentsListProvider),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
+                    itemCount: siteNames.length,
+                    itemBuilder: (_, i) {
+                      final siteName = siteNames[i];
+                      final list = bySite[siteName]!;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 4,
-                            height: 18,
-                            decoration: BoxDecoration(
-                              color: AppColors.danger,
-                              borderRadius: BorderRadius.circular(2),
+                          Padding(
+                            padding:
+                                const EdgeInsets.only(bottom: 8, top: 4),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 4,
+                                  height: 18,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.danger,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '$siteName · ${list.length}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '$siteName · ${list.length}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
+                          ...list.map(
+                            (p) => _IncidentCard(
+                              data: p,
+                              canResolve: canResolve,
+                              canApplyPenalty: canApplyPenalty,
                             ),
                           ),
+                          const SizedBox(height: 8),
                         ],
-                      ),
-                    ),
-                    ...list.map(
-                      (p) => _IncidentCard(
-                        data: p,
-                        canResolve: canResolve,
-                        canApplyPenalty: canApplyPenalty,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                );
-              },
-            ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),
