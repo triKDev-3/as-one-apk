@@ -22,6 +22,37 @@ export class AgentService {
     private readonly notify: NotificationsService,
   ) {}
 
+  private hourInLome(now = new Date()): number {
+    const hourTogo = Number(
+      new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Africa/Lome',
+        hour: 'numeric',
+        hour12: false,
+      }).format(now),
+    );
+    return hourTogo === 24 ? 0 : hourTogo;
+  }
+
+  private assertBefore22h() {
+    if (this.hourInLome() >= 22) {
+      throw new BadRequestException(
+        'Les disponibilités ne sont plus modifiables après 22h (heure de Lomé)',
+      );
+    }
+  }
+
+  private async ensureAgentProfile(userId: string) {
+    let profile = await this.prisma.agentProfile.findUnique({
+      where: { userId },
+    });
+    if (!profile) {
+      profile = await this.prisma.agentProfile.create({
+        data: { userId, isAvailable: true, unavailableDates: [] },
+      });
+    }
+    return profile;
+  }
+
   /** Notifie les chefs des sites où l'agent a une affectation active. */
   private async notifyChefsOfUnavailability(
     agentId: string,
@@ -91,28 +122,15 @@ export class AgentService {
       throw new ForbiddenException('Seul un agent peut modifier sa disponibilité');
     }
 
-    const now = new Date();
-    const hourTogo = Number(
-      new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'Africa/Lome',
-        hour: 'numeric',
-        hour12: false,
-      }).format(now),
-    );
-    if ((hourTogo === 24 ? 0 : hourTogo) >= 22) {
-      throw new BadRequestException(
-        'Les disponibilités ne sont plus modifiables après 22h',
-      );
-    }
+    this.assertBefore22h();
 
-    if (!user.agentProfile) {
-      await this.prisma.agentProfile.create({ data: { userId, isAvailable } });
-    } else {
-      await this.prisma.agentProfile.update({
-        where: { userId },
-        data: { isAvailable, lastAvailabilityChange: now },
-      });
-    }
+    const now = new Date();
+    await this.ensureAgentProfile(userId);
+
+    await this.prisma.agentProfile.update({
+      where: { userId },
+      data: { isAvailable, lastAvailabilityChange: now },
+    });
 
     const profile = await this.prisma.agentProfile.findUnique({
       where: { userId },
@@ -123,7 +141,6 @@ export class AgentService {
       });
     }
 
-    // Notif chefs si passage en indisponible
     if (!isAvailable) {
       const name = `${user.firstName} ${user.lastName}`.trim();
       await this.notifyChefsOfUnavailability(userId, name, {
@@ -131,10 +148,12 @@ export class AgentService {
       });
     }
 
-    return { isAvailable, updatedAt: now };
+    return { isAvailable, updatedAt: now.toISOString() };
   }
 
   async getMyDashboard(userId: string) {
+    await this.ensureAgentProfile(userId);
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -256,6 +275,8 @@ export class AgentService {
       resolvedMonth = `${y}-${String(m + 1).padStart(2, '0')}`;
     }
 
+    await this.ensureAgentProfile(agentId);
+
     const [pointages, assignments, profile] = await Promise.all([
       this.prisma.pointage.findMany({
         where: {
@@ -296,8 +317,9 @@ export class AgentService {
       }),
     ]);
 
-    const unavailableDates: string[] =
-      (profile?.unavailableDates as string[]) || [];
+    const unavailableDates: string[] = Array.isArray(profile?.unavailableDates)
+      ? (profile!.unavailableDates as string[])
+      : [];
 
     const calendarMap: Record<string, DayCell> = {};
 
@@ -327,6 +349,10 @@ export class AgentService {
         }
       }
       if (opts?.conflict) existing.conflict = true;
+      // worked / absent ont priorité sur unavailable
+      if (status === 'worked' || status === 'absent') {
+        existing.status = status;
+      }
     };
 
     for (const asg of assignments) {
@@ -336,7 +362,10 @@ export class AgentService {
       let aEnd: Date;
       if (asg.endDate) {
         aEnd = new Date(asg.endDate);
-      } else if (asg.missionType === 'PERMANENTE' || asg.missionType === 'ROUTINE') {
+      } else if (
+        asg.missionType === 'PERMANENTE' ||
+        asg.missionType === 'ROUTINE'
+      ) {
         aEnd = new Date(endDate);
       } else {
         aEnd = new Date(aStart);
@@ -363,7 +392,11 @@ export class AgentService {
                 ? 'assigned_pending'
                 : 'assigned';
             const cur = calendarMap[dateKey];
-            if (!cur || cur.status === 'routine' || cur.status === 'assigned_pending') {
+            if (
+              !cur ||
+              cur.status === 'routine' ||
+              cur.status === 'assigned_pending'
+            ) {
               setDay(dateKey, status, asg.site.name);
             } else if (cur.status === 'assigned') {
               setDay(dateKey, 'assigned', asg.site.name);
@@ -374,19 +407,29 @@ export class AgentService {
       }
     }
 
+    // Indispos : affichage prioritaire sauf worked/absent
     for (const d of unavailableDates) {
-      if (d < startDate.toISOString().slice(0, 10) || d > endDate.toISOString().slice(0, 10)) {
+      if (
+        d < startDate.toISOString().slice(0, 10) ||
+        d > endDate.toISOString().slice(0, 10)
+      ) {
         continue;
       }
       const cur = calendarMap[d];
       if (!cur) {
         calendarMap[d] = { status: 'unavailable' };
-      } else if (
-        cur.status === 'assigned' ||
-        cur.status === 'assigned_pending' ||
-        cur.status === 'routine'
-      ) {
-        cur.conflict = true;
+      } else if (cur.status === 'worked' || cur.status === 'absent') {
+        // pointage gagne
+      } else {
+        calendarMap[d] = {
+          status: 'unavailable',
+          siteName: cur.siteName,
+          sites: cur.sites,
+          conflict:
+            cur.status === 'assigned' ||
+            cur.status === 'assigned_pending' ||
+            cur.status === 'routine',
+        };
       }
     }
 
@@ -434,6 +477,7 @@ export class AgentService {
     return {
       month: resolvedMonth,
       days: calendarMap,
+      unavailableDates,
       stats: {
         worked,
         absent,
@@ -501,11 +545,7 @@ export class AgentService {
   }
 
   async markMonthPaid(agentId: string, monthKey: string) {
-    const profile = await this.prisma.agentProfile.findUnique({
-      where: { userId: agentId },
-    });
-    if (!profile) throw new NotFoundException('Profil agent non trouvé');
-
+    const profile = await this.ensureAgentProfile(agentId);
     const paidMonths = (profile.paidMonths as Record<string, string>) || {};
     paidMonths[monthKey] = new Date().toISOString();
 
@@ -528,29 +568,46 @@ export class AgentService {
       );
     }
 
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException();
+    this.assertBefore22h();
 
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.role !== Role.AGENT) {
+      throw new ForbiddenException('Seul un agent peut modifier sa disponibilité');
+    }
+
+    // Interdire les dates passées (aujourd’hui OK)
+    const todayKey = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Lome',
+    }).format(new Date()); // YYYY-MM-DD
+    if (date < todayKey) {
+      throw new BadRequestException(
+        'Impossible de modifier un jour déjà passé',
+      );
+    }
+
+    await this.ensureAgentProfile(userId);
     const profile = await this.prisma.agentProfile.findUnique({
       where: { userId },
     });
+    if (!profile) throw new NotFoundException('Profil agent non trouvé');
 
-    if (!profile) {
-      throw new NotFoundException('Profil agent non trouvé');
-    }
-
-    let unavailableDates: string[] =
-      (profile.unavailableDates as string[]) || [];
+    let unavailableDates: string[] = Array.isArray(profile.unavailableDates)
+      ? [...(profile.unavailableDates as string[])]
+      : [];
 
     if (available) {
       unavailableDates = unavailableDates.filter((d) => d !== date);
     } else if (!unavailableDates.includes(date)) {
       unavailableDates.push(date);
+      unavailableDates.sort();
     }
 
     await this.prisma.agentProfile.update({
       where: { userId },
-      data: { unavailableDates },
+      data: {
+        unavailableDates,
+        lastAvailabilityChange: new Date(),
+      },
     });
 
     if (!available) {
@@ -558,6 +615,11 @@ export class AgentService {
       await this.notifyChefsOfUnavailability(userId, name, { date });
     }
 
-    return { success: true, date, available };
+    return {
+      success: true,
+      date,
+      available,
+      unavailableDates,
+    };
   }
 }
