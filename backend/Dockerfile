@@ -1,5 +1,5 @@
-# AS ONE API — image production (Render / Docker)
-# Debian slim évite les erreurs OpenSSL/Alpine avec Prisma
+# AS ONE API — production (Render)
+# v2 — force rebuild dist + start robuste
 
 FROM node:20-bookworm-slim AS builder
 
@@ -9,12 +9,16 @@ RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /v
 
 COPY package*.json ./
 COPY prisma ./prisma/
+COPY nest-cli.json tsconfig.json tsconfig.build.json ./
 
 RUN npm ci
 RUN npx prisma generate
 
-COPY . .
-RUN npm run build
+COPY src ./src
+RUN npx nest build \
+  && echo "=== dist layout ===" \
+  && find dist -type f -name "*.js" | head -50 \
+  && (test -f dist/main.js || test -f dist/src/main.js)
 
 # --- production ---
 FROM node:20-bookworm-slim
@@ -28,13 +32,18 @@ RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /v
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# prisma CLI nécessaire pour db push au démarrage
-RUN npm ci --omit=dev && npm install prisma@5.22.0 --no-save && npx prisma generate
+RUN npm ci --omit=dev \
+  && npm install prisma@5.22.0 --no-save \
+  && npx prisma generate
 
 COPY --from=builder /app/dist ./dist
-RUN mkdir -p uploads
+
+RUN mkdir -p uploads \
+  && echo "=== runtime dist ===" \
+  && find dist -type f -name "*.js" | head -20 \
+  && (test -f dist/main.js || test -f dist/src/main.js)
 
 EXPOSE 3000
 
-# Création du schéma sur Supabase puis lancement de l'API
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/main"]
+# db push puis démarrage (main.js ou src/main.js selon nest)
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && if [ -f dist/main.js ]; then node dist/main.js; else node dist/src/main.js; fi"]
