@@ -41,10 +41,8 @@ class AdminSitesScreen extends ConsumerWidget {
             return const Center(child: Text('Aucun site.'));
           }
 
-          final withOps =
-              sites.where((s) => s.hasOperations).length;
-          final withoutChef =
-              sites.where((s) => !s.hasChefs).length;
+          final withOps = sites.where((s) => s.hasOperations).length;
+          final withoutChef = sites.where((s) => !s.hasChefs).length;
 
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(adminSitesListProvider),
@@ -55,18 +53,18 @@ class AdminSitesScreen extends ConsumerWidget {
                 if (i == 0) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
                         _SummaryChip(
                           label: '${sites.length} sites',
                           color: AppColors.primary,
                         ),
-                        const SizedBox(width: 8),
                         _SummaryChip(
                           label: '$withOps en opération',
                           color: AppColors.accent,
                         ),
-                        const SizedBox(width: 8),
                         _SummaryChip(
                           label: '$withoutChef sans chef',
                           color: withoutChef > 0
@@ -121,6 +119,58 @@ class _AdminSiteCard extends ConsumerWidget {
 
   const _AdminSiteCard({required this.site, required this.onChanged});
 
+  Future<void> _edit(BuildContext context, WidgetRef ref) async {
+    final ok = await context.push('/admin/sites/edit', extra: site);
+    if (ok == true) onChanged();
+  }
+
+  Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Désactiver ce site ?'),
+        content: Text(
+          '« ${site.name} » ne sera plus visible pour les chefs. '
+          'L’historique (pointages, affectations) est conservé.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Désactiver'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    try {
+      await ref.read(sitesRepositoryProvider).deleteSite(site.id);
+      onChanged();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Site « ${site.name} » désactivé'),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _manageChefs(BuildContext context, WidgetRef ref) async {
     final api = ref.read(apiClientProvider);
     final repo = ref.read(sitesRepositoryProvider);
@@ -154,173 +204,105 @@ class _AdminSiteCard extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setSt) {
-            final assignedIds = site.chefIds.toSet();
-
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Chefs — ${site.name}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Plusieurs chefs peuvent être assignés au même site.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (chefs.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text('Aucun chef actif dans le système.'),
-                      )
-                    else
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: MediaQuery.of(ctx).size.height * 0.5,
-                        ),
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: chefs.length,
-                          itemBuilder: (_, i) {
-                            final chef = chefs[i] as Map<String, dynamic>;
-                            final id = chef['id'] as String;
-                            final name =
-                                '${chef['firstName'] ?? ''} ${chef['lastName'] ?? ''}'
-                                    .trim();
-                            final already = assignedIds.contains(id);
-
-                            return ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: CircleAvatar(
-                                backgroundColor: already
-                                    ? AppColors.accent.withValues(alpha: 0.15)
-                                    : AppColors.primary.withValues(alpha: 0.1),
-                                child: Icon(
-                                  already
-                                      ? Icons.check_rounded
-                                      : Icons.person_outline,
-                                  color: already
-                                      ? AppColors.accent
-                                      : AppColors.primary,
-                                  size: 20,
-                                ),
-                              ),
-                              title: Text(
-                                name,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: already
-                                      ? AppColors.accent
-                                      : AppColors.textPrimary,
-                                ),
-                              ),
-                              subtitle: Text(
-                                already
-                                    ? 'Déjà assigné à ce site'
-                                    : 'Appuyer pour assigner',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: already
-                                      ? AppColors.accent
-                                      : AppColors.textSecondary,
-                                ),
-                              ),
-                              trailing: already
-                                  ? IconButton(
-                                      tooltip: 'Retirer',
-                                      icon: const Icon(Icons.remove_circle_outline,
-                                          color: AppColors.danger),
-                                      onPressed: () async {
-                                        try {
-                                          await repo.removeChef(site.id, id);
-                                          if (ctx.mounted) Navigator.pop(ctx);
-                                          onChanged();
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                    '$name retiré du site'),
-                                                backgroundColor:
-                                                    AppColors.warning,
-                                              ),
-                                            );
-                                          }
-                                        } catch (e) {
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
-                                              SnackBar(
-                                                content: Text('$e'),
-                                                backgroundColor:
-                                                    AppColors.danger,
-                                              ),
-                                            );
-                                          }
-                                        }
-                                      },
-                                    )
-                                  : IconButton(
-                                      tooltip: 'Assigner',
-                                      icon: const Icon(Icons.person_add_alt_1,
-                                          color: AppColors.primary),
-                                      onPressed: () async {
-                                        try {
-                                          await repo.assignChef(site.id, id);
-                                          if (ctx.mounted) Navigator.pop(ctx);
-                                          onChanged();
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                    '$name assigné à ${site.name}'),
-                                                backgroundColor:
-                                                    AppColors.accent,
-                                              ),
-                                            );
-                                          }
-                                        } catch (e) {
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
-                                              SnackBar(
-                                                content: Text('$e'),
-                                                backgroundColor:
-                                                    AppColors.danger,
-                                              ),
-                                            );
-                                          }
-                                        }
-                                      },
-                                    ),
-                            );
-                          },
-                        ),
-                      ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Fermer'),
-                    ),
-                  ],
+        final assignedIds = site.chefIds.toSet();
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Chefs — ${site.name}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
                 ),
-              ),
-            );
-          },
+                const SizedBox(height: 4),
+                const Text(
+                  'Plusieurs chefs peuvent être assignés au même site.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (chefs.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('Aucun chef actif.'),
+                  )
+                else
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(ctx).size.height * 0.5,
+                    ),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: chefs.length,
+                      itemBuilder: (_, i) {
+                        final chef = chefs[i] as Map<String, dynamic>;
+                        final id = chef['id'] as String;
+                        final name =
+                            '${chef['firstName'] ?? ''} ${chef['lastName'] ?? ''}'
+                                .trim();
+                        final already = assignedIds.contains(id);
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(name,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600)),
+                          subtitle: Text(
+                            already ? 'Déjà assigné' : 'Appuyer pour assigner',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: already
+                                  ? AppColors.accent
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                          trailing: IconButton(
+                            icon: Icon(
+                              already
+                                  ? Icons.remove_circle_outline
+                                  : Icons.person_add_alt_1,
+                              color: already
+                                  ? AppColors.danger
+                                  : AppColors.primary,
+                            ),
+                            onPressed: () async {
+                              try {
+                                if (already) {
+                                  await repo.removeChef(site.id, id);
+                                } else {
+                                  await repo.assignChef(site.id, id);
+                                }
+                                if (ctx.mounted) Navigator.pop(ctx);
+                                onChanged();
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('$e'),
+                                      backgroundColor: AppColors.danger,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Fermer'),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -343,7 +325,7 @@ class _AdminSiteCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Opérations en cours — ${site.name}',
+                  'Opérations — ${site.name}',
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
@@ -353,41 +335,12 @@ class _AdminSiteCard extends ConsumerWidget {
                 if (list.isEmpty)
                   const Text('Aucune affectation active.')
                 else
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(ctx).size.height * 0.45,
-                    ),
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: list.length,
-                      itemBuilder: (_, i) {
-                        final a = list[i];
-                        final pending =
-                            a.status == 'PENDING_CONFIRMATION';
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(
-                            pending
-                                ? Icons.hourglass_top_rounded
-                                : Icons.person_pin_rounded,
-                            color: pending
-                                ? AppColors.warning
-                                : AppColors.accent,
-                          ),
-                          title: Text(a.agentName,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w600)),
-                          subtitle: Text(
-                            pending ? 'En attente de confirmation' : a.status,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: pending
-                                  ? AppColors.warning
-                                  : AppColors.textSecondary,
-                            ),
-                          ),
-                        );
-                      },
+                  ...list.map(
+                    (a) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(a.agentName,
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text(a.status),
                     ),
                   ),
                 TextButton(
@@ -452,7 +405,7 @@ class _AdminSiteCard extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        site.address ?? site.typeLabel,
+                        '${site.typeLabel}${site.address != null ? ' · ${site.address}' : ''}',
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.textSecondary,
@@ -461,106 +414,99 @@ class _AdminSiteCard extends ConsumerWidget {
                     ],
                   ),
                 ),
-                IconButton(
-                  tooltip: 'Gérer les chefs',
-                  icon: const Icon(Icons.manage_accounts_rounded,
-                      color: AppColors.primary),
-                  onPressed: () => _manageChefs(context, ref),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            // Chefs assignés
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  site.hasChefs
-                      ? Icons.supervisor_account_rounded
-                      : Icons.person_off_outlined,
-                  size: 18,
-                  color: site.hasChefs
-                      ? AppColors.accent
-                      : AppColors.warning,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: site.hasChefs
-                      ? Wrap(
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: site.chefs
-                              .map(
-                                (c) => Chip(
-                                  visualDensity: VisualDensity.compact,
-                                  label: Text(
-                                    c.fullName,
-                                    style: const TextStyle(fontSize: 11),
-                                  ),
-                                  backgroundColor:
-                                      AppColors.accent.withValues(alpha: 0.1),
-                                  side: BorderSide.none,
-                                ),
-                              )
-                              .toList(),
-                        )
-                      : const Text(
-                          'Aucun chef assigné — appuyez sur l’icône pour en ajouter',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.warning,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            // Opérations en cours
-            InkWell(
-              onTap: site.hasOperations ? () => _showOperations(context) : null,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: site.hasOperations
-                      ? AppColors.accent.withValues(alpha: 0.08)
-                      : AppColors.background,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.engineering_rounded,
-                      size: 18,
-                      color: site.hasOperations
-                          ? AppColors.accent
-                          : AppColors.textTertiary,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        site.hasOperations
-                            ? '${site.activeAgentsCount} agent(s) en opération — voir détail'
-                            : 'Aucune opération en cours',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: site.hasOperations
-                              ? AppColors.accent
-                              : AppColors.textSecondary,
-                        ),
+                PopupMenuButton<String>(
+                  onSelected: (v) {
+                    switch (v) {
+                      case 'edit':
+                        _edit(context, ref);
+                        break;
+                      case 'chefs':
+                        _manageChefs(context, ref);
+                        break;
+                      case 'ops':
+                        _showOperations(context);
+                        break;
+                      case 'delete':
+                        _delete(context, ref);
+                        break;
+                    }
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: ListTile(
+                        dense: true,
+                        leading: Icon(Icons.edit_outlined),
+                        title: Text('Modifier'),
+                        contentPadding: EdgeInsets.zero,
                       ),
                     ),
-                    if (site.hasOperations)
-                      const Icon(Icons.chevron_right,
-                          size: 18, color: AppColors.accent),
+                    PopupMenuItem(
+                      value: 'chefs',
+                      child: ListTile(
+                        dense: true,
+                        leading: Icon(Icons.manage_accounts_outlined),
+                        title: Text('Gérer les chefs'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'ops',
+                      child: ListTile(
+                        dense: true,
+                        leading: Icon(Icons.groups_outlined),
+                        title: Text('Opérations en cours'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    PopupMenuDivider(),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: ListTile(
+                        dense: true,
+                        leading: Icon(Icons.block, color: AppColors.danger),
+                        title: Text('Désactiver',
+                            style: TextStyle(color: AppColors.danger)),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
                   ],
                 ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              site.chefsLabel,
+              style: TextStyle(
+                fontSize: 13,
+                color: site.hasChefs
+                    ? AppColors.textPrimary
+                    : AppColors.warning,
+                fontWeight:
+                    site.hasChefs ? FontWeight.w500 : FontWeight.w600,
               ),
             ),
+            if (site.hasOperations) ...[
+              const SizedBox(height: 6),
+              Text(
+                '${site.activeAgentsCount} agent(s) en opération',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.accent,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            if (site.dailyRate != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Tarif jour : ${site.dailyRate!.toStringAsFixed(0)} FCFA',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
           ],
         ),
       ),
