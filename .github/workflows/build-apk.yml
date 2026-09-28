@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       api_base_url:
-        description: 'URL de l’API (ex: http://10.208.121.45:3000 ou https://api.asone.services)'
+        description: 'URL de l’API'
         required: false
-        default: 'http://10.208.121.45:3000'
+        default: 'https://as-one-apk.onrender.com'
       build_type:
         description: 'Type de build'
         required: false
@@ -65,12 +65,11 @@ jobs:
       - name: Build APK universel
         working-directory: frontend
         env:
-          API_URL: ${{ github.event.inputs.api_base_url || 'http://10.208.121.45:3000' }}
+          API_URL: ${{ github.event.inputs.api_base_url || 'https://as-one-apk.onrender.com' }}
           BUILD_TYPE: ${{ github.event.inputs.build_type || 'debug' }}
         run: |
           echo "API_BASE_URL=$API_URL"
           echo "BUILD_TYPE=$BUILD_TYPE"
-          # APK universel (arm64 + armeabi-v7a + x86_64) pour tous les téléphones
           if [ "$BUILD_TYPE" = "release" ]; then
             flutter build apk --release \
               --dart-define=API_BASE_URL="$API_URL"
@@ -97,9 +96,8 @@ jobs:
           echo "### APK AS ONE prêt" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Package ID :** \`services.asone.app\`" >> $GITHUB_STEP_SUMMARY
+          echo "**API :** \`${{ github.event.inputs.api_base_url || 'https://as-one-apk.onrender.com' }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. Désinstalle toute ancienne app **asone** / **asone_app** sur le téléphone" >> $GITHUB_STEP_SUMMARY
+          echo "1. Désinstalle l’ancienne app AS ONE" >> $GITHUB_STEP_SUMMARY
           echo "2. Télécharge l’artifact **asone-apk-debug**" >> $GITHUB_STEP_SUMMARY
-          echo "3. Dézippe → installe \`asone-debug.apk\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "API : \`${{ github.event.inputs.api_base_url || 'http://10.208.121.45:3000' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. Installe \`asone-debug.apk\`" >> $GITHUB_STEP_SUMMARY

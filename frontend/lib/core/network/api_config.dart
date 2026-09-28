@@ -1,14 +1,13 @@
 /// Configuration de l'API AS ONE
 class ApiConfig {
-  /// Change cette URL selon ton environnement
-  /// - Local : http://10.0.2.2:3000  (Android emulator)
-  /// - Local : http://localhost:3000 (iOS simulator / Web / Desktop)
-  /// - Production : https://ton-domaine.com
+  /// URL de production (Render).
+  /// Surcharge possible au build : --dart-define=API_BASE_URL=https://...
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.208.121.45:3000',
+    defaultValue: 'https://as-one-apk.onrender.com',
   );
 
-  static const Duration connectTimeout = Duration(seconds: 15);
-  static const Duration receiveTimeout = Duration(seconds: 20);
+  /// Timeouts plus longs : Render Free peut mettre 30–60s à se réveiller
+  static const Duration connectTimeout = Duration(seconds: 60);
+  static const Duration receiveTimeout = Duration(seconds: 60);
 }
