@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/providers.dart';
 import '../network/realtime_service.dart';
+import '../services/local_notification_service.dart';
 import '../theme/app_colors.dart';
 import '../../features/agent/agent_home_screen.dart';
 
@@ -33,8 +34,13 @@ class _RealtimeListenerState extends ConsumerState<RealtimeListener> {
     } catch (_) {}
   }
 
-  void _show(String title, String body, Color color) {
-    _ring();
+  Future<void> _show(String title, String body, Color color) async {
+    await _ring();
+    // Bandeau système (même si l'app est en arrière-plan et le process actif)
+    unawaited(
+      LocalNotificationService.instance.show(title: title, body: body),
+    );
+
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) return;
     messenger.hideCurrentSnackBar();
