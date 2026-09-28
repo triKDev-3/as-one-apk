@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSiteDto } from './dto/create-site.dto';
 import { UpdateSiteDto } from './dto/update-site.dto';
@@ -30,6 +35,12 @@ export class SitesService {
 
   async update(id: string, dto: UpdateSiteDto) {
     await this.findOne(id);
+
+    // Interdire de désactiver via PATCH si le site a déjà des actions
+    if (dto.isActive === false) {
+      await this.assertCanDeactivate(id);
+    }
+
     return this.prisma.site.update({
       where: { id },
       data: {
@@ -70,13 +81,66 @@ export class SitesService {
     });
   }
 
-  /** Désactivation (soft delete) — conserve l’historique. */
+  /**
+   * Désactivation uniquement si aucune action n’a été menée sur le site
+   * (affectations, pointages, incidents, fiches, tâches, rapports, permanences).
+   */
   async softDelete(id: string) {
     await this.findOne(id);
+    await this.assertCanDeactivate(id);
     return this.prisma.site.update({
       where: { id },
       data: { isActive: false },
     });
+  }
+
+  private async assertCanDeactivate(siteId: string) {
+    const [
+      assignments,
+      pointages,
+      incidents,
+      fiches,
+      tasks,
+      reports,
+      schedules,
+      movements,
+    ] = await Promise.all([
+      this.prisma.assignment.count({ where: { siteId } }),
+      this.prisma.pointage.count({ where: { siteId } }),
+      this.prisma.incident.count({ where: { siteId } }),
+      this.prisma.materialFiche.count({ where: { siteId } }),
+      this.prisma.siteTask.count({ where: { siteId } }),
+      this.prisma.siteReport.count({ where: { siteId } }),
+      this.prisma.permanenceSchedule.count({ where: { siteId } }),
+      this.prisma.materialMovement.count({ where: { siteId } }),
+    ]);
+
+    const total =
+      assignments +
+      pointages +
+      incidents +
+      fiches +
+      tasks +
+      reports +
+      schedules +
+      movements;
+
+    if (total > 0) {
+      const details: string[] = [];
+      if (assignments) details.push(`${assignments} affectation(s)`);
+      if (pointages) details.push(`${pointages} pointage(s)`);
+      if (incidents) details.push(`${incidents} incident(s)`);
+      if (fiches) details.push(`${fiches} fiche(s) matériel`);
+      if (tasks) details.push(`${tasks} tâche(s)`);
+      if (reports) details.push(`${reports} rapport(s)`);
+      if (schedules) details.push(`${schedules} planning(s) permanence`);
+      if (movements) details.push(`${movements} mouvement(s) matériel`);
+
+      throw new BadRequestException(
+        `Impossible de supprimer ou désactiver ce site : des actions ont déjà été menées (${details.join(', ')}). ` +
+          `Le site doit rester disponible pour l’historique et la paie.`,
+      );
+    }
   }
 
   async findAll(type?: string, userId?: string, role?: string, all?: boolean) {
@@ -106,17 +170,14 @@ export class SitesService {
         },
         _count: {
           select: {
-            assignments: {
-              where: {
-                status: {
-                  in: [
-                    AssignmentStatus.PENDING_CONFIRMATION,
-                    AssignmentStatus.CONFIRMED,
-                    AssignmentStatus.LOCKED,
-                  ],
-                },
-              },
-            },
+            assignments: true,
+            pointages: true,
+            incidents: true,
+            materialFiches: true,
+            siteTasks: true,
+            reports: true,
+            permanenceSchedules: true,
+            materials: true,
           },
         },
       },
@@ -148,9 +209,21 @@ export class SitesService {
           take: 50,
         });
 
+        const c = s._count;
+        const hasAnyHistory =
+          c.assignments > 0 ||
+          c.pointages > 0 ||
+          c.incidents > 0 ||
+          c.materialFiches > 0 ||
+          c.siteTasks > 0 ||
+          c.reports > 0 ||
+          c.permanenceSchedules > 0 ||
+          c.materials > 0;
+
         return {
           ...s,
-          activeAgentsCount: s._count.assignments,
+          activeAgentsCount: activeAssignments.length,
+          canDelete: !hasAnyHistory,
           activeAssignments: activeAssignments.map((a) => ({
             id: a.id,
             status: a.status,

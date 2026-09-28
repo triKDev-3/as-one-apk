@@ -75,6 +75,8 @@ class SiteModel {
   final double? bonusAmount;
   final double? monthlySalary;
   final double? fixedAmount;
+  /// false si des actions ont déjà été menées (pointages, affectations…)
+  final bool canDelete;
 
   SiteModel({
     required this.id,
@@ -95,6 +97,7 @@ class SiteModel {
     this.bonusAmount,
     this.monthlySalary,
     this.fixedAmount,
+    this.canDelete = true,
   });
 
   factory SiteModel.fromJson(Map<String, dynamic> json) {
@@ -135,6 +138,7 @@ class SiteModel {
       bonusAmount: toDouble(json['bonusAmount']),
       monthlySalary: toDouble(json['monthlySalary']),
       fixedAmount: toDouble(json['fixedAmount']),
+      canDelete: json['canDelete'] as bool? ?? true,
     );
   }
 
