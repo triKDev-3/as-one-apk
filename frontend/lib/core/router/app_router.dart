@@ -90,7 +90,6 @@ class AppRouter {
             builder: (_, __) => const ChefHomeScreen(),
             routes: [
               GoRoute(path: 'select-site', builder: (_, __) => const SelectSiteScreen()),
-              // Site → Agenda (flux principal)
               GoRoute(
                 path: 'site/:siteId/agenda',
                 builder: (_, state) => ChefSiteAgendaScreen(
@@ -98,7 +97,6 @@ class AppRouter {
                   site: state.extra as SiteModel?,
                 ),
               ),
-              // Ancienne fiche site (toujours accessible si besoin)
               GoRoute(
                 path: 'site/:siteId',
                 builder: (_, state) => SiteDetailsScreen(
@@ -292,6 +290,12 @@ class AppRouter {
               GoRoute(path: 'users', builder: (_, __) => const UsersListScreen()),
               GoRoute(path: 'users/create', builder: (_, __) => const CreateUserScreen()),
               GoRoute(path: 'sites/create', builder: (_, __) => const CreateSiteScreen()),
+              GoRoute(
+                path: 'sites/edit',
+                builder: (_, state) => CreateSiteScreen(
+                  site: state.extra as SiteModel?,
+                ),
+              ),
               GoRoute(path: 'sites', builder: (_, __) => const AdminSitesScreen()),
               GoRoute(path: 'ranking', builder: (_, __) => const RankingScreen()),
               GoRoute(
