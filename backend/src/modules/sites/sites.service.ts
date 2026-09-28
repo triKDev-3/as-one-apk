@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSiteDto } from './dto/create-site.dto';
+import { UpdateSiteDto } from './dto/update-site.dto';
 import { AssignmentStatus } from '@prisma/client';
 
 @Injectable()
@@ -24,6 +25,57 @@ export class SitesService {
         fixedAmount: dto.fixedAmount,
         createdById,
       },
+    });
+  }
+
+  async update(id: string, dto: UpdateSiteDto) {
+    await this.findOne(id);
+    return this.prisma.site.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.type !== undefined ? { type: dto.type } : {}),
+        ...(dto.address !== undefined ? { address: dto.address } : {}),
+        ...(dto.location !== undefined ? { location: dto.location } : {}),
+        ...(dto.startDate !== undefined
+          ? { startDate: dto.startDate ? new Date(dto.startDate) : null }
+          : {}),
+        ...(dto.endDate !== undefined
+          ? { endDate: dto.endDate ? new Date(dto.endDate) : null }
+          : {}),
+        ...(dto.dailyRate !== undefined ? { dailyRate: dto.dailyRate } : {}),
+        ...(dto.nightRate !== undefined ? { nightRate: dto.nightRate } : {}),
+        ...(dto.sundayRate !== undefined ? { sundayRate: dto.sundayRate } : {}),
+        ...(dto.bonusAmount !== undefined ? { bonusAmount: dto.bonusAmount } : {}),
+        ...(dto.monthlySalary !== undefined
+          ? { monthlySalary: dto.monthlySalary }
+          : {}),
+        ...(dto.fixedAmount !== undefined ? { fixedAmount: dto.fixedAmount } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+      },
+      include: {
+        chefs: {
+          include: {
+            chef: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  /** Désactivation (soft delete) — conserve l’historique. */
+  async softDelete(id: string) {
+    await this.findOne(id);
+    return this.prisma.site.update({
+      where: { id },
+      data: { isActive: false },
     });
   }
 
@@ -71,7 +123,6 @@ export class SitesService {
       orderBy: { name: 'asc' },
     });
 
-    // Enrichir avec détail opérations en cours (agents actifs)
     const enriched = await Promise.all(
       sites.map(async (s) => {
         const activeAssignments = await this.prisma.assignment.findMany({

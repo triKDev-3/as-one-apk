@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -11,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { SitesService } from './sites.service';
 import { CreateSiteDto } from './dto/create-site.dto';
+import { UpdateSiteDto } from './dto/update-site.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -46,6 +48,18 @@ export class SitesController {
   @Roles(Role.ADMIN, Role.CHEF, Role.COMPTABLE, Role.MAGASINIER)
   findOne(@Param('id') id: string) {
     return this.sitesService.findOne(id);
+  }
+
+  @Patch(':id')
+  @Roles(Role.ADMIN)
+  update(@Param('id') id: string, @Body() dto: UpdateSiteDto) {
+    return this.sitesService.update(id, dto);
+  }
+
+  @Delete(':id')
+  @Roles(Role.ADMIN)
+  remove(@Param('id') id: string) {
+    return this.sitesService.softDelete(id);
   }
 
   @Post(':id/chefs/:chefId')

@@ -5,9 +5,12 @@ import 'package:dio/dio.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/providers.dart';
 import '../../../core/network/api_client.dart';
+import '../../chef/repositories/sites_repository.dart';
 
 class CreateSiteScreen extends ConsumerStatefulWidget {
-  const CreateSiteScreen({super.key});
+  final SiteModel? site;
+
+  const CreateSiteScreen({super.key, this.site});
 
   @override
   ConsumerState<CreateSiteScreen> createState() => _CreateSiteScreenState();
@@ -15,16 +18,46 @@ class CreateSiteScreen extends ConsumerStatefulWidget {
 
 class _CreateSiteScreenState extends ConsumerState<CreateSiteScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
-  final _addressCtrl = TextEditingController();
-  final _dailyRateCtrl = TextEditingController();
-  final _nightRateCtrl = TextEditingController(text: '4500');
-  final _sundayRateCtrl = TextEditingController(text: '5000');
-  final _bonusCtrl = TextEditingController();
-  final _monthlyCtrl = TextEditingController();
-  final _fixedAmountCtrl = TextEditingController();
-  String _type = 'CHANTIER';
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _addressCtrl;
+  late final TextEditingController _dailyRateCtrl;
+  late final TextEditingController _nightRateCtrl;
+  late final TextEditingController _sundayRateCtrl;
+  late final TextEditingController _bonusCtrl;
+  late final TextEditingController _monthlyCtrl;
+  late final TextEditingController _fixedAmountCtrl;
+  late String _type;
   bool _loading = false;
+
+  bool get isEdit => widget.site != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final s = widget.site;
+    _nameCtrl = TextEditingController(text: s?.name ?? '');
+    _addressCtrl = TextEditingController(text: s?.address ?? '');
+    _dailyRateCtrl = TextEditingController(
+      text: s?.dailyRate != null ? s!.dailyRate!.toStringAsFixed(0) : '',
+    );
+    _nightRateCtrl = TextEditingController(
+      text: s?.nightRate != null ? s!.nightRate!.toStringAsFixed(0) : '4500',
+    );
+    _sundayRateCtrl = TextEditingController(
+      text: s?.sundayRate != null ? s!.sundayRate!.toStringAsFixed(0) : '5000',
+    );
+    _bonusCtrl = TextEditingController(
+      text: s?.bonusAmount != null ? s!.bonusAmount!.toStringAsFixed(0) : '',
+    );
+    _monthlyCtrl = TextEditingController(
+      text:
+          s?.monthlySalary != null ? s!.monthlySalary!.toStringAsFixed(0) : '',
+    );
+    _fixedAmountCtrl = TextEditingController(
+      text: s?.fixedAmount != null ? s!.fixedAmount!.toStringAsFixed(0) : '',
+    );
+    _type = s?.type ?? 'CHANTIER';
+  }
 
   @override
   void dispose() {
@@ -43,20 +76,20 @@ class _CreateSiteScreenState extends ConsumerState<CreateSiteScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
-      final api = ref.read(apiClientProvider);
+      final repo = ref.read(sitesRepositoryProvider);
       final data = <String, dynamic>{
         'name': _nameCtrl.text.trim(),
         'type': _type,
         if (_addressCtrl.text.trim().isNotEmpty)
-          'address': _addressCtrl.text.trim(),
+          'address': _addressCtrl.text.trim()
+        else if (isEdit)
+          'address': null,
         if (_dailyRateCtrl.text.isNotEmpty)
           'dailyRate': double.tryParse(_dailyRateCtrl.text),
-        // Night & Sunday rates always sent
         if (_nightRateCtrl.text.isNotEmpty)
           'nightRate': double.tryParse(_nightRateCtrl.text),
         if (_sundayRateCtrl.text.isNotEmpty)
           'sundayRate': double.tryParse(_sundayRateCtrl.text),
-        // Type-specific fields
         if (_type == 'CHANTIER' && _bonusCtrl.text.isNotEmpty)
           'bonusAmount': double.tryParse(_bonusCtrl.text),
         if (_type == 'CHANTIER' && _fixedAmountCtrl.text.isNotEmpty)
@@ -64,20 +97,35 @@ class _CreateSiteScreenState extends ConsumerState<CreateSiteScreen> {
         if (_type == 'PERMANENCE' && _monthlyCtrl.text.isNotEmpty)
           'monthlySalary': double.tryParse(_monthlyCtrl.text),
       };
-      await api.dio.post('/sites', data: data);
+
+      if (isEdit) {
+        await repo.updateSite(widget.site!.id, data);
+      } else {
+        await repo.createSite(data);
+      }
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Site créé avec succès'),
+        SnackBar(
+          content: Text(isEdit ? 'Site mis à jour' : 'Site créé avec succès'),
           backgroundColor: AppColors.accent,
         ),
       );
-      context.pop();
+      context.pop(true);
     } on DioException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(ApiClient.extractError(e)),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$e'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -111,7 +159,7 @@ class _CreateSiteScreenState extends ConsumerState<CreateSiteScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Nouveau site'),
+        title: Text(isEdit ? 'Modifier le site' : 'Nouveau site'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -122,7 +170,6 @@ class _CreateSiteScreenState extends ConsumerState<CreateSiteScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            // ── Informations générales ──
             _sectionTitle('Informations générales'),
             const SizedBox(height: 8),
             _field(
@@ -150,21 +197,15 @@ class _CreateSiteScreenState extends ConsumerState<CreateSiteScreen> {
             ),
             const SizedBox(height: 12),
             _field(controller: _addressCtrl, label: 'Adresse'),
-
-            // ── Tarification ──
             const SizedBox(height: 20),
             _sectionTitle('Tarification'),
             const SizedBox(height: 8),
-
-            // Tarif journalier — visible pour tous les types
             _field(
               controller: _dailyRateCtrl,
               label: 'Tarif journalier (FCFA)',
               isNumber: true,
             ),
             const SizedBox(height: 12),
-
-            // Tarif nuit & dimanche — visibles pour tous
             _field(
               controller: _nightRateCtrl,
               label: 'Tarif de nuit (FCFA)',
@@ -178,8 +219,6 @@ class _CreateSiteScreenState extends ConsumerState<CreateSiteScreen> {
               hint: 'Par défaut : 5 000',
               isNumber: true,
             ),
-
-            // PERMANENCE — Salaire mensuel
             if (isPermanence) ...[
               const SizedBox(height: 12),
               _field(
@@ -188,8 +227,6 @@ class _CreateSiteScreenState extends ConsumerState<CreateSiteScreen> {
                 isNumber: true,
               ),
             ],
-
-            // CHANTIER — Bonus + Montant fixe (forfait)
             if (isChantier) ...[
               const SizedBox(height: 12),
               _field(
@@ -205,8 +242,6 @@ class _CreateSiteScreenState extends ConsumerState<CreateSiteScreen> {
                 isNumber: true,
               ),
             ],
-
-            // ROUTINE — Aucun champ supplémentaire
             if (isRoutine) ...[
               const SizedBox(height: 8),
               const Text(
@@ -218,7 +253,6 @@ class _CreateSiteScreenState extends ConsumerState<CreateSiteScreen> {
                 ),
               ),
             ],
-
             const SizedBox(height: 28),
             ElevatedButton(
               onPressed: _loading ? null : _submit,
@@ -231,7 +265,7 @@ class _CreateSiteScreenState extends ConsumerState<CreateSiteScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text('Enregistrer le site'),
+                  : Text(isEdit ? 'Enregistrer les modifications' : 'Enregistrer le site'),
             ),
           ],
         ),

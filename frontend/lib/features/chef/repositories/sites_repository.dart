@@ -17,7 +17,6 @@ class SiteChefInfo {
   String get fullName => '$firstName $lastName'.trim();
 
   factory SiteChefInfo.fromJson(Map<String, dynamic> json) {
-    // chefs: [{ chefId, chef: { id, firstName, ... } }]
     final chef = json['chef'] as Map<String, dynamic>? ?? json;
     return SiteChefInfo(
       id: (chef['id'] ?? json['chefId']) as String? ?? '',
@@ -192,6 +191,32 @@ class SitesRepository {
     try {
       final response = await _api.dio.get('/sites/$id');
       return SiteModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.extractError(e);
+    }
+  }
+
+  Future<SiteModel> createSite(Map<String, dynamic> data) async {
+    try {
+      final response = await _api.dio.post('/sites', data: data);
+      return SiteModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.extractError(e);
+    }
+  }
+
+  Future<SiteModel> updateSite(String id, Map<String, dynamic> data) async {
+    try {
+      final response = await _api.dio.patch('/sites/$id', data: data);
+      return SiteModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.extractError(e);
+    }
+  }
+
+  Future<void> deleteSite(String id) async {
+    try {
+      await _api.dio.delete('/sites/$id');
     } on DioException catch (e) {
       throw ApiClient.extractError(e);
     }
