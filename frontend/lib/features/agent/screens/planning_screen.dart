@@ -37,8 +37,13 @@ class AgentCalendarDay {
 class AgentCalendarData {
   final Map<String, AgentCalendarDay> days;
   final Map<String, int> stats;
+  final List<String> unavailableDates;
 
-  const AgentCalendarData({required this.days, required this.stats});
+  const AgentCalendarData({
+    required this.days,
+    required this.stats,
+    this.unavailableDates = const [],
+  });
 }
 
 final agentCalendarProvider = FutureProvider.autoDispose
@@ -53,10 +58,14 @@ final agentCalendarProvider = FutureProvider.autoDispose
 
     final Map<String, dynamic> dayMap;
     Map<String, int> stats = {};
+    List<String> unavailableDates = [];
     if (raw.containsKey('days') && raw['days'] is Map) {
       dayMap = Map<String, dynamic>.from(raw['days'] as Map);
       final s = raw['stats'] as Map<String, dynamic>? ?? {};
       stats = s.map((k, v) => MapEntry(k, (v as num?)?.toInt() ?? 0));
+      unavailableDates = (raw['unavailableDates'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList();
     } else {
       dayMap = raw;
     }
@@ -99,7 +108,11 @@ final agentCalendarProvider = FutureProvider.autoDispose
         conflict: d['conflict'] == true,
       );
     }
-    return AgentCalendarData(days: result, stats: stats);
+    return AgentCalendarData(
+      days: result,
+      stats: stats,
+      unavailableDates: unavailableDates,
+    );
   } on DioException catch (e) {
     throw ApiClient.extractError(e);
   }
@@ -129,18 +142,18 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
 
   Future<void> _toggleDayAvailability(
     DateTime day,
-    Map<String, AgentCalendarDay> calDays,
+    AgentCalendarData data,
   ) async {
     final key = DateFormat('yyyy-MM-dd').format(day);
-    final existing = calDays[key];
+    final existing = data.days[key];
 
     final today = DateTime.now();
     final dayOnly = DateTime(day.year, day.month, day.day);
     final todayOnly = DateTime(today.year, today.month, today.day);
-    if (!dayOnly.isAfter(todayOnly)) {
+    if (dayOnly.isBefore(todayOnly)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Vous ne pouvez modifier que les jours futurs'),
+          content: Text('Impossible de modifier un jour déjà passé'),
         ),
       );
       return;
@@ -155,7 +168,10 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
       return;
     }
 
-    final isUnavailable = existing?.status == DayStatus.unavailable;
+    // Source de vérité : liste unavailableDates + statut
+    final isUnavailable = existing?.status == DayStatus.unavailable ||
+        data.unavailableDates.contains(key);
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -189,7 +205,7 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
       final api = ref.read(apiClientProvider);
       await api.dio.post('/agent/availability-mark', data: {
         'date': key,
-        'available': isUnavailable,
+        'available': isUnavailable, // true = retirer indispo
       });
       ref.invalidate(agentCalendarProvider(_monthKey));
       if (mounted) {
@@ -471,8 +487,7 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
                       DateFormat('yyyy-MM-dd').format(_selectedDay)],
                   labelOf: _label,
                   colorOf: _bg,
-                  onToggle: () =>
-                      _toggleDayAvailability(_selectedDay, calDays),
+                  onToggle: () => _toggleDayAvailability(_selectedDay, data),
                 ),
               ),
             ],
@@ -502,8 +517,10 @@ class _DayDetail extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = info?.status ?? DayStatus.normal;
     final today = DateTime.now();
-    final isFuture = DateTime(day.year, day.month, day.day)
-        .isAfter(DateTime(today.year, today.month, today.day));
+    final dayOnly = DateTime(day.year, day.month, day.day);
+    final todayOnly = DateTime(today.year, today.month, today.day);
+    final canEdit =
+        !dayOnly.isBefore(todayOnly) && status != DayStatus.worked;
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -560,7 +577,7 @@ class _DayDetail extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 16),
-        if (isFuture && status != DayStatus.worked)
+        if (canEdit)
           ElevatedButton.icon(
             onPressed: onToggle,
             icon: Icon(
@@ -607,10 +624,7 @@ class _StatChip extends StatelessWidget {
           ),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 10,
-              color: AppColors.textSecondary,
-            ),
+            style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -634,9 +648,7 @@ class _LegendItem extends StatelessWidget {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 4),
-        Text(label,
-            style: const TextStyle(
-                fontSize: 11, color: AppColors.textSecondary)),
+        Text(label, style: const TextStyle(fontSize: 11)),
       ],
     );
   }
