@@ -23,7 +23,6 @@ import { Role } from '@prisma/client';
 export class ReportsController {
   constructor(private readonly service: ReportsService) {}
 
-  // --- Tâches journalières ---
   @Post('sites/:siteId/tasks')
   @Roles(Role.CHEF, Role.ADMIN)
   addTask(
@@ -49,7 +48,6 @@ export class ReportsController {
     return this.service.listTasksHistory({ date, siteId });
   }
 
-  // --- Rapport de fin de chantier ---
   @Post('sites/:siteId/close-report')
   @Roles(Role.CHEF, Role.ADMIN)
   closeReport(
@@ -58,6 +56,22 @@ export class ReportsController {
     @Request() req: any,
   ) {
     return this.service.closeAndGenerateReport(siteId, dto, req.user.id);
+  }
+
+  /** Direction : clôturer définitivement ou transformer en permanence */
+  @Post('sites/:siteId/admin-finalize')
+  @Roles(Role.ADMIN)
+  adminFinalize(
+    @Param('siteId') siteId: string,
+    @Body() body: { action: 'CLOSE' | 'PERMANENCE' },
+  ) {
+    return this.service.adminFinalizeSite(siteId, body.action);
+  }
+
+  @Get('reports/pending-admin')
+  @Roles(Role.ADMIN)
+  pendingAdmin() {
+    return this.service.listPendingAdminReports();
   }
 
   @Get('sites/:siteId/reports')

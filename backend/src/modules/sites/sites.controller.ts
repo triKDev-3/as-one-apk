@@ -73,4 +73,21 @@ export class SitesController {
   removeChef(@Param('id') siteId: string, @Param('chefId') chefId: string) {
     return this.sitesService.removeChef(siteId, chefId);
   }
+
+  /** Transfert de site entre chefs */
+  @Post(':id/transfer')
+  @Roles(Role.CHEF, Role.ADMIN)
+  transfer(
+    @Param('id') siteId: string,
+    @Body() body: { toChefId: string; keepSelf?: boolean },
+    @Request() req: any,
+  ) {
+    return this.sitesService.transferSite(
+      siteId,
+      body.toChefId,
+      req.user.id,
+      req.user.role,
+      body.keepSelf === true,
+    );
+  }
 }

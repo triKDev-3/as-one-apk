@@ -3,11 +3,12 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSiteDto } from './dto/create-site.dto';
 import { UpdateSiteDto } from './dto/update-site.dto';
-import { AssignmentStatus } from '@prisma/client';
+import { AssignmentStatus, Role } from '@prisma/client';
 
 @Injectable()
 export class SitesService {
@@ -36,7 +37,6 @@ export class SitesService {
   async update(id: string, dto: UpdateSiteDto) {
     await this.findOne(id);
 
-    // Interdire de désactiver via PATCH si le site a déjà des actions
     if (dto.isActive === false) {
       await this.assertCanDeactivate(id);
     }
@@ -81,10 +81,6 @@ export class SitesService {
     });
   }
 
-  /**
-   * Désactivation uniquement si aucune action n’a été menée sur le site
-   * (affectations, pointages, incidents, fiches, tâches, rapports, permanences).
-   */
   async softDelete(id: string) {
     await this.findOne(id);
     await this.assertCanDeactivate(id);
@@ -138,7 +134,7 @@ export class SitesService {
 
       throw new BadRequestException(
         `Impossible de supprimer ou désactiver ce site : des actions ont déjà été menées (${details.join(', ')}). ` +
-          `Le site doit rester disponible pour l’historique et la paie.`,
+          `Utilisez la clôture Direction après rapport de fin de chantier.`,
       );
     }
   }
@@ -209,6 +205,12 @@ export class SitesService {
           take: 50,
         });
 
+        const pendingReport = await this.prisma.siteReport.findFirst({
+          where: { siteId: s.id, status: 'PENDING_ADMIN' },
+          orderBy: { closedAt: 'desc' },
+          select: { id: true, status: true, closedAt: true },
+        });
+
         const c = s._count;
         const hasAnyHistory =
           c.assignments > 0 ||
@@ -224,6 +226,8 @@ export class SitesService {
           ...s,
           activeAgentsCount: activeAssignments.length,
           canDelete: !hasAnyHistory,
+          pendingAdminDecision: pendingReport != null,
+          pendingReport,
           activeAssignments: activeAssignments.map((a) => ({
             id: a.id,
             status: a.status,
@@ -308,5 +312,68 @@ export class SitesService {
     } catch {
       throw new NotFoundException('Assignation chef introuvable');
     }
+  }
+
+  /**
+   * Transfert d'un site d'un chef vers un autre.
+   * - Chef : doit être déjà assigné au site
+   * - Admin : toujours autorisé
+   * keepSelf=true → les 2 restent ; false → retire le chef source
+   */
+  async transferSite(
+    siteId: string,
+    toChefId: string,
+    fromUserId: string,
+    fromRole: string,
+    keepSelf = false,
+  ) {
+    const site = await this.findOne(siteId);
+
+    const toChef = await this.prisma.user.findFirst({
+      where: { id: toChefId, role: Role.CHEF, isActive: true },
+    });
+    if (!toChef) throw new NotFoundException('Chef destinataire introuvable');
+
+    if (fromRole === 'CHEF') {
+      const isAssigned = site.chefs.some((c) => c.chefId === fromUserId);
+      if (!isAssigned) {
+        throw new ForbiddenException(
+          'Vous n\'êtes pas assigné à ce site — transfert impossible',
+        );
+      }
+    }
+
+    await this.prisma.siteChef.upsert({
+      where: { siteId_chefId: { siteId, chefId: toChefId } },
+      create: { siteId, chefId: toChefId },
+      update: {},
+    });
+
+    if (!keepSelf && fromRole === 'CHEF' && fromUserId !== toChefId) {
+      try {
+        await this.prisma.siteChef.delete({
+          where: { siteId_chefId: { siteId, chefId: fromUserId } },
+        });
+      } catch {
+        // déjà retiré
+      }
+    }
+
+    // Notif au chef destinataire
+    try {
+      await this.prisma.notification.create({
+        data: {
+          userId: toChefId,
+          type: 'SITE_TRANSFER',
+          title: 'Site reçu',
+          body: `Le site « ${site.name} » vous a été confié.`,
+          data: { siteId },
+        },
+      });
+    } catch {
+      // ignore si schéma notif différent
+    }
+
+    return this.findOne(siteId);
   }
 }
