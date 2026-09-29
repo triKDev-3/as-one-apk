@@ -22,14 +22,11 @@ class RoleShell extends StatelessWidget {
     return 'AGENT';
   }
 
-  /// Accueil n'est sélectionné que sur la racine du rôle.
-  /// Les sous-pages gardent l'onglet de la section en cours.
   static int indexFromPath(String path, String role) {
     if (role == 'CHEF') {
-      if (path == '/chef' || path == '/chef/') return 0; // Accueil
+      if (path == '/chef' || path == '/chef/') return 0;
       if (path.startsWith('/chef/notifications')) return 3;
       if (path.startsWith('/chef/profile')) return 4;
-      // Historique (pluriels AVANT les singuliers)
       if (path.startsWith('/chef/calendar') ||
           path.startsWith('/chef/pointages') ||
           path.startsWith('/chef/incidents') ||
@@ -38,7 +35,6 @@ class RoleShell extends StatelessWidget {
           path.startsWith('/chef/ranking')) {
         return 1;
       }
-      // Sites + opérations du site
       if (path.startsWith('/chef/select-site') ||
           path.startsWith('/chef/site') ||
           path.startsWith('/chef/compose') ||
@@ -90,11 +86,12 @@ class RoleShell extends StatelessWidget {
     final index = indexFromPath(location, role);
 
     return Scaffold(
-      body: child,
-      floatingActionButton: role == 'CHEF'
-          ? ChefSiteFab(location: location)
-          : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      body: Stack(
+        children: [
+          child,
+          if (role == 'CHEF') ChefSiteFab(location: location),
+        ],
+      ),
       bottomNavigationBar: AsOneBottomNav(
         role: role,
         currentIndex: index,
