@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../network/api_client.dart';
+import '../network/api_config.dart';
 import '../theme/app_colors.dart';
 
 class AppVersionInfo {
@@ -49,7 +49,7 @@ class AppUpdateService {
 
       final dio = Dio(
         BaseOptions(
-          baseUrl: ApiClient.baseUrl,
+          baseUrl: ApiConfig.baseUrl,
           connectTimeout: const Duration(seconds: 12),
           receiveTimeout: const Duration(seconds: 12),
         ),
@@ -60,8 +60,7 @@ class AppUpdateService {
       );
 
       final needsUpdate = remote.build > localBuild;
-      final forced =
-          remote.forceUpdate || localBuild < remote.minBuild;
+      final forced = remote.forceUpdate || localBuild < remote.minBuild;
 
       if (!needsUpdate || !context.mounted) return;
       if (remote.apkUrl.isEmpty) return;
@@ -114,7 +113,7 @@ class AppUpdateService {
         ),
       );
     } catch (_) {
-      // Silencieux : pas de réseau / API en pause → on n'bloque pas l'app
+      // Silencieux si API inaccessible
     }
   }
 }

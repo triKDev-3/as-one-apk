@@ -16,29 +16,8 @@ void main() async {
   runApp(const ProviderScope(child: AsOneApp()));
 }
 
-class AsOneApp extends StatefulWidget {
+class AsOneApp extends StatelessWidget {
   const AsOneApp({super.key});
-
-  @override
-  State<AsOneApp> createState() => _AsOneAppState();
-}
-
-class _AsOneAppState extends State<AsOneApp> {
-  final _navKey = GlobalKey<NavigatorState>();
-
-  @override
-  void initState() {
-    super.initState();
-    // Après le 1er frame : check version distante
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(seconds: 2), () {
-        final ctx = _navKey.currentContext;
-        if (ctx != null) {
-          AppUpdateService.instance.checkAndPrompt(ctx);
-        }
-      });
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,15 +28,35 @@ class _AsOneAppState extends State<AsOneApp> {
         theme: AppTheme.light,
         routerConfig: AppRouter.router,
         builder: (context, child) {
-          // Injecte une clé navigateur pour le dialogue de mise à jour
-          return Navigator(
-            key: _navKey,
-            onGenerateRoute: (_) => MaterialPageRoute(
-              builder: (_) => child ?? const SizedBox.shrink(),
-            ),
-          );
+          return _UpdateGate(child: child ?? const SizedBox.shrink());
         },
       ),
     );
   }
+}
+
+/// Lance le check version une fois le routeur prêt.
+class _UpdateGate extends StatefulWidget {
+  final Widget child;
+  const _UpdateGate({required this.child});
+
+  @override
+  State<_UpdateGate> createState() => _UpdateGateState();
+}
+
+class _UpdateGateState extends State<_UpdateGate> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          AppUpdateService.instance.checkAndPrompt(context);
+        }
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
