@@ -46,7 +46,37 @@ Vous êtes affecté(e) sur le site :
 📍 $siteName $typeText
 📅 $periodText
 
-Merci de confirmer votre disponibilité dans l'application AS ONE avant 22h.
+Merci de confirmer votre disponibilité dans l'application AS ONE avant 23h la veille du début.
+
+${chefName != null ? '— $chefName' : '— AS ONE Facility Management'}''';
+  }
+
+  /// Rappel à l'approche du jour J (ou le jour même).
+  static String assignmentReminderMessage({
+    required String agentName,
+    required String siteName,
+    required String startDate,
+    String? endDate,
+    String? chefName,
+    bool isToday = false,
+  }) {
+    final when = isToday ? 'aujourd\'hui ($startDate)' : 'le $startDate';
+    final urgency = isToday
+        ? 'C\'est le jour J — présentez-vous sur site comme convenu.'
+        : 'Rappel : votre affectation approche. Confirmez dans l\'app si ce n\'est pas déjà fait.';
+
+    final period = endDate != null && endDate.isNotEmpty
+        ? 'du $startDate au $endDate'
+        : when;
+
+    return '''Bonjour $agentName,
+
+⏰ *RAPPEL AFFECTATION — AS ONE*
+
+📍 Site : *$siteName*
+📅 $period
+
+$urgency
 
 ${chefName != null ? '— $chefName' : '— AS ONE Facility Management'}''';
   }
@@ -82,7 +112,6 @@ ${chefName != null ? '— $chefName' : '— AS ONE Facility Management'}''';
     return buf.toString();
   }
 
-  /// Rapport journalier de pointages (historique / agenda)
   static String dailyPointagesReport({
     required String dateLabel,
     required List<Map<String, dynamic>> rows,
@@ -123,7 +152,6 @@ ${chefName != null ? '— $chefName' : '— AS ONE Facility Management'}''';
     return buf.toString();
   }
 
-  /// Rapport journalier d'incidents
   static String dailyIncidentsReport({
     required String dateLabel,
     required List<Map<String, dynamic>> rows,
@@ -245,7 +273,7 @@ ${chefName != null ? '— $chefName' : '— AS ONE Facility Management'}''';
   }
 
   static String cleanPhone(String phone) {
-    return phone.replaceAll(RegExp(r'[^\d+]'), '').replaceAll('+', '');
+    return phone.replaceAll(RegExp(r'[^\\d+]'), '').replaceAll('+', '');
   }
 
   static Future<bool> openWhatsApp({
@@ -283,11 +311,8 @@ ${chefName != null ? '— $chefName' : '— AS ONE Facility Management'}''';
     await Clipboard.setData(ClipboardData(text: message));
   }
 
-  /// Menu d'actions partagées (WhatsApp / Copier)
   static Future<void> shareReportActions({
     required dynamic context,
     required String message,
-  }) async {
-    // Utilisé via callbacks dans les écrans pour éviter import material ici
-  }
+  }) async {}
 }
