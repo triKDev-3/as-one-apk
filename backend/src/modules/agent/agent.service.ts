@@ -22,25 +22,6 @@ export class AgentService {
     private readonly notify: NotificationsService,
   ) {}
 
-  private hourInLome(now = new Date()): number {
-    const hourTogo = Number(
-      new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'Africa/Lome',
-        hour: 'numeric',
-        hour12: false,
-      }).format(now),
-    );
-    return hourTogo === 24 ? 0 : hourTogo;
-  }
-
-  private assertBefore22h() {
-    if (this.hourInLome() >= 22) {
-      throw new BadRequestException(
-        'Les disponibilités ne sont plus modifiables après 22h (heure de Lomé)',
-      );
-    }
-  }
-
   private async ensureAgentProfile(userId: string) {
     let profile = await this.prisma.agentProfile.findUnique({
       where: { userId },
@@ -122,7 +103,7 @@ export class AgentService {
       throw new ForbiddenException('Seul un agent peut modifier sa disponibilité');
     }
 
-    this.assertBefore22h();
+    // Agenda libre : pas de coupure 22h
 
     const now = new Date();
     await this.ensureAgentProfile(userId);
@@ -349,7 +330,6 @@ export class AgentService {
         }
       }
       if (opts?.conflict) existing.conflict = true;
-      // worked / absent ont priorité sur unavailable
       if (status === 'worked' || status === 'absent') {
         existing.status = status;
       }
@@ -407,7 +387,6 @@ export class AgentService {
       }
     }
 
-    // Indispos : affichage prioritaire sauf worked/absent
     for (const d of unavailableDates) {
       if (
         d < startDate.toISOString().slice(0, 10) ||
@@ -486,6 +465,8 @@ export class AgentService {
         unavailable,
         conflicts,
       },
+      // Plus de coupure 22h : l'agent peut modifier son agenda librement
+      canEditAvailability: true,
     };
   }
 
@@ -568,17 +549,16 @@ export class AgentService {
       );
     }
 
-    this.assertBefore22h();
+    // Agenda libre : modification à tout moment (plus de coupure 22h)
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.role !== Role.AGENT) {
       throw new ForbiddenException('Seul un agent peut modifier sa disponibilité');
     }
 
-    // Interdire les dates passées (aujourd’hui OK)
     const todayKey = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Africa/Lome',
-    }).format(new Date()); // YYYY-MM-DD
+    }).format(new Date());
     if (date < todayKey) {
       throw new BadRequestException(
         'Impossible de modifier un jour déjà passé',
