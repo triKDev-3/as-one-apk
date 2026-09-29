@@ -1,12 +1,8 @@
 name: Build APK AS ONE Release
 
+# Pas de build automatique sur push → plus rapide pour développer.
+# Lancer à la main : Actions → Build APK AS ONE Release → Run workflow
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/build-apk.yml'
-
   workflow_dispatch:
     inputs:
       api_base_url:
