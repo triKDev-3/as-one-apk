@@ -1,5 +1,5 @@
 # AS ONE API — production (Render)
-# v2 — force rebuild dist + start robuste
+# v3 — npm install fallback si package-lock désynchronisé (ms@ missing)
 
 FROM node:20-bookworm-slim AS builder
 
@@ -11,7 +11,9 @@ COPY package*.json ./
 COPY prisma ./prisma/
 COPY nest-cli.json tsconfig.json tsconfig.build.json ./
 
-RUN npm ci
+# npm ci échoue si lock incomplet → fallback npm install
+RUN npm ci || (echo "WARN: npm ci failed, falling back to npm install" && npm install)
+
 RUN npx prisma generate
 
 COPY src ./src
@@ -32,7 +34,7 @@ RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /v
 COPY package*.json ./
 COPY prisma ./prisma/
 
-RUN npm ci --omit=dev \
+RUN (npm ci --omit=dev || npm install --omit=dev) \
   && npm install prisma@5.22.0 --no-save \
   && npx prisma generate
 
@@ -45,5 +47,4 @@ RUN mkdir -p uploads \
 
 EXPOSE 3000
 
-# db push puis démarrage (main.js ou src/main.js selon nest)
 CMD ["sh", "-c", "npx prisma db push --accept-data-loss && if [ -f dist/main.js ]; then node dist/main.js; else node dist/src/main.js; fi"]
