@@ -6,7 +6,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { CloseReportDto } from './dto/close-report.dto';
-import { AssignmentStatus } from '@prisma/client';
+import { AssignmentStatus, SiteType } from '@prisma/client';
 import { assertCanOperateOnSite } from '../../common/site-access';
 
 @Injectable()
@@ -73,10 +73,8 @@ export class ReportsService {
   }
 
   /**
-   * Clôture de chantier : génère un rapport complet
-   * - dates début / fin
-   * - historique des tâches datées
-   * - détails site, équipe, pointages, matériel, incidents
+   * Rapport de fin de chantier par le chef.
+   * Le site RESTE ACTIF jusqu'à décision admin (clôture ou permanence).
    */
   async closeAndGenerateReport(
     siteId: string,
@@ -226,6 +224,7 @@ export class ReportsService {
         materialsCount: materials.length,
         incidentsCount: incidents.length,
       },
+      pendingAdminDecision: true,
     };
 
     const report = await this.prisma.siteReport.create({
@@ -235,35 +234,75 @@ export class ReportsService {
         endDate,
         summary: dto.summary || null,
         details,
-        status: 'FINAL',
+        // En attente de décision Direction — site reste actif pour le chef
+        status: 'PENDING_ADMIN',
         createdById,
       },
       include: {
-        site: { select: { id: true, name: true, type: true } },
+        site: { select: { id: true, name: true, type: true, isActive: true } },
         createdBy: {
           select: { id: true, firstName: true, lastName: true },
         },
       },
     });
 
-    // Marquer le site comme terminé (inactif) + assignments COMPLETED
+    // NE PAS désactiver le site — l'admin clôture ou transforme en permanence
+    return {
+      ...report,
+      message:
+        'Rapport envoyé. Le site reste actif jusqu’à décision de la Direction (clôture définitive ou passage en permanence).',
+    };
+  }
+
+  /**
+   * Décision admin : CLOSE (inactif) ou PERMANENCE (type + actif).
+   */
+  async adminFinalizeSite(
+    siteId: string,
+    action: 'CLOSE' | 'PERMANENCE',
+  ) {
+    const site = await this.prisma.site.findUnique({ where: { id: siteId } });
+    if (!site) throw new NotFoundException('Site introuvable');
+
+    if (action === 'CLOSE') {
+      await this.prisma.$transaction([
+        this.prisma.site.update({
+          where: { id: siteId },
+          data: { isActive: false, endDate: new Date() },
+        }),
+        this.prisma.assignment.updateMany({
+          where: {
+            siteId,
+            status: {
+              in: [AssignmentStatus.CONFIRMED, AssignmentStatus.LOCKED],
+            },
+          },
+          data: { status: AssignmentStatus.COMPLETED, isLocked: false },
+        }),
+        this.prisma.siteReport.updateMany({
+          where: { siteId, status: 'PENDING_ADMIN' },
+          data: { status: 'FINAL' },
+        }),
+      ]);
+      return { ok: true, action: 'CLOSE', siteId };
+    }
+
+    // PERMANENCE
     await this.prisma.$transaction([
       this.prisma.site.update({
         where: { id: siteId },
-        data: { isActive: false, endDate },
-      }),
-      this.prisma.assignment.updateMany({
-        where: {
-          siteId,
-          status: {
-            in: [AssignmentStatus.CONFIRMED, AssignmentStatus.LOCKED],
-          },
+        data: {
+          type: SiteType.PERMANENCE,
+          isActive: true,
+          endDate: null,
         },
-        data: { status: AssignmentStatus.COMPLETED, isLocked: false },
+      }),
+      this.prisma.siteReport.updateMany({
+        where: { siteId, status: 'PENDING_ADMIN' },
+        data: { status: 'FINAL' },
       }),
     ]);
-
-    return report;
+    return { ok: true, action: 'PERMANENCE', siteId };
   }
 
   async getReport(reportId: string) {
@@ -297,7 +336,7 @@ export class ReportsService {
       orderBy: { closedAt: 'desc' },
       take: 50,
       include: {
-        site: { select: { id: true, name: true, type: true } },
+        site: { select: { id: true, name: true, type: true, isActive: true } },
         createdBy: {
           select: { firstName: true, lastName: true },
         },
@@ -305,9 +344,21 @@ export class ReportsService {
     });
   }
 
-  /** Retourne le dernier rapport d'un site, ou null s'il n'en a pas */
+  async listPendingAdminReports() {
+    return this.prisma.siteReport.findMany({
+      where: { status: 'PENDING_ADMIN' },
+      orderBy: { closedAt: 'desc' },
+      include: {
+        site: { select: { id: true, name: true, type: true, isActive: true } },
+        createdBy: {
+          select: { firstName: true, lastName: true },
+        },
+      },
+    });
+  }
+
   async getLatestReportBySite(siteId: string) {
-    const report = await this.prisma.siteReport.findFirst({
+    return this.prisma.siteReport.findFirst({
       where: { siteId },
       orderBy: { closedAt: 'desc' },
       include: {
@@ -315,10 +366,8 @@ export class ReportsService {
         createdBy: { select: { id: true, firstName: true, lastName: true } },
       },
     });
-    return report; // null si aucun
   }
 
-  /** Modifie uniquement le résumé d'un rapport existant */
   async updateReportSummary(reportId: string, summary: string) {
     const report = await this.prisma.siteReport.findUnique({
       where: { id: reportId },
