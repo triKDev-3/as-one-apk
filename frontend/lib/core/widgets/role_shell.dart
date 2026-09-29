@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'asone_bottom_nav.dart';
+import 'chef_site_fab.dart';
 
 /// Coque avec barre de navigation bas **persistante** pendant la navigation.
 class RoleShell extends StatelessWidget {
@@ -90,6 +91,10 @@ class RoleShell extends StatelessWidget {
 
     return Scaffold(
       body: child,
+      floatingActionButton: role == 'CHEF'
+          ? ChefSiteFab(location: location)
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: AsOneBottomNav(
         role: role,
         currentIndex: index,
