@@ -1,0 +1,26 @@
+name: Restore compose_team_screen
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'frontend/lib/features/chef/screens/.compose_b64/**'
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode and restore
+        run: |
+          cat frontend/lib/features/chef/screens/.compose_b64/part*.b64 | base64 -d > frontend/lib/features/chef/screens/compose_team_screen.dart
+          wc -c frontend/lib/features/chef/screens/compose_team_screen.dart
+          head -5 frontend/lib/features/chef/screens/compose_team_screen.dart
+      - name: Commit if changed
+        run: |
+          git config user.name "AS ONE Bot"
+          git config user.email "bot@asone.local"
+          git add frontend/lib/features/chef/screens/compose_team_screen.dart
+          git diff --staged --quiet && echo "No change" && exit 0
+          git commit -m "restore: compose_team_screen.dart (renvoyer/rappel/libérer)"
+          git push
