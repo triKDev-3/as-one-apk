@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/theme_provider.dart';
 import '../../../core/providers/providers.dart';
 import '../../../core/network/api_client.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -29,7 +30,7 @@ class _ChefProfileScreenState extends ConsumerState<ChefProfileScreen> {
 
   bool _filled = false;
   String _originalPhone = '';
-  
+
   bool _waConnected = false;
   Timer? _statusTimer;
 
@@ -81,7 +82,6 @@ class _ChefProfileScreenState extends ConsumerState<ChefProfileScreen> {
   Future<void> _saveProfile() async {
     final newPhone = _phoneCtrl.text.trim();
     if (newPhone != _originalPhone && _waConnected) {
-      // Disconnect WhatsApp if phone changes
       try {
         final api = ref.read(apiClientProvider);
         await api.dio.post('/whatsapp/disconnect');
@@ -98,7 +98,6 @@ class _ChefProfileScreenState extends ConsumerState<ChefProfileScreen> {
         'phone': newPhone,
       });
       _originalPhone = newPhone;
-      // Optionally update local user state if needed
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -163,7 +162,9 @@ class _ChefProfileScreenState extends ConsumerState<ChefProfileScreen> {
     final phone = _phoneCtrl.text.trim();
     if (phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez renseigner votre numéro de téléphone d\'abord')),
+        const SnackBar(
+            content: Text(
+                'Veuillez renseigner votre numéro de téléphone d\'abord')),
       );
       return;
     }
@@ -197,8 +198,11 @@ class _ChefProfileScreenState extends ConsumerState<ChefProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = ref.watch(themeModeProvider);
+    final isDark = themeMode == ThemeMode.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Mon Profil Chef'),
         leading: IconButton(
@@ -209,13 +213,43 @@ class _ChefProfileScreenState extends ConsumerState<ChefProfileScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // ── WhatsApp Section ──────────────────────────────────────────────
+          // ── Thème ─────────────────────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardTheme.color ?? Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: Icon(
+                isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                color: AppColors.primary,
+              ),
+              title: const Text(
+                'Thème sombre',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              subtitle: Text(
+                isDark ? 'Activé' : 'Désactivé',
+                style: const TextStyle(fontSize: 12),
+              ),
+              value: isDark,
+              onChanged: (_) =>
+                  ref.read(themeModeProvider.notifier).toggle(),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ── WhatsApp ──────────────────────────────────────────────────────
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: const Color(0xFF25D366).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF25D366).withValues(alpha: 0.3)),
+              border: Border.all(
+                  color: const Color(0xFF25D366).withValues(alpha: 0.3)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,84 +271,41 @@ class _ChefProfileScreenState extends ConsumerState<ChefProfileScreen> {
                 const SizedBox(height: 8),
                 const Text(
                   'Associez votre propre numéro WhatsApp pour envoyer les convocations aux agents.',
-                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  style:
+                      TextStyle(fontSize: 13, color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 16),
-                if (_waConnected) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.check_circle_rounded, color: Color(0xFF25D366)),
-                        SizedBox(width: 8),
-                        Text('WhatsApp connecté', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF1DA851))),
-                      ],
-                    ),
-                  ).animate().fadeIn(),
-                  const SizedBox(height: 8),
-                  const Text('Si vous changez de numéro ci-dessous, WhatsApp sera automatiquement déconnecté.', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                ] else if (_pairingCode != null) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        )
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Code de couplage (valable 60s)',
-                          style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _pairingCode!,
+                if (_waConnected)
+                  const Row(
+                    children: [
+                      Icon(Icons.check_circle_rounded,
+                          color: Color(0xFF25D366)),
+                      SizedBox(width: 8),
+                      Text('WhatsApp connecté',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1DA851))),
+                    ],
+                  )
+                else if (_pairingCode != null)
+                  Column(
+                    children: [
+                      Text(_pairingCode!,
                           style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 2,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton.icon(
-                          onPressed: () {
-                            Clipboard.setData(ClipboardData(text: _pairingCode!));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Code copié !')),
-                            );
-                          },
-                          icon: const Icon(Icons.copy_rounded, size: 16),
-                          label: const Text('Copier le code'),
-                        ),
-                        const SizedBox(height: 8),
-                        const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-                        const SizedBox(height: 8),
-                        const Text('En attente de connexion...', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                      ],
-                    ),
-                  ).animate().fadeIn().scale(),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Sur votre téléphone : WhatsApp > Appareils liés > Lier un appareil > Lier avec un numéro de téléphone.',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontStyle: FontStyle.italic),
-                  ),
-                ] else
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 2)),
+                      TextButton.icon(
+                        onPressed: () {
+                          Clipboard.setData(
+                              ClipboardData(text: _pairingCode!));
+                        },
+                        icon: const Icon(Icons.copy_rounded, size: 16),
+                        label: const Text('Copier le code'),
+                      ),
+                    ],
+                  )
+                else
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -327,7 +318,8 @@ class _ChefProfileScreenState extends ConsumerState<ChefProfileScreen> {
                           ? const SizedBox(
                               width: 16,
                               height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
                             )
                           : const Icon(Icons.link_rounded),
                       label: const Text('Générer un code WhatsApp'),
@@ -338,7 +330,8 @@ class _ChefProfileScreenState extends ConsumerState<ChefProfileScreen> {
           ),
           const SizedBox(height: 32),
 
-          Text('Informations personnelles', style: Theme.of(context).textTheme.titleLarge),
+          Text('Informations personnelles',
+              style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
           TextField(
             controller: _firstCtrl,
@@ -353,9 +346,7 @@ class _ChefProfileScreenState extends ConsumerState<ChefProfileScreen> {
           TextField(
             controller: _phoneCtrl,
             keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(
-              labelText: 'Téléphone',
-            ),
+            decoration: const InputDecoration(labelText: 'Téléphone'),
           ),
           const SizedBox(height: 20),
           ElevatedButton(
@@ -365,9 +356,7 @@ class _ChefProfileScreenState extends ConsumerState<ChefProfileScreen> {
                     height: 22,
                     width: 22,
                     child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
+                        strokeWidth: 2.5, color: Colors.white),
                   )
                 : const Text('Enregistrer les infos'),
           ),
@@ -378,13 +367,15 @@ class _ChefProfileScreenState extends ConsumerState<ChefProfileScreen> {
           TextField(
             controller: _currentPassCtrl,
             obscureText: true,
-            decoration: const InputDecoration(labelText: 'Mot de passe actuel'),
+            decoration:
+                const InputDecoration(labelText: 'Mot de passe actuel'),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _newPassCtrl,
             obscureText: true,
-            decoration: const InputDecoration(labelText: 'Nouveau mot de passe'),
+            decoration:
+                const InputDecoration(labelText: 'Nouveau mot de passe'),
           ),
           const SizedBox(height: 20),
           OutlinedButton(
