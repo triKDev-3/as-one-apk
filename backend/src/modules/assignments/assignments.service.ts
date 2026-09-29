@@ -45,10 +45,6 @@ export class AssignmentsService {
     private readonly whatsapp: WhatsappService,
   ) {}
 
-  /**
-   * Conflits multi-sites : affectations actives sur un autre site
-   * dont la plage chevauche [startDate, endDate].
-   */
   private async findMultiSiteConflicts(
     agentId: string,
     siteId: string,
@@ -75,6 +71,61 @@ export class AssignmentsService {
     return candidates.filter((c) =>
       rangesOverlap(c.startDate, c.endDate, startDate, endDate),
     );
+  }
+
+  private lomeDateKey(d = new Date()): string {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Lome',
+    }).format(d);
+  }
+
+  private lomeHour(d = new Date()): number {
+    const h = Number(
+      new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Africa/Lome',
+        hour: 'numeric',
+        hour12: false,
+      }).format(d),
+    );
+    return h === 24 ? 0 : h;
+  }
+
+  /** Deadline = 23h Lomé la veille du début. Après → refus implicite. */
+  private isPastConfirmDeadline(startDate: Date): boolean {
+    const startKey = dateKey(startDate);
+    const [y, m, d] = startKey.split('-').map(Number);
+    const beforeKey = new Date(Date.UTC(y, m - 1, d - 1))
+      .toISOString()
+      .slice(0, 10);
+    const today = this.lomeDateKey();
+    const hour = this.lomeHour();
+    if (today > beforeKey) return true;
+    if (today === beforeKey && hour >= 23) return true;
+    return false;
+  }
+
+  async expireStalePending(siteId?: string) {
+    const pending = await this.prisma.assignment.findMany({
+      where: {
+        status: AssignmentStatus.PENDING_CONFIRMATION,
+        ...(siteId ? { siteId } : {}),
+      },
+    });
+    let n = 0;
+    for (const a of pending) {
+      if (this.isPastConfirmDeadline(a.startDate)) {
+        await this.prisma.assignment.update({
+          where: { id: a.id },
+          data: {
+            status: AssignmentStatus.REFUSED,
+            refusedAt: new Date(),
+            isLocked: false,
+          },
+        });
+        n++;
+      }
+    }
+    return n;
   }
 
   private async hasDepartOnDate(agentId: string, day: string) {
@@ -106,7 +157,6 @@ export class AssignmentsService {
     const endDate = dto.endDate ? new Date(dto.endDate) : null;
     const startKey = dateKey(startDate);
 
-    // —— Conflits multi-sites ——
     const conflicts = await this.findMultiSiteConflicts(
       dto.agentId,
       dto.siteId,
@@ -118,13 +168,11 @@ export class AssignmentsService {
       const names = conflicts.map((c) => c.site.name).join(', ');
       const hasDepart = await this.hasDepartOnDate(dto.agentId, startKey);
 
-      // Urgence : force + déjà pointé le jour de début
       if (dto.forceMultiSite && hasDepart) {
-        // autorisé — on continue
+        // ok
       } else if (dto.forceMultiSite && !hasDepart) {
         throw new BadRequestException(
-          `Urgence multi-sites refusée : l'agent n'a pas encore de pointage DEPART le ${startKey}. ` +
-            `Conflit avec : ${names}`,
+          `Urgence multi-sites refusée : l'agent n'a pas encore de pointage DEPART le ${startKey}. Conflit avec : ${names}`,
         );
       } else {
         throw new ConflictException({
@@ -141,12 +189,11 @@ export class AssignmentsService {
           canForce: hasDepart,
           forceHint: hasDepart
             ? 'Agent déjà pointé ce jour — vous pouvez forcer (urgence multi-chantiers).'
-            : 'Impossible de forcer tant que l\'agent n\'a pas de pointage DEPART ce jour-là (ou libérez-le d\'abord).',
+            : "Impossible de forcer tant que l'agent n'a pas de pointage DEPART ce jour-là (ou libérez-le d'abord).",
         });
       }
     }
 
-    // Verrouillage strict hors chevauchement de dates (ancien comportement)
     const existingLocked = await this.prisma.assignment.findFirst({
       where: {
         agentId: dto.agentId,
@@ -158,7 +205,6 @@ export class AssignmentsService {
     });
 
     if (existingLocked && !dto.forceMultiSite) {
-      // Si pas de chevauchement de dates, on laisse passer (missions successives)
       const overlaps = rangesOverlap(
         existingLocked.startDate,
         existingLocked.endDate,
@@ -201,8 +247,8 @@ export class AssignmentsService {
 
     const siteName = assignment.site?.name || 'chantier';
     let body = dayUnavailable
-      ? `Affectation sur ${siteName} un jour que vous aviez marqué indisponible — confirmez avant 22h`
-      : `Nouvelle affectation sur ${siteName} — confirmez avant 22h`;
+      ? `Affectation sur ${siteName} un jour que vous aviez marqué indisponible — confirmez avant 23h la veille du début`
+      : `Nouvelle affectation sur ${siteName} — confirmez avant 23h la veille du début`;
 
     if (dto.forceMultiSite && conflicts.length > 0) {
       body += ` (urgence multi-sites — aussi sur ${conflicts.map((c) => c.site.name).join(', ')})`;
@@ -237,7 +283,7 @@ export class AssignmentsService {
         `📋 *Convocation AS ONE*\n` +
         `Bonjour ${assignment.agent.firstName} ${assignment.agent.lastName},\n` +
         `Vous êtes convoqué(e) sur le chantier *${siteName}* à partir du *${date}*.\n` +
-        `Veuillez confirmer votre présence dans l'application.`;
+        `Veuillez confirmer avant 23h la veille du début dans l'application.`;
       this.whatsapp
         .sendMessage(chefId, assignment.agent.phone, msg)
         .catch(() => {});
@@ -259,20 +305,20 @@ export class AssignmentsService {
       throw new BadRequestException('Cette affectation ne peut plus être modifiée');
     }
 
-    const hourTogo = Number(
-      new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'Africa/Lome',
-        hour: 'numeric',
-        hour12: false,
-      }).format(new Date()),
-    );
-    if ((hourTogo === 24 ? 0 : hourTogo) >= 22) {
+    if (this.isPastConfirmDeadline(assignment.startDate)) {
+      await this.prisma.assignment.update({
+        where: { id: assignmentId },
+        data: {
+          status: AssignmentStatus.REFUSED,
+          refusedAt: new Date(),
+          isLocked: false,
+        },
+      });
       throw new BadRequestException(
-        'Il est trop tard pour confirmer ou refuser (après 22h)',
+        'Délai dépassé : confirmer avant 23h la veille du début. Affectation considérée comme refusée.',
       );
     }
 
-    // Si confirmation : vérifier encore multi-sites
     if (accept) {
       const conflicts = await this.findMultiSiteConflicts(
         agentId,
@@ -280,8 +326,6 @@ export class AssignmentsService {
         assignment.startDate,
         assignment.endDate,
       );
-      // On autorise la confirmation même en multi-sites (le chef a déjà tranché)
-      // mais on notifie les chefs des autres sites
       for (const c of conflicts) {
         if (c.createdById) {
           await this.notify.push(c.createdById, {
@@ -334,6 +378,7 @@ export class AssignmentsService {
   }
 
   async getBySite(siteId: string) {
+    await this.expireStalePending(siteId);
     return this.prisma.assignment.findMany({
       where: {
         siteId,
@@ -532,7 +577,6 @@ export class AssignmentsService {
         (p) => p.notedAt.toISOString().slice(0, 10) === todayStr,
       );
 
-      // Autres sites actifs (chevauchement aujourd'hui ou plage ouverte)
       const otherSites = a.assignments.filter((asgn) => {
         if (siteId && asgn.siteId === siteId) return false;
         return rangesOverlap(
