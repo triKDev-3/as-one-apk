@@ -25,7 +25,18 @@ android {
 
     buildTypes {
         release {
+            // APK plus petit : obfuscation + suppression ressources inutiles
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             signingConfig = signingConfigs.getByName("debug")
+        }
+        debug {
+            // Debug reste rapide à builder, mais plus lourd
+            isMinifyEnabled = false
         }
     }
 }

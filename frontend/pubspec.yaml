@@ -1,7 +1,7 @@
 name: asone_app
 description: AS ONE Facility Management — Application multi-plateforme
 publish_to: 'none'
-version: 1.0.4+5
+version: 1.0.5+6
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -29,7 +29,7 @@ dependencies:
   extension_google_sign_in_as_googleapis_auth: ^2.0.12
   share_plus: ^13.3.0
   path_provider: ^2.1.5
-  youtube_player_flutter: ^10.0.1
+  # YouTube : vignette + ouverture externe (beaucoup plus léger qu'un WebView intégré)
   carousel_slider: ^5.1.2
   flutter_markdown: ^0.7.7+1
   flutter_local_notifications: ^18.0.1

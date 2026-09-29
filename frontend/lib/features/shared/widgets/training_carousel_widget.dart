@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../repositories/training_video_repository.dart';
@@ -84,32 +84,18 @@ class _TrainingCarouselWidgetState
                 return _VideoCard(
                   key: ValueKey(video.id),
                   video: video,
-                  isActive: _currentIndex == index,
                   onViewMore: () {
                     context.push('/agent/lesson', extra: video);
-                  },
-                  onEnded: () {
-                    if (index < videos.length - 1) {
-                      _carouselController.nextPage(
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.easeOut,
-                      );
-                    } else {
-                      _carouselController.animateToPage(
-                        0,
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.easeOut,
-                      );
-                    }
                   },
                 );
               },
               options: CarouselOptions(
-                height: 280,
+                height: 220,
                 viewportFraction: 0.88,
                 enableInfiniteScroll: videos.length > 1,
                 enlargeCenterPage: true,
-                autoPlay: false,
+                autoPlay: videos.length > 1,
+                autoPlayInterval: const Duration(seconds: 6),
                 onPageChanged: (index, reason) {
                   setState(() => _currentIndex = index);
                 },
@@ -144,73 +130,32 @@ class _TrainingCarouselWidgetState
   }
 }
 
-class _VideoCard extends StatefulWidget {
+class _VideoCard extends StatelessWidget {
   final TrainingVideo video;
-  final bool isActive;
   final VoidCallback onViewMore;
-  final VoidCallback? onEnded;
 
   const _VideoCard({
     super.key,
     required this.video,
-    required this.isActive,
     required this.onViewMore,
-    this.onEnded,
   });
 
-  @override
-  State<_VideoCard> createState() => _VideoCardState();
-}
-
-class _VideoCardState extends State<_VideoCard> {
-  YoutubePlayerController? _controller;
-  String? _videoId;
-
-  @override
-  void initState() {
-    super.initState();
-    _videoId = extractYoutubeId(widget.video.youtubeUrl);
-    if (_videoId != null) {
-      _controller = YoutubePlayerController.fromVideoId(
-        videoId: _videoId!,
-        autoPlay: widget.isActive,
-        params: const YoutubePlayerParams(
-          mute: true,
-          showControls: false,
-          showFullscreenButton: false,
-          loop: false,
-          enableCaption: false,
-        ),
-      );
-      _controller!.listen((event) {
-        // Fin de vidéo → slide suivante
-        if (event.playerState == PlayerState.ended) {
-          widget.onEnded?.call();
-        }
-      });
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant _VideoCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final c = _controller;
-    if (c == null) return;
-    if (widget.isActive && !oldWidget.isActive) {
-      c.playVideo();
-    } else if (!widget.isActive && oldWidget.isActive) {
-      c.pauseVideo();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller?.close();
-    super.dispose();
+  Future<void> _openYoutube() async {
+    final id = extractYoutubeId(video.youtubeUrl);
+    final uri = id != null
+        ? Uri.parse('https://www.youtube.com/watch?v=$id')
+        : Uri.tryParse(video.youtubeUrl);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
   Widget build(BuildContext context) {
+    final id = extractYoutubeId(video.youtubeUrl);
+    final thumb = id != null
+        ? 'https://img.youtube.com/vi/$id/hqdefault.jpg'
+        : null;
+
     return Card(
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -219,18 +164,40 @@ class _VideoCardState extends State<_VideoCard> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: _controller != null
-                ? YoutubePlayer(
-                    controller: _controller!,
-                    aspectRatio: 16 / 9,
-                  )
-                : Container(
-                    color: Colors.black12,
+            child: InkWell(
+              onTap: _openYoutube,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (thumb != null)
+                    Image.network(
+                      thumb,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: Colors.black12,
+                        child: const Icon(Icons.play_circle_outline, size: 48),
+                      ),
+                    )
+                  else
+                    Container(
+                      color: Colors.black12,
+                      child: const Center(
+                        child: Icon(Icons.play_circle_outline, size: 48),
+                      ),
+                    ),
+                  Container(
+                    color: Colors.black26,
                     child: const Center(
-                      child: Text('Vidéo indisponible',
-                          style: TextStyle(color: AppColors.textSecondary)),
+                      child: Icon(
+                        Icons.play_circle_filled_rounded,
+                        color: Colors.white,
+                        size: 56,
+                      ),
                     ),
                   ),
+                ],
+              ),
+            ),
           ),
           Container(
             padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
@@ -242,16 +209,16 @@ class _VideoCardState extends State<_VideoCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.video.title,
+                        video.title,
                         style: const TextStyle(
                             fontWeight: FontWeight.w800, fontSize: 14),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (widget.video.description != null &&
-                          widget.video.description!.isNotEmpty)
+                      if (video.description != null &&
+                          video.description!.isNotEmpty)
                         Text(
-                          widget.video.description!,
+                          video.description!,
                           style: const TextStyle(
                               fontSize: 12, color: AppColors.textSecondary),
                           maxLines: 1,
@@ -261,7 +228,7 @@ class _VideoCardState extends State<_VideoCard> {
                   ),
                 ),
                 TextButton(
-                  onPressed: widget.onViewMore,
+                  onPressed: onViewMore,
                   child: const Text('Voir plus'),
                 ),
               ],

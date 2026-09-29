@@ -1,0 +1,24 @@
+# Flutter
+-keep class io.flutter.app.** { *; }
+-keep class io.flutter.plugin.** { *; }
+-keep class io.flutter.util.** { *; }
+-keep class io.flutter.view.** { *; }
+-keep class io.flutter.** { *; }
+-keep class io.flutter.plugins.** { *; }
+
+# Firebase / Play Services
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.firebase.**
+-dontwarn com.google.android.gms.**
+
+# Dio / OkHttp
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-keep class okhttp3.** { *; }
+
+# Keep models used by reflection (JSON)
+-keepattributes *Annotation*
+-keepclassmembers class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}

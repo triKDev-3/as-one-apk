@@ -13,13 +13,13 @@ on:
         required: false
         default: 'https://as-one-apk.onrender.com'
       build_type:
-        description: 'Type de build'
+        description: 'Type de build (release = léger)'
         required: false
-        default: 'debug'
+        default: 'release'
         type: choice
         options:
-          - debug
           - release
+          - debug
 
 env:
   GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
@@ -62,42 +62,49 @@ jobs:
         continue-on-error: true
         run: flutter analyze --no-fatal-infos || true
 
-      - name: Build APK universel
+      - name: Build APK léger
         working-directory: frontend
         env:
           API_URL: ${{ github.event.inputs.api_base_url || 'https://as-one-apk.onrender.com' }}
-          BUILD_TYPE: ${{ github.event.inputs.build_type || 'debug' }}
+          BUILD_TYPE: ${{ github.event.inputs.build_type || 'release' }}
         run: |
           echo "API_BASE_URL=$API_URL"
           echo "BUILD_TYPE=$BUILD_TYPE"
+          mkdir -p dist
           if [ "$BUILD_TYPE" = "release" ]; then
-            flutter build apk --release \
+            # Split par ABI = ~3x plus léger qu'un APK universel
+            flutter build apk --release --split-per-abi \
               --dart-define=API_BASE_URL="$API_URL"
-            SRC="build/app/outputs/flutter-apk/app-release.apk"
+            # Priorité arm64 (téléphones modernes), sinon armeabi-v7a
+            if [ -f build/app/outputs/flutter-apk/app-arm64-v8a-release.apk ]; then
+              cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/asone-release-arm64.apk
+            fi
+            if [ -f build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk ]; then
+              cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk dist/asone-release-arm32.apk
+            fi
+            ls -lh build/app/outputs/flutter-apk/ || true
           else
             flutter build apk --debug \
               --dart-define=API_BASE_URL="$API_URL"
-            SRC="build/app/outputs/flutter-apk/app-debug.apk"
+            cp build/app/outputs/flutter-apk/app-debug.apk dist/asone-debug.apk
           fi
-          mkdir -p dist
-          cp "$SRC" "dist/asone-${BUILD_TYPE}.apk"
           ls -lh dist/
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: asone-apk-${{ github.event.inputs.build_type || 'debug' }}
+          name: asone-apk-${{ github.event.inputs.build_type || 'release' }}
           path: frontend/dist/*.apk
           retention-days: 14
           if-no-files-found: error
 
       - name: Summary
         run: |
-          echo "### APK AS ONE prêt" >> $GITHUB_STEP_SUMMARY
+          echo "### APK AS ONE (léger)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Package ID :** \`services.asone.app\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Package :** \`services.asone.app\`" >> $GITHUB_STEP_SUMMARY
           echo "**API :** \`${{ github.event.inputs.api_base_url || 'https://as-one-apk.onrender.com' }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. Désinstalle l’ancienne app AS ONE" >> $GITHUB_STEP_SUMMARY
-          echo "2. Télécharge l’artifact **asone-apk-debug**" >> $GITHUB_STEP_SUMMARY
-          echo "3. Installe \`asone-debug.apk\`" >> $GITHUB_STEP_SUMMARY
+          echo "1. Télécharge l’artifact **asone-apk-release**" >> $GITHUB_STEP_SUMMARY
+          echo "2. Installe \`asone-release-arm64.apk\` (téléphones récents)" >> $GITHUB_STEP_SUMMARY
+          echo "3. Si échec d’install → essaie \`asone-release-arm32.apk\`" >> $GITHUB_STEP_SUMMARY
