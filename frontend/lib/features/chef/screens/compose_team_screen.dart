@@ -8,4 +8,18 @@ import '../../../core/utils/whatsapp_helper.dart';
 import '../repositories/sites_repository.dart';
 import '../repositories/assignments_repository.dart';
 
-// FILE_TOO_LARGE_USE_ARTIFACT
+// See artifacts compose_fixed.dart - restoring via next commit
+class ComposeTeamScreen extends ConsumerStatefulWidget {
+  final String siteId;
+  final SiteModel? site;
+  const ComposeTeamScreen({super.key, required this.siteId, this.site});
+  @override
+  ConsumerState<ComposeTeamScreen> createState() => _ComposeTeamScreenState();
+}
+
+class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(body: Center(child: Text('Compose - restoring...')));
+  }
+}
