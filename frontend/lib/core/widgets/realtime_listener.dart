@@ -6,6 +6,7 @@ import '../providers/providers.dart';
 import '../network/realtime_service.dart';
 import '../services/local_notification_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/notification_navigation.dart';
 import '../../features/agent/agent_home_screen.dart';
 
 class RealtimeListener extends ConsumerStatefulWidget {
@@ -34,11 +35,23 @@ class _RealtimeListenerState extends ConsumerState<RealtimeListener> {
     } catch (_) {}
   }
 
-  Future<void> _show(String title, String body, Color color) async {
+  Future<void> _show(
+    String title,
+    String body,
+    Color color, {
+    String? type,
+    Map<String, dynamic>? data,
+  }) async {
     await _ring();
-    // Bandeau système (même si l'app est en arrière-plan et le process actif)
+    final payload = type != null
+        ? NotificationNavigation.encodePayload(type: type, data: data)
+        : null;
     unawaited(
-      LocalNotificationService.instance.show(title: title, body: body),
+      LocalNotificationService.instance.show(
+        title: title,
+        body: body,
+        payload: payload,
+      ),
     );
 
     final messenger = ScaffoldMessenger.maybeOf(context);
@@ -57,6 +70,22 @@ class _RealtimeListenerState extends ConsumerState<RealtimeListener> {
         backgroundColor: color,
         duration: const Duration(seconds: 5),
         behavior: SnackBarBehavior.floating,
+        action: type != null
+            ? SnackBarAction(
+                label: 'Voir',
+                textColor: Colors.white,
+                onPressed: () {
+                  final role =
+                      ref.read(authProvider).user?.role ?? 'AGENT';
+                  NotificationNavigation.open(
+                    context,
+                    type: type,
+                    role: role,
+                    data: data,
+                  );
+                },
+              )
+            : null,
       ),
     );
   }
@@ -93,7 +122,10 @@ class _RealtimeListenerState extends ConsumerState<RealtimeListener> {
         final title = event.data['title'] as String? ?? 'AS ONE';
         final body = event.data['body'] as String? ?? '';
         final type = event.data['type'] as String? ?? '';
-        _show(title, body, _colorFor(type));
+        final data = event.data['data'] is Map
+            ? Map<String, dynamic>.from(event.data['data'] as Map)
+            : Map<String, dynamic>.from(event.data);
+        _show(title, body, _colorFor(type), type: type, data: data);
         if (type.startsWith('assignment') || type.startsWith('offer')) {
           ref.invalidate(agentDashboardProvider);
         }
@@ -104,8 +136,18 @@ class _RealtimeListenerState extends ConsumerState<RealtimeListener> {
         case 'assignment:new':
           final site = event.data['site'] as Map?;
           final name = site?['name'] ?? 'un site';
-          _show('Nouvelle affectation', '$name — confirmez avant 22h',
-              AppColors.primary);
+          final siteId = site?['id']?.toString() ??
+              event.data['siteId']?.toString();
+          _show(
+            'Nouvelle affectation',
+            '$name — confirmez avant 23h la veille',
+            AppColors.primary,
+            type: 'assignment:new',
+            data: {
+              if (siteId != null) 'siteId': siteId,
+              ...event.data,
+            },
+          );
           ref.invalidate(agentDashboardProvider);
           break;
         case 'assignment:response':
@@ -117,6 +159,8 @@ class _RealtimeListenerState extends ConsumerState<RealtimeListener> {
                 ? '$agentName a confirmé l\'affectation'
                 : '$agentName a refusé l\'affectation',
             accepted ? AppColors.accent : AppColors.danger,
+            type: 'assignment:response',
+            data: Map<String, dynamic>.from(event.data),
           );
           break;
         case 'pointage:done':
@@ -124,6 +168,8 @@ class _RealtimeListenerState extends ConsumerState<RealtimeListener> {
             'Pointage',
             event.data['message']?.toString() ?? 'Pointage enregistré',
             AppColors.accent,
+            type: 'pointage:done',
+            data: Map<String, dynamic>.from(event.data),
           );
           break;
         case 'incident:new':
@@ -131,6 +177,8 @@ class _RealtimeListenerState extends ConsumerState<RealtimeListener> {
             'Incident',
             event.data['message']?.toString() ?? 'Nouvel incident',
             AppColors.danger,
+            type: 'incident:new',
+            data: Map<String, dynamic>.from(event.data),
           );
           break;
         case 'availability:unavailable':
@@ -140,6 +188,8 @@ class _RealtimeListenerState extends ConsumerState<RealtimeListener> {
                 event.data['body']?.toString() ??
                 'Un agent s\'est déclaré indisponible',
             AppColors.danger,
+            type: 'availability:unavailable',
+            data: Map<String, dynamic>.from(event.data),
           );
           break;
       }

@@ -4,8 +4,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'local_notification_service.dart';
 import '../network/api_client.dart';
+import '../utils/notification_navigation.dart';
 
-/// Handler arrière-plan (doit être top-level).
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -17,6 +17,7 @@ class PushNotificationService {
 
   bool _ready = false;
   String? _currentToken;
+  bool _tapHandlersBound = false;
 
   Future<void> init() async {
     if (_ready) return;
@@ -31,16 +32,24 @@ class PushNotificationService {
         sound: true,
       );
 
-      // Affiche les notifs FCM aussi en premier plan via locales
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         final n = message.notification;
+        final data = message.data;
+        final type = data['type']?.toString() ?? '';
+        final payload = NotificationNavigation.encodePayload(
+          type: type,
+          data: Map<String, dynamic>.from(data),
+        );
         if (n != null) {
           LocalNotificationService.instance.show(
             title: n.title ?? 'AS ONE',
             body: n.body ?? '',
+            payload: payload,
           );
         }
       });
+
+      _bindTapHandlers(messaging);
 
       _currentToken = await messaging.getToken();
       messaging.onTokenRefresh.listen((t) {
@@ -54,11 +63,34 @@ class PushNotificationService {
     }
   }
 
-  /// Envoie le token au backend après login.
+  void _bindTapHandlers(FirebaseMessaging messaging) {
+    if (_tapHandlersBound) return;
+    _tapHandlersBound = true;
+
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      _navigateFromMessage(message);
+    });
+
+    messaging.getInitialMessage().then((RemoteMessage? message) {
+      if (message != null) {
+        Future.delayed(const Duration(milliseconds: 800), () {
+          _navigateFromMessage(message);
+        });
+      }
+    });
+  }
+
+  void _navigateFromMessage(RemoteMessage message) {
+    final data = Map<String, dynamic>.from(message.data);
+    final type = data['type']?.toString() ?? '';
+    NotificationNavigation.handleData(type: type, data: data);
+  }
+
   Future<void> registerWithBackend(ApiClient api) async {
     try {
       if (!_ready) await init();
-      final token = _currentToken ?? await FirebaseMessaging.instance.getToken();
+      final token =
+          _currentToken ?? await FirebaseMessaging.instance.getToken();
       if (token == null || token.isEmpty) return;
       _currentToken = token;
       await api.dio.post(

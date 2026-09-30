@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'asone_bottom_nav.dart';
 import 'chef_site_fab.dart';
+import '../utils/notification_navigation.dart';
 
 /// Coque avec barre de navigation bas **persistante** pendant la navigation.
 class RoleShell extends StatelessWidget {
@@ -84,6 +85,9 @@ class RoleShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final role = roleFromPath(location);
     final index = indexFromPath(location, role);
+
+    // Rôle courant pour deep-link notifications (FCM / locale)
+    NotificationNavigation.setRoleGetter(() => role);
 
     return Scaffold(
       body: Stack(
