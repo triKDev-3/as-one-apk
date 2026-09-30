@@ -6,9 +6,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/providers/providers.dart';
 
-// ─── Model ─────────────────────────────────────────────────────────────────
 class MonthlyPaySummary {
-  final String monthKey; // yyyy-MM
+  final String monthKey;
   final int daysWorked;
   final double totalAmount;
   final bool isPaid;
@@ -24,7 +23,8 @@ class MonthlyPaySummary {
     this.details = const [],
   });
 
-  factory MonthlyPaySummary.fromJson(Map<String, dynamic> j) => MonthlyPaySummary(
+  factory MonthlyPaySummary.fromJson(Map<String, dynamic> j) =>
+      MonthlyPaySummary(
         monthKey: j['monthKey'] as String,
         daysWorked: (j['daysWorked'] as num?)?.toInt() ?? 0,
         totalAmount: (j['totalAmount'] as num?)?.toDouble() ?? 0,
@@ -44,19 +44,20 @@ class MonthlyPaySummary {
   }
 }
 
-// ─── Provider ─────────────────────────────────────────────────────────────
-final agentRemunerationProvider = FutureProvider.autoDispose<List<MonthlyPaySummary>>((ref) async {
+final agentRemunerationProvider =
+    FutureProvider.autoDispose<List<MonthlyPaySummary>>((ref) async {
   final api = ref.watch(apiClientProvider);
   try {
     final res = await api.dio.get('/agent/remuneration');
     final list = res.data as List<dynamic>;
-    return list.map((e) => MonthlyPaySummary.fromJson(e as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => MonthlyPaySummary.fromJson(e as Map<String, dynamic>))
+        .toList();
   } on DioException catch (e) {
     throw ApiClient.extractError(e);
   }
 });
 
-// ─── Screen ───────────────────────────────────────────────────────────────
 class RemunerationScreen extends ConsumerStatefulWidget {
   const RemunerationScreen({super.key});
 
@@ -70,7 +71,7 @@ class _RemunerationScreenState extends ConsumerState<RemunerationScreen> {
   Future<void> _markAsPaid(MonthlyPaySummary summary) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text(summary.displayMonth),
         content: Text(
           'Marquer ce mois comme payé ?\n\n'
@@ -79,12 +80,16 @@ class _RemunerationScreenState extends ConsumerState<RemunerationScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('Annuler'),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(160, 44),
+            ),
             child: const Text('Marquer payé'),
           ),
         ],
@@ -95,7 +100,10 @@ class _RemunerationScreenState extends ConsumerState<RemunerationScreen> {
     setState(() => _markingPaid.add(summary.monthKey));
     try {
       final api = ref.read(apiClientProvider);
-      await api.dio.post('/agent/remuneration/mark-paid', data: {'monthKey': summary.monthKey});
+      await api.dio.post(
+        '/agent/remuneration/mark-paid',
+        data: {'monthKey': summary.monthKey},
+      );
       ref.invalidate(agentRemunerationProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -108,7 +116,10 @@ class _RemunerationScreenState extends ConsumerState<RemunerationScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: AppColors.danger),
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: AppColors.danger,
+          ),
         );
       }
     } finally {
@@ -123,9 +134,10 @@ class _RemunerationScreenState extends ConsumerState<RemunerationScreen> {
   @override
   Widget build(BuildContext context) {
     final dataAsync = ref.watch(agentRemunerationProvider);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Rémunération'),
         backgroundColor: AppColors.primary,
@@ -140,7 +152,8 @@ class _RemunerationScreenState extends ConsumerState<RemunerationScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline, color: AppColors.danger, size: 40),
+                const Icon(Icons.error_outline,
+                    color: AppColors.danger, size: 40),
                 const SizedBox(height: 12),
                 Text(e.toString(), textAlign: TextAlign.center),
                 const SizedBox(height: 16),
@@ -158,11 +171,13 @@ class _RemunerationScreenState extends ConsumerState<RemunerationScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.account_balance_wallet_outlined, size: 56, color: AppColors.textTertiary),
+                  Icon(Icons.account_balance_wallet_outlined,
+                      size: 56, color: AppColors.textTertiary),
                   SizedBox(height: 16),
                   Text(
                     'Aucune donnée de rémunération',
-                    style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
+                    style: TextStyle(
+                        fontSize: 15, color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -178,7 +193,6 @@ class _RemunerationScreenState extends ConsumerState<RemunerationScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                // Summary card
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -208,23 +222,21 @@ class _RemunerationScreenState extends ConsumerState<RemunerationScreen> {
                       const SizedBox(height: 4),
                       Text(
                         '${months.where((m) => !m.isPaid).length} mois en attente',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontSize: 12),
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 20),
-                const Text(
+                Text(
                   'Détail par mois',
-                  style: TextStyle(
+                  style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
-                    fontSize: 15,
-                    color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 10),
-
                 ...months.map((m) => _MonthCard(
                       summary: m,
                       formatAmount: _formatAmount,
@@ -256,13 +268,16 @@ class _MonthCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPaid = summary.isPaid;
+    final surface = Theme.of(context).colorScheme.surface;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isPaid ? AppColors.accent.withValues(alpha: 0.3) : AppColors.border,
+          color: isPaid
+              ? AppColors.accent.withValues(alpha: 0.3)
+              : AppColors.border,
         ),
       ),
       child: Padding(
@@ -279,12 +294,12 @@ class _MonthCard extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                       fontSize: 13,
                       letterSpacing: 0.5,
-                      color: AppColors.textPrimary,
                     ),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: isPaid
                         ? AppColors.accent.withValues(alpha: 0.12)
@@ -295,7 +310,9 @@ class _MonthCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        isPaid ? Icons.check_circle_rounded : Icons.schedule_rounded,
+                        isPaid
+                            ? Icons.check_circle_rounded
+                            : Icons.schedule_rounded,
                         size: 13,
                         color: isPaid ? AppColors.accent : AppColors.warning,
                       ),
@@ -357,7 +374,8 @@ class _MonthCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 'Payé le ${DateFormat('dd/MM/yyyy').format(DateTime.parse(summary.paidAt!))}',
-                style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                style: const TextStyle(
+                    fontSize: 11, color: AppColors.textTertiary),
               ),
             ],
           ],
@@ -372,7 +390,8 @@ class _StatChip extends StatelessWidget {
   final String label;
   final Color color;
 
-  const _StatChip({required this.icon, required this.label, required this.color});
+  const _StatChip(
+      {required this.icon, required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
