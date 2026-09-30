@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/theme_provider.dart';
 import '../../core/providers/providers.dart';
 import '../../core/network/api_client.dart';
 
@@ -21,7 +22,6 @@ class _AgentProfileScreenState extends ConsumerState<AgentProfileScreen> {
   final _newPassCtrl = TextEditingController();
   bool _saving = false;
   bool _changingPass = false;
-
   bool _filled = false;
 
   @override
@@ -72,7 +72,8 @@ class _AgentProfileScreenState extends ConsumerState<AgentProfileScreen> {
   Future<void> _changePassword() async {
     if (_newPassCtrl.text.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nouveau mot de passe : min. 6 caractères')),
+        const SnackBar(
+            content: Text('Nouveau mot de passe : min. 6 caractères')),
       );
       return;
     }
@@ -109,8 +110,11 @@ class _AgentProfileScreenState extends ConsumerState<AgentProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = ref.watch(themeModeProvider);
+    final isDark = themeMode == ThemeMode.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Mon profil'),
         leading: IconButton(
@@ -121,6 +125,19 @@ class _AgentProfileScreenState extends ConsumerState<AgentProfileScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          Text('Apparence', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Mode sombre'),
+            subtitle: Text(
+                isDark ? 'Activé sur toutes les pages' : 'Désactivé'),
+            value: isDark,
+            activeThumbColor: AppColors.primary,
+            onChanged: (_) =>
+                ref.read(themeModeProvider.notifier).toggle(),
+          ),
+          const Divider(height: 32),
           Text('Informations', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
           TextField(
@@ -138,7 +155,8 @@ class _AgentProfileScreenState extends ConsumerState<AgentProfileScreen> {
             keyboardType: TextInputType.phone,
             decoration: const InputDecoration(
               labelText: 'Téléphone',
-              helperText: 'L’opérateur Mobile Money est détecté automatiquement',
+              helperText:
+                  'L\u2019opérateur Mobile Money est détecté automatiquement',
             ),
           ),
           const SizedBox(height: 20),
@@ -161,13 +179,15 @@ class _AgentProfileScreenState extends ConsumerState<AgentProfileScreen> {
           TextField(
             controller: _currentPassCtrl,
             obscureText: true,
-            decoration: const InputDecoration(labelText: 'Mot de passe actuel'),
+            decoration:
+                const InputDecoration(labelText: 'Mot de passe actuel'),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _newPassCtrl,
             obscureText: true,
-            decoration: const InputDecoration(labelText: 'Nouveau mot de passe'),
+            decoration:
+                const InputDecoration(labelText: 'Nouveau mot de passe'),
           ),
           const SizedBox(height: 20),
           OutlinedButton(
