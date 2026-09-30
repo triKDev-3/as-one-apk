@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/providers/providers.dart';
 import '../../core/network/api_client.dart';
+import '../../core/utils/notification_navigation.dart';
 import 'package:dio/dio.dart';
 
 final notificationsProvider =
@@ -64,7 +65,26 @@ class NotificationsScreen extends ConsumerWidget {
     if (type.contains('payroll') || type.contains('paie')) {
       return Icons.payments_rounded;
     }
+    if (type.contains('site')) return Icons.location_on_rounded;
     return Icons.notifications_rounded;
+  }
+
+  Map<String, dynamic>? _asMap(dynamic raw) {
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
+  }
+
+  void _open(BuildContext context, WidgetRef ref, Map<String, dynamic> n) {
+    final type = n['type'] as String? ?? '';
+    final data = _asMap(n['data']);
+    final role = ref.read(authProvider).user?.role ?? 'AGENT';
+    NotificationNavigation.open(
+      context,
+      type: type,
+      role: role,
+      data: data,
+    );
   }
 
   @override
@@ -145,6 +165,7 @@ class NotificationsScreen extends ConsumerWidget {
                       if (isUnread && id.isNotEmpty) {
                         _markRead(ref, id);
                       }
+                      _open(context, ref, n);
                     },
                     child: Container(
                       padding: const EdgeInsets.all(14),
@@ -216,6 +237,8 @@ class NotificationsScreen extends ConsumerWidget {
                               ],
                             ),
                           ),
+                          const Icon(Icons.chevron_right,
+                              color: AppColors.textTertiary, size: 20),
                         ],
                       ),
                     ),
