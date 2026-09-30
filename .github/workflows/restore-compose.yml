@@ -8,11 +8,11 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Decode gzip+base64 compose
+      - name: Decode
         run: |
-          cat frontend/lib/features/chef/screens/.compose_b64/compose.gz.b64.part* | tr -d '\n' | base64 -d | gzip -d > frontend/lib/features/chef/screens/compose_team_screen.dart
+          cat frontend/lib/features/chef/screens/.compose_b64/compose.min.gz.b64 | tr -d '\n' | base64 -d | gzip -d > frontend/lib/features/chef/screens/compose_team_screen.dart
           wc -c frontend/lib/features/chef/screens/compose_team_screen.dart
-          head -3 frontend/lib/features/chef/screens/compose_team_screen.dart
+          head -5 frontend/lib/features/chef/screens/compose_team_screen.dart
           grep -q ComposeTeamScreen frontend/lib/features/chef/screens/compose_team_screen.dart
       - name: Commit
         run: |
@@ -20,5 +20,5 @@ jobs:
           git config user.email "bot@asone.local"
           git add frontend/lib/features/chef/screens/compose_team_screen.dart
           git diff --staged --quiet && echo No change && exit 0
-          git commit -m "restore: compose_team_screen full (renvoyer/rappel/liberer)"
+          git commit -m "restore: compose_team_screen (renvoyer/rappel/liberer)"
           git push
