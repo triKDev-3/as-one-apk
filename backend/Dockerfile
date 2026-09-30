@@ -1,5 +1,5 @@
 # AS ONE API — production
-# v4 — npm install only (lock désync OK)
+# v5 — prisma db push avec timeout ; le serveur démarre toujours (port ouvert)
 
 FROM node:20-bookworm-slim AS builder
 
@@ -14,7 +14,6 @@ COPY package-lock.json* ./
 COPY prisma ./prisma/
 COPY nest-cli.json tsconfig.json tsconfig.build.json ./
 
-# Toujours npm install (évite "Missing X from lock file")
 RUN npm install
 
 RUN npx prisma generate
@@ -50,4 +49,6 @@ RUN mkdir -p uploads \
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && if [ -f dist/main.js ]; then node dist/main.js; else node dist/src/main.js; fi"]
+# Prisma db push peut bloquer 15+ min sur le pooler Supabase → timeout 45s
+# Puis démarrage IMMÉDIAT de Nest (port 0.0.0.0:$PORT) pour passer le healthcheck Render
+CMD ["sh", "-c", "echo '>> prisma db push (max 45s)...' && (timeout 45 npx prisma db push --accept-data-loss --skip-generate 2>&1 || echo '>> prisma skip/timeout — démarrage API quand même') && echo '>> starting Nest...' && if [ -f dist/main.js ]; then node dist/main.js; else node dist/src/main.js; fi"]

@@ -10,30 +10,38 @@ import * as fs from 'fs';
 @Injectable()
 export class WhatsappService implements OnModuleInit {
   private readonly logger = new Logger(WhatsappService.name);
-  
-  // Map of userId -> socket instance
+
   private socks = new Map<string, any>();
-  // Map of userId -> connection status
   private statuses = new Map<string, boolean>();
 
   async onModuleInit() {
-    // Attempt to reconnect any existing sessions on startup
-    const authRoot = path.join(process.cwd(), 'baileys_auth_info');
-    if (fs.existsSync(authRoot)) {
+    // Ne JAMAIS bloquer le bootstrap Nest / le port Render
+    setImmediate(() => {
+      void this.reconnectExistingSessions();
+    });
+  }
+
+  private async reconnectExistingSessions() {
+    try {
+      const authRoot = path.join(process.cwd(), 'baileys_auth_info');
+      if (!fs.existsSync(authRoot)) return;
       const dirs = fs.readdirSync(authRoot);
       for (const dir of dirs) {
-        const stats = fs.statSync(path.join(authRoot, dir));
-        if (stats.isDirectory()) {
-          this.logger.log(`Attempting to reconnect WhatsApp for user ${dir}...`);
-          await this.initializeSocket(dir);
+        try {
+          const stats = fs.statSync(path.join(authRoot, dir));
+          if (stats.isDirectory()) {
+            this.logger.log(`Attempting to reconnect WhatsApp for user ${dir}...`);
+            await this.initializeSocket(dir);
+          }
+        } catch (e) {
+          this.logger.warn(`Skip WhatsApp reconnect for ${dir}: ${e}`);
         }
       }
+    } catch (e) {
+      this.logger.warn(`WhatsApp session scan failed: ${e}`);
     }
   }
 
-  /**
-   * Initializes a WhatsApp socket for a specific user.
-   */
   private async initializeSocket(userId: string) {
     if (this.socks.has(userId)) {
       return this.socks.get(userId);
@@ -51,7 +59,10 @@ export class WhatsappService implements OnModuleInit {
 
     sock.ev.on(
       'connection.update',
-      async (update: { connection?: string; lastDisconnect?: { error?: Error } }) => {
+      async (update: {
+        connection?: string;
+        lastDisconnect?: { error?: Error };
+      }) => {
         const { connection, lastDisconnect } = update;
 
         if (connection === 'close') {
@@ -59,25 +70,28 @@ export class WhatsappService implements OnModuleInit {
           const shouldReconnect =
             (lastDisconnect?.error as Boom)?.output?.statusCode !==
             DisconnectReason.loggedOut;
-          
-          this.logger.warn(`WhatsApp connection closed for user ${userId} — reconnecting: ${shouldReconnect}`);
-          
+
+          this.logger.warn(
+            `WhatsApp connection closed for user ${userId} — reconnecting: ${shouldReconnect}`,
+          );
+
           if (shouldReconnect) {
-            // Reconnect
             this.socks.delete(userId);
-            this.initializeSocket(userId);
+            void this.initializeSocket(userId);
           } else {
-            // Logged out
             this.socks.delete(userId);
-            this.logger.error(`WhatsApp logged out for user ${userId}. Needs re-pairing.`);
-            // Clean up auth dir
+            this.logger.error(
+              `WhatsApp logged out for user ${userId}. Needs re-pairing.`,
+            );
             try {
               fs.rmSync(authDir, { recursive: true, force: true });
-            } catch (e) {}
+            } catch (_) {}
           }
         } else if (connection === 'open') {
           this.statuses.set(userId, true);
-          this.logger.log(`✅ WhatsApp connected successfully for user ${userId}`);
+          this.logger.log(
+            `✅ WhatsApp connected successfully for user ${userId}`,
+          );
         }
       },
     );
@@ -86,41 +100,35 @@ export class WhatsappService implements OnModuleInit {
     return sock;
   }
 
-  /**
-   * Request a pairing code for a specific user.
-   */
   async requestPairingCode(userId: string, phone: string): Promise<string> {
-    // Clean phone and prepend 228 if needed
     let cleaned = phone.replace(/\D/g, '');
     if (cleaned.length === 8) {
       cleaned = '228' + cleaned;
     } else if (!cleaned.startsWith('228') && cleaned.length < 11) {
-      // Basic fallback just in case
       cleaned = '228' + cleaned;
     }
 
-    // Force disconnect and clean up if already exists to start fresh
     if (this.socks.has(userId)) {
       const existing = this.socks.get(userId);
       existing?.ev?.removeAllListeners();
       try {
         existing?.logout();
-      } catch (e) {}
+      } catch (_) {}
       this.socks.delete(userId);
       this.statuses.set(userId, false);
       const authDir = path.join(process.cwd(), 'baileys_auth_info', userId);
       try {
         fs.rmSync(authDir, { recursive: true, force: true });
-      } catch (e) {}
+      } catch (_) {}
     }
 
     const sock = await this.initializeSocket(userId);
-
-    // Wait slightly to ensure socket is ready for pairing
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     if (sock.authState.creds.registered) {
-      throw new BadRequestException('This account is already registered. Logout first.');
+      throw new BadRequestException(
+        'This account is already registered. Logout first.',
+      );
     }
 
     try {
@@ -129,19 +137,24 @@ export class WhatsappService implements OnModuleInit {
       return code;
     } catch (err) {
       this.logger.error(`Failed to generate pairing code for ${userId}`, err);
-      throw new BadRequestException('Impossible de générer le code de couplage. Vérifiez le numéro.');
+      throw new BadRequestException(
+        'Impossible de générer le code de couplage. Vérifiez le numéro.',
+      );
     }
   }
 
-  /**
-   * Envoyer un message WhatsApp avec le compte d'un chef.
-   */
-  async sendMessage(userId: string, phone: string, text: string): Promise<boolean> {
+  async sendMessage(
+    userId: string,
+    phone: string,
+    text: string,
+  ): Promise<boolean> {
     const sock = this.socks.get(userId);
     const isConnected = this.statuses.get(userId);
 
     if (!sock || !isConnected) {
-      this.logger.warn(`WhatsApp non connecté pour user ${userId} — message non envoyé à ${phone}`);
+      this.logger.warn(
+        `WhatsApp non connecté pour user ${userId} — message non envoyé à ${phone}`,
+      );
       return false;
     }
 
@@ -155,7 +168,10 @@ export class WhatsappService implements OnModuleInit {
       this.logger.log(`✉️  WhatsApp envoyé par ${userId} → ${phone}`);
       return true;
     } catch (error) {
-      this.logger.error(`Échec envoi WhatsApp par ${userId} à ${phone}:`, error);
+      this.logger.error(
+        `Échec envoi WhatsApp par ${userId} à ${phone}:`,
+        error,
+      );
       return false;
     }
   }
@@ -170,18 +186,17 @@ export class WhatsappService implements OnModuleInit {
       sock?.ev?.removeAllListeners();
       try {
         sock?.logout();
-      } catch (e) {}
+      } catch (_) {}
       this.socks.delete(userId);
     }
-    
+
     this.statuses.set(userId, false);
-    
-    // Clean up auth dir
+
     const authDir = path.join(process.cwd(), 'baileys_auth_info', userId);
     try {
       fs.rmSync(authDir, { recursive: true, force: true });
-    } catch (e) {}
-    
+    } catch (_) {}
+
     this.logger.log(`WhatsApp disconnected for user ${userId}`);
   }
 }
