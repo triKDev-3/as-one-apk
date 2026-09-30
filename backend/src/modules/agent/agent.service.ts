@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Role, AssignmentStatus } from '@prisma/client';
@@ -14,6 +15,14 @@ type DayCell = {
   sites?: string[];
   conflict?: boolean;
 };
+
+function coversDate(start: Date, end: Date | null, dayKey: string): boolean {
+  const s = start.toISOString().slice(0, 10);
+  if (dayKey < s) return false;
+  if (!end) return true;
+  const e = end.toISOString().slice(0, 10);
+  return dayKey <= e;
+}
 
 @Injectable()
 export class AgentService {
@@ -34,11 +43,10 @@ export class AgentService {
     return profile;
   }
 
-  /** Notifie les chefs des sites où l'agent a une affectation active. */
   private async notifyChefsOfUnavailability(
     agentId: string,
     agentName: string,
-    opts: { continuous?: boolean; date?: string },
+    opts: { continuous?: boolean; date?: string; cancelled?: boolean },
   ) {
     const assignments = await this.prisma.assignment.findMany({
       where: {
@@ -76,18 +84,21 @@ export class AgentService {
         ? [...new Set(siteNames)].slice(0, 3).join(', ')
         : 'un site';
 
-    const body = opts.continuous
-      ? `${agentName} s'est déclaré(e) indisponible (bouton continu) alors qu'il/elle est affecté(e) sur ${sitesLabel}.`
-      : `${agentName} a marqué le ${opts.date} comme indisponible (affecté(e) sur ${sitesLabel}).`;
+    const body = opts.cancelled
+      ? `${agentName} s'est déclaré(e) indisponible le ${opts.date} et a annulé son affectation sur ${sitesLabel}.`
+      : opts.continuous
+        ? `${agentName} s'est déclaré(e) indisponible (bouton continu) alors qu'il/elle est affecté(e) sur ${sitesLabel}.`
+        : `${agentName} a marqué le ${opts.date} comme indisponible (affecté(e) sur ${sitesLabel}).`;
 
     await this.notify.pushMany([...chefIds], {
-      title: 'Agent indisponible',
+      title: opts.cancelled ? 'Affectation annulée par agent' : 'Agent indisponible',
       body,
       type: 'availability:unavailable',
       data: {
         agentId,
         date: opts.date ?? null,
         continuous: !!opts.continuous,
+        cancelled: !!opts.cancelled,
         sites: [...new Set(siteNames)],
       },
     });
@@ -102,8 +113,6 @@ export class AgentService {
     if (!user || user.role !== Role.AGENT) {
       throw new ForbiddenException('Seul un agent peut modifier sa disponibilité');
     }
-
-    // Agenda libre : pas de coupure 22h
 
     const now = new Date();
     await this.ensureAgentProfile(userId);
@@ -326,7 +335,7 @@ export class AgentService {
         existing.sites = [...sites];
         if (!existing.siteName) existing.siteName = siteName;
         else if (existing.siteName !== siteName && sites.size > 1) {
-          existing.siteName = existing.sites!.join(' · ');
+          existing.siteName = existing.sites!.join(' \u00b7 ');
         }
       }
       if (opts?.conflict) existing.conflict = true;
@@ -465,7 +474,6 @@ export class AgentService {
         unavailable,
         conflicts,
       },
-      // Plus de coupure 22h : l'agent peut modifier son agenda librement
       canEditAvailability: true,
     };
   }
@@ -542,14 +550,13 @@ export class AgentService {
     userId: string,
     date: string,
     available: boolean,
+    cancelAssignments = false,
   ) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       throw new BadRequestException(
         'Format de date invalide (YYYY-MM-DD attendu)',
       );
     }
-
-    // Agenda libre : modification à tout moment (plus de coupure 22h)
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.role !== Role.AGENT) {
@@ -570,6 +577,57 @@ export class AgentService {
       where: { userId },
     });
     if (!profile) throw new NotFoundException('Profil agent non trouvé');
+
+    let cancelledCount = 0;
+    let cancelledSites: string[] = [];
+
+    // Indisponible alors qu'une affectation couvre ce jour
+    if (!available) {
+      const active = await this.prisma.assignment.findMany({
+        where: {
+          agentId: userId,
+          status: {
+            in: [
+              AssignmentStatus.PENDING_CONFIRMATION,
+              AssignmentStatus.CONFIRMED,
+              AssignmentStatus.LOCKED,
+            ],
+          },
+        },
+        include: { site: { select: { id: true, name: true } } },
+      });
+
+      const covering = active.filter((a) =>
+        coversDate(a.startDate, a.endDate, date),
+      );
+
+      if (covering.length > 0 && !cancelAssignments) {
+        throw new ConflictException({
+          message:
+            'Vous avez une affectation ce jour. Confirmez pour annuler l\'affectation et vous marquer indisponible.',
+          code: 'NEED_CANCEL_ASSIGNMENT',
+          assignments: covering.map((a) => ({
+            id: a.id,
+            siteId: a.site.id,
+            siteName: a.site.name,
+            status: a.status,
+          })),
+        });
+      }
+
+      if (covering.length > 0 && cancelAssignments) {
+        const ids = covering.map((a) => a.id);
+        await this.prisma.assignment.updateMany({
+          where: { id: { in: ids } },
+          data: {
+            status: AssignmentStatus.CANCELLED,
+            isLocked: false,
+          },
+        });
+        cancelledCount = ids.length;
+        cancelledSites = [...new Set(covering.map((a) => a.site.name))];
+      }
+    }
 
     let unavailableDates: string[] = Array.isArray(profile.unavailableDates)
       ? [...(profile.unavailableDates as string[])]
@@ -592,7 +650,10 @@ export class AgentService {
 
     if (!available) {
       const name = `${user.firstName} ${user.lastName}`.trim();
-      await this.notifyChefsOfUnavailability(userId, name, { date });
+      await this.notifyChefsOfUnavailability(userId, name, {
+        date,
+        cancelled: cancelledCount > 0,
+      });
     }
 
     return {
@@ -600,6 +661,8 @@ export class AgentService {
       date,
       available,
       unavailableDates,
+      cancelledAssignments: cancelledCount,
+      cancelledSites,
     };
   }
 }
