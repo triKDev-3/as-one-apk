@@ -208,6 +208,9 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
     final start = (assignment.startDate ?? '').length >= 10
         ? assignment.startDate!.substring(0, 10)
         : _fmtDate(DateTime.now());
+    final end = (assignment.endDate ?? '').length >= 10
+        ? assignment.endDate!.substring(0, 10)
+        : null;
 
     showModalBottomSheet(
       context: context,
@@ -216,17 +219,54 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              leading: const Icon(Icons.send, color: Color(0xFF25D366)),
+              title: const Text('Renvoyer message d\'affectation'),
+              subtitle: const Text('WhatsApp — convocation initiale'),
+              onTap: () async {
+                Navigator.pop(sheetContext);
+                final msg = WhatsAppHelper.assignmentMessage(
+                  agentName: assignment.agentName,
+                  siteName: siteName,
+                  startDate: start,
+                  endDate: end,
+                );
+                await WhatsAppHelper.openWhatsApp(
+                  phone: assignment.agentPhone,
+                  message: msg,
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy),
+              title: const Text('Copier le message'),
+              subtitle: const Text('Coller dans WhatsApp / SMS'),
+              onTap: () async {
+                Navigator.pop(sheetContext);
+                final msg = WhatsAppHelper.assignmentMessage(
+                  agentName: assignment.agentName,
+                  siteName: siteName,
+                  startDate: start,
+                  endDate: end,
+                );
+                await WhatsAppHelper.copyMessage(msg);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Message copié')),
+                );
+              },
+            ),
+            ListTile(
               leading:
-                  const Icon(Icons.message, color: Color(0xFF25D366)),
-              title: const Text('Rappel WhatsApp'),
-              subtitle: const Text('Confirmer avant 23h la veille'),
+                  const Icon(Icons.notifications_active, color: Color(0xFF25D366)),
+              title: const Text('Rappel jour J'),
+              subtitle: const Text('WhatsApp — confirmer avant 23h la veille'),
               onTap: () async {
                 Navigator.pop(sheetContext);
                 final msg = WhatsAppHelper.assignmentReminderMessage(
                   agentName: assignment.agentName,
                   siteName: siteName,
                   startDate: start,
-                  endDate: assignment.endDate,
+                  endDate: end,
                 );
                 await WhatsAppHelper.openWhatsApp(
                   phone: assignment.agentPhone,
