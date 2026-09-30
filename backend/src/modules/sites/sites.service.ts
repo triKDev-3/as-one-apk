@@ -316,9 +316,6 @@ export class SitesService {
 
   /**
    * Transfert d'un site d'un chef vers un autre.
-   * - Chef : doit être déjà assigné au site
-   * - Admin : toujours autorisé
-   * keepSelf=true → les 2 restent ; false → retire le chef source
    */
   async transferSite(
     siteId: string,
@@ -338,7 +335,7 @@ export class SitesService {
       const isAssigned = site.chefs.some((c) => c.chefId === fromUserId);
       if (!isAssigned) {
         throw new ForbiddenException(
-          'Vous n\'êtes pas assigné à ce site — transfert impossible',
+          'Vous n\'\u00eates pas assigné à ce site — transfert impossible',
         );
       }
     }
@@ -359,9 +356,9 @@ export class SitesService {
       }
     }
 
-    // Notif au chef destinataire
+    // Notif au chef destinataire (modèle Prisma = appNotification)
     try {
-      await this.prisma.notification.create({
+      await this.prisma.appNotification.create({
         data: {
           userId: toChefId,
           type: 'SITE_TRANSFER',
@@ -371,7 +368,7 @@ export class SitesService {
         },
       });
     } catch {
-      // ignore si schéma notif différent
+      // ignore si échec notif
     }
 
     return this.findOne(siteId);
