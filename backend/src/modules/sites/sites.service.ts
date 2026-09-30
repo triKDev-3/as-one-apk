@@ -8,7 +8,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSiteDto } from './dto/create-site.dto';
 import { UpdateSiteDto } from './dto/update-site.dto';
-import { AssignmentStatus, Role } from '@prisma/client';
+import { AssignmentStatus, Role, Prisma } from '@prisma/client';
 
 @Injectable()
 export class SitesService {
@@ -335,7 +335,7 @@ export class SitesService {
       const isAssigned = site.chefs.some((c) => c.chefId === fromUserId);
       if (!isAssigned) {
         throw new ForbiddenException(
-          'Vous n\'\u00eates pas assigné à ce site — transfert impossible',
+          "Vous n'êtes pas assigné à ce site — transfert impossible",
         );
       }
     }
@@ -364,7 +364,7 @@ export class SitesService {
           type: 'SITE_TRANSFER',
           title: 'Site reçu',
           body: `Le site « ${site.name} » vous a été confié.`,
-          data: { siteId },
+          data: { siteId } as Prisma.InputJsonValue,
         },
       });
     } catch {
