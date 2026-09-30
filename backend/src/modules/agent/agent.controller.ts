@@ -39,7 +39,6 @@ export class AgentController {
     return this.agentService.getPointagesHistory(req.user.id);
   }
 
-  /** Planning mensuel — ?month=yyyy-MM */
   @Get('calendar')
   @Roles(Role.AGENT)
   getPlanning(@Request() req: any, @Query('month') month?: string) {
@@ -74,6 +73,7 @@ export class AgentController {
       req.user.id,
       dto.date,
       dto.available,
+      dto.cancelAssignments === true,
     );
   }
 }

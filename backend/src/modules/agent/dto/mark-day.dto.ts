@@ -1,4 +1,4 @@
-import { IsBoolean, IsString, Matches } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, Matches } from 'class-validator';
 
 export class MarkDayAvailabilityDto {
   @IsString()
@@ -9,6 +9,11 @@ export class MarkDayAvailabilityDto {
 
   @IsBoolean({ message: 'available doit être vrai ou faux' })
   available: boolean;
+
+  /** Si true : annule les affectations actives qui couvrent ce jour. */
+  @IsOptional()
+  @IsBoolean()
+  cancelAssignments?: boolean;
 }
 
 export class MarkMonthPaidDto {
