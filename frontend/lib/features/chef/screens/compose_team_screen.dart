@@ -34,7 +34,9 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
   String _contractFilter = 'ALL';
   String _sortMode = 'score';
 
-  /// Dialogue conflit multi-sites → force | skip | cancel batch
+  String _fmtDate(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
   Future<String> _resolveMultiSiteDialog(AvailableAgent agent) async {
     final sites = agent.lockedSitesLabel.isEmpty
         ? 'un autre chantier'
@@ -66,7 +68,8 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
               else
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext, 'skip'),
-                  child: const Text('OK', style: TextStyle(color: AppColors.danger)),
+                  child: const Text('OK',
+                      style: TextStyle(color: AppColors.danger)),
                 ),
             ],
           ),
@@ -78,7 +81,8 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
     if (_selectedAgentIds.isEmpty) return;
 
     final repo = ref.read(assignmentsRepositoryProvider);
-    final available = ref.read(availableAgentsProvider(widget.siteId)).valueOrNull ?? [];
+    final available =
+        ref.read(availableAgentsProvider(widget.siteId)).valueOrNull ?? [];
     final byId = {for (final a in available) a.id: a};
 
     int ok = 0;
@@ -90,7 +94,7 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
       if (agent == null) continue;
 
       bool force = false;
-      if (agent.hasOtherActiveAssignment) {
+      if (agent.isLockedElsewhere) {
         final choice = await _resolveMultiSiteDialog(agent);
         if (choice == 'skip') {
           skipped++;
@@ -101,14 +105,16 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
 
       setState(() => _assigningIds.add(id));
       try {
-        await repo.assignAgent(
+        await repo.createAssignment(
           siteId: widget.siteId,
           agentId: id,
-          startDate: _startDate,
-          endDate: _endDate,
+          startDate: _fmtDate(_startDate),
+          endDate: _endDate != null ? _fmtDate(_endDate!) : null,
           missionType: _missionType,
-          routineDays: _missionType == 'ROUTINE' ? _routineDays.toList() : null,
-          salaryOverride: double.tryParse(_salaryCtrl.text.replaceAll(',', '.')),
+          routineDays:
+              _missionType == 'ROUTINE' ? _routineDays.toList() : null,
+          fixedSalary:
+              double.tryParse(_salaryCtrl.text.replaceAll(',', '.')),
           forceMultiSite: force,
         );
         ok++;
@@ -132,7 +138,8 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg.isEmpty ? 'Rien à faire' : msg),
-        backgroundColor: errors.isNotEmpty ? AppColors.danger : AppColors.success,
+        backgroundColor:
+            errors.isNotEmpty ? AppColors.danger : AppColors.success,
       ),
     );
     if (errors.isNotEmpty) {
@@ -142,7 +149,8 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
           title: const Text('Erreurs'),
           content: SingleChildScrollView(child: Text(errors.join('\n\n'))),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK')),
+            TextButton(
+                onPressed: () => Navigator.pop(c), child: const Text('OK')),
           ],
         ),
       );
@@ -195,7 +203,12 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
     }
   }
 
-  void _showNotifySheet(AssignedAgent assignment) {
+  void _showNotifySheet(AssignmentModel assignment) {
+    final siteName = widget.site?.name ?? 'Site';
+    final start = (assignment.startDate ?? '').length >= 10
+        ? assignment.startDate!.substring(0, 10)
+        : _fmtDate(DateTime.now());
+
     showModalBottomSheet(
       context: context,
       builder: (sheetContext) => SafeArea(
@@ -203,40 +216,27 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.message, color: Color(0xFF25D366)),
+              leading:
+                  const Icon(Icons.message, color: Color(0xFF25D366)),
               title: const Text('Rappel WhatsApp'),
               subtitle: const Text('Confirmer avant 23h la veille'),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(sheetContext);
-                WhatsAppHelper.shareAssignmentReminder(
-                  phone: assignment.agentPhone,
+                final msg = WhatsAppHelper.assignmentReminderMessage(
                   agentName: assignment.agentName,
-                  siteName: widget.site?.name ?? 'Site',
-                  startDate: assignment.startDate,
+                  siteName: siteName,
+                  startDate: start,
+                  endDate: assignment.endDate,
+                );
+                await WhatsAppHelper.openWhatsApp(
+                  phone: assignment.agentPhone,
+                  message: msg,
                 );
               },
             ),
             ListTile(
-              leading: const Icon(Icons.notifications_active),
-              title: const Text('Notification push'),
-              onTap: () async {
-                Navigator.pop(sheetContext);
-                try {
-                  await ref.read(assignmentsRepositoryProvider).remindAgent(assignment.id);
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Rappel envoyé')),
-                  );
-                } catch (e) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.danger),
-                  );
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_remove, color: AppColors.danger),
+              leading:
+                  const Icon(Icons.person_remove, color: AppColors.danger),
               title: const Text('Libérer l\'agent'),
               onTap: () {
                 Navigator.pop(sheetContext);
@@ -247,10 +247,6 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
         ),
       ),
     );
-  }
-
-  void _onAssignedAgentTap(AssignedAgent a) {
-    _showNotifySheet(a);
   }
 
   Future<void> _pickStartDate() async {
@@ -306,17 +302,41 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
         children: [
           _buildMissionParams(),
           Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _buildAvailablePanel(availableAsync),
-                ),
-                const VerticalDivider(width: 1),
-                Expanded(
-                  child: _buildAssignedPanel(assignedAsync),
-                ),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final wide = constraints.maxWidth > 600;
+                if (wide) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: _buildAvailablePanel(availableAsync)),
+                      const VerticalDivider(width: 1),
+                      Expanded(child: _buildAssignedPanel(assignedAsync)),
+                    ],
+                  );
+                }
+                return DefaultTabController(
+                  length: 2,
+                  child: Column(
+                    children: [
+                      const TabBar(
+                        tabs: [
+                          Tab(text: 'Disponibles'),
+                          Tab(text: 'Affectés'),
+                        ],
+                      ),
+                      Expanded(
+                        child: TabBarView(
+                          children: [
+                            _buildAvailablePanel(availableAsync),
+                            _buildAssignedPanel(assignedAsync),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
           if (_selectedAgentIds.isNotEmpty)
@@ -331,7 +351,8 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
                           )
                         : const Icon(Icons.group_add),
                     label: Text(
@@ -363,7 +384,8 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                 ChoiceChip(
                   label: const Text('Temporaire'),
                   selected: _missionType == 'TEMPORAIRE',
-                  onSelected: (_) => setState(() => _missionType = 'TEMPORAIRE'),
+                  onSelected: (_) =>
+                      setState(() => _missionType = 'TEMPORAIRE'),
                 ),
                 ChoiceChip(
                   label: const Text('Routine'),
@@ -373,7 +395,8 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                 ChoiceChip(
                   label: const Text('Permanence'),
                   selected: _missionType == 'PERMANENCE',
-                  onSelected: (_) => setState(() => _missionType = 'PERMANENCE'),
+                  onSelected: (_) =>
+                      setState(() => _missionType = 'PERMANENCE'),
                 ),
                 ActionChip(
                   avatar: const Icon(Icons.calendar_today, size: 16),
@@ -382,7 +405,9 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                 ),
                 ActionChip(
                   avatar: const Icon(Icons.event, size: 16),
-                  label: Text(_endDate == null ? 'Fin (opt.)' : 'Fin ${df.format(_endDate!)}'),
+                  label: Text(_endDate == null
+                      ? 'Fin (opt.)'
+                      : 'Fin ${df.format(_endDate!)}'),
                   onPressed: _pickEndDate,
                 ),
                 SizedBox(
@@ -390,12 +415,14 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                   height: 36,
                   child: TextField(
                     controller: _salaryCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     decoration: const InputDecoration(
                       isDense: true,
                       labelText: 'Salaire',
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     ),
                   ),
                 ),
@@ -406,7 +433,15 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
               Wrap(
                 spacing: 4,
                 children: List.generate(7, (i) {
-                  const labels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+                  const labels = [
+                    'Lun',
+                    'Mar',
+                    'Mer',
+                    'Jeu',
+                    'Ven',
+                    'Sam',
+                    'Dim'
+                  ];
                   final selected = _routineDays.contains(i + 1);
                   return FilterChip(
                     label: Text(labels[i]),
@@ -438,7 +473,8 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
           child: Row(
             children: [
-              const Text('Disponibles', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text('Disponibles',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               const Spacer(),
               DropdownButton<String>(
                 value: _contractFilter,
@@ -448,9 +484,13 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                   DropdownMenuItem(value: 'ALL', child: Text('Tous')),
                   DropdownMenuItem(value: 'CDI', child: Text('CDI')),
                   DropdownMenuItem(value: 'CDD', child: Text('CDD')),
-                  DropdownMenuItem(value: 'JOURNALIER', child: Text('Journalier')),
+                  DropdownMenuItem(
+                      value: 'TEMPORAIRE', child: Text('Temporaire')),
+                  DropdownMenuItem(
+                      value: 'JOURNALIER', child: Text('Journalier')),
                 ],
-                onChanged: (v) => setState(() => _contractFilter = v ?? 'ALL'),
+                onChanged: (v) =>
+                    setState(() => _contractFilter = v ?? 'ALL'),
               ),
               const SizedBox(width: 8),
               DropdownButton<String>(
@@ -473,12 +513,17 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
             data: (list) {
               var filtered = list;
               if (_contractFilter != 'ALL') {
-                filtered = filtered.where((a) => a.contractType == _contractFilter).toList();
+                filtered = filtered
+                    .where((a) => a.contractType == _contractFilter)
+                    .toList();
               }
               if (_sortMode == 'name') {
-                filtered = [...filtered]..sort((a, b) => a.fullName.compareTo(b.fullName));
+                filtered = [...filtered]
+                  ..sort((a, b) => a.fullName.compareTo(b.fullName));
               } else {
-                filtered = [...filtered]..sort((a, b) => b.score.compareTo(a.score));
+                filtered = [...filtered]
+                  ..sort(
+                      (a, b) => b.rankingScore.compareTo(a.rankingScore));
               }
               if (filtered.isEmpty) {
                 return const Center(child: Text('Aucun agent disponible'));
@@ -506,16 +551,19 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                               });
                             },
                     ),
-                    title: Text(a.fullName, style: const TextStyle(fontSize: 14)),
+                    title:
+                        Text(a.fullName, style: const TextStyle(fontSize: 14)),
                     subtitle: Text(
                       [
-                        if (a.contractType != null) a.contractType!,
-                        'Score ${a.score.toStringAsFixed(0)}',
-                        if (a.hasOtherActiveAssignment) '⚠️ multi-sites',
+                        a.contractType,
+                        'Score ${a.rankingScore.toStringAsFixed(0)}',
+                        if (a.isLockedElsewhere) '⚠️ multi-sites',
                       ].join(' · '),
                       style: TextStyle(
                         fontSize: 12,
-                        color: a.hasOtherActiveAssignment ? AppColors.warning : null,
+                        color: a.isLockedElsewhere
+                            ? AppColors.warning
+                            : null,
                       ),
                     ),
                     trailing: busy
@@ -546,13 +594,14 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
     );
   }
 
-  Widget _buildAssignedPanel(AsyncValue<List<AssignedAgent>> async) {
+  Widget _buildAssignedPanel(AsyncValue<List<AssignmentModel>> async) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(12, 8, 12, 4),
-          child: Text('Affectés', style: TextStyle(fontWeight: FontWeight.w600)),
+          child: Text('Affectés',
+              style: TextStyle(fontWeight: FontWeight.w600)),
         ),
         Expanded(
           child: async.when(
@@ -566,19 +615,37 @@ class _ComposeTeamScreenState extends ConsumerState<ComposeTeamScreen> {
                 itemCount: list.length,
                 itemBuilder: (ctx, i) {
                   final a = list[i];
+                  String startLabel = '—';
+                  if ((a.startDate ?? '').length >= 10) {
+                    try {
+                      final d = DateTime.parse(a.startDate!);
+                      startLabel = DateFormat('dd/MM').format(d);
+                    } catch (_) {
+                      startLabel = a.startDate!.substring(0, 10);
+                    }
+                  }
+                  String endLabel = '';
+                  if ((a.endDate ?? '').length >= 10) {
+                    try {
+                      final d = DateTime.parse(a.endDate!);
+                      endLabel = ' → ${DateFormat('dd/MM').format(d)}';
+                    } catch (_) {
+                      endLabel = ' → ${a.endDate!.substring(0, 10)}';
+                    }
+                  }
                   return ListTile(
                     dense: true,
-                    title: Text(a.agentName, style: const TextStyle(fontSize: 14)),
+                    title: Text(a.agentName,
+                        style: const TextStyle(fontSize: 14)),
                     subtitle: Text(
-                      '${a.status} · ${DateFormat('dd/MM').format(a.startDate)}'
-                      '${a.endDate != null ? ' → ${DateFormat('dd/MM').format(a.endDate!)}' : ''}',
+                      '${a.status} · $startLabel$endLabel',
                       style: const TextStyle(fontSize: 12),
                     ),
                     trailing: IconButton(
                       icon: const Icon(Icons.more_vert, size: 20),
-                      onPressed: () => _onAssignedAgentTap(a),
+                      onPressed: () => _showNotifySheet(a),
                     ),
-                    onTap: () => _onAssignedAgentTap(a),
+                    onTap: () => _showNotifySheet(a),
                   );
                 },
               );
