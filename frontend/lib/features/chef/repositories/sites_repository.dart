@@ -56,6 +56,39 @@ class SiteActiveAssignment {
   }
 }
 
+class SiteHistoryCounts {
+  final int assignments;
+  final int pointages;
+  final int incidents;
+  final int tasks;
+  final int reports;
+  final int material;
+
+  const SiteHistoryCounts({
+    this.assignments = 0,
+    this.pointages = 0,
+    this.incidents = 0,
+    this.tasks = 0,
+    this.reports = 0,
+    this.material = 0,
+  });
+
+  factory SiteHistoryCounts.fromJson(Map<String, dynamic>? j) {
+    if (j == null) return const SiteHistoryCounts();
+    return SiteHistoryCounts(
+      assignments: (j['assignments'] as num?)?.toInt() ?? 0,
+      pointages: (j['pointages'] as num?)?.toInt() ?? 0,
+      incidents: (j['incidents'] as num?)?.toInt() ?? 0,
+      tasks: (j['tasks'] as num?)?.toInt() ?? 0,
+      reports: (j['reports'] as num?)?.toInt() ?? 0,
+      material: (j['material'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  int get total =>
+      assignments + pointages + incidents + tasks + reports + material;
+}
+
 class SiteModel {
   final String id;
   final String name;
@@ -75,8 +108,9 @@ class SiteModel {
   final double? bonusAmount;
   final double? monthlySalary;
   final double? fixedAmount;
-  /// false si des actions ont déjà été menées (pointages, affectations…)
   final bool canDelete;
+  final bool canRelaunch;
+  final SiteHistoryCounts historyCounts;
 
   SiteModel({
     required this.id,
@@ -98,6 +132,8 @@ class SiteModel {
     this.monthlySalary,
     this.fixedAmount,
     this.canDelete = true,
+    this.canRelaunch = false,
+    this.historyCounts = const SiteHistoryCounts(),
   });
 
   factory SiteModel.fromJson(Map<String, dynamic> json) {
@@ -118,15 +154,18 @@ class SiteModel {
         .map((a) => SiteActiveAssignment.fromJson(a as Map<String, dynamic>))
         .toList();
 
+    final isActive = json['isActive'] as bool? ?? true;
+    final type = json['type'] as String? ?? 'CHANTIER';
+
     return SiteModel(
       id: json['id'] as String,
       name: json['name'] as String? ?? '',
-      type: json['type'] as String? ?? 'CHANTIER',
+      type: type,
       address: json['address'] as String?,
       location: json['location'] as String?,
       startDate: json['startDate'] as String?,
       endDate: json['endDate'] as String?,
-      isActive: json['isActive'] as bool? ?? true,
+      isActive: isActive,
       chefIds: chefs.map((c) => c.id).toList(),
       chefs: chefs,
       activeAgentsCount:
@@ -139,12 +178,18 @@ class SiteModel {
       monthlySalary: toDouble(json['monthlySalary']),
       fixedAmount: toDouble(json['fixedAmount']),
       canDelete: json['canDelete'] as bool? ?? true,
+      canRelaunch: json['canRelaunch'] as bool? ??
+          (!isActive || type == 'PERMANENCE'),
+      historyCounts: SiteHistoryCounts.fromJson(
+        json['historyCounts'] as Map<String, dynamic>?,
+      ),
     );
   }
 
   bool get isPermanence => type == 'PERMANENCE';
   bool get isChantier => type == 'CHANTIER';
   bool get isRoutine => type == 'ROUTINE';
+  bool get isClosed => !isActive;
   bool get hasChefs => chefs.isNotEmpty;
   bool get hasOperations => activeAgentsCount > 0;
 
@@ -164,6 +209,58 @@ class SiteModel {
         return 'Chantier';
     }
   }
+
+  String get statusLabel => isActive ? 'Actif' : 'Clôturé';
+}
+
+class SiteActivityItem {
+  final String kind;
+  final String title;
+  final String? subtitle;
+  final String? status;
+  final String at;
+
+  SiteActivityItem({
+    required this.kind,
+    required this.title,
+    this.subtitle,
+    this.status,
+    required this.at,
+  });
+
+  factory SiteActivityItem.fromJson(Map<String, dynamic> j) => SiteActivityItem(
+        kind: j['kind'] as String? ?? '',
+        title: j['title'] as String? ?? '',
+        subtitle: j['subtitle'] as String?,
+        status: j['status'] as String?,
+        at: j['at'] as String? ?? '',
+      );
+}
+
+class SiteActivityHistory {
+  final SiteModel? site;
+  final int total;
+  final SiteHistoryCounts counts;
+  final List<SiteActivityItem> items;
+
+  SiteActivityHistory({
+    this.site,
+    required this.total,
+    required this.counts,
+    required this.items,
+  });
+
+  factory SiteActivityHistory.fromJson(Map<String, dynamic> j) {
+    final siteJson = j['site'] as Map<String, dynamic>?;
+    return SiteActivityHistory(
+      site: siteJson != null ? SiteModel.fromJson(siteJson) : null,
+      total: (j['total'] as num?)?.toInt() ?? 0,
+      counts: SiteHistoryCounts.fromJson(j['counts'] as Map<String, dynamic>?),
+      items: ((j['items'] as List<dynamic>?) ?? [])
+          .map((e) => SiteActivityItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
 }
 
 class SitesRepository {
@@ -171,11 +268,16 @@ class SitesRepository {
 
   SitesRepository(this._api);
 
-  Future<List<SiteModel>> getSites({String? type, bool all = false}) async {
+  Future<List<SiteModel>> getSites({
+    String? type,
+    bool all = false,
+    bool includeInactive = false,
+  }) async {
     try {
       final query = <String, dynamic>{
         if (type != null) 'type': type,
         if (all) 'all': 'true',
+        if (includeInactive) 'includeInactive': 'true',
       };
 
       final response = await _api.dio.get(
@@ -194,6 +296,35 @@ class SitesRepository {
   Future<SiteModel> getSite(String id) async {
     try {
       final response = await _api.dio.get('/sites/$id');
+      return SiteModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.extractError(e);
+    }
+  }
+
+  Future<SiteActivityHistory> getActivityHistory(String id) async {
+    try {
+      final response = await _api.dio.get('/sites/$id/history');
+      return SiteActivityHistory.fromJson(
+          response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.extractError(e);
+    }
+  }
+
+  Future<SiteModel> relaunchSite(
+    String id, {
+    String? reason,
+    String? startDate,
+  }) async {
+    try {
+      final response = await _api.dio.post(
+        '/sites/$id/relaunch',
+        data: {
+          if (reason != null) 'reason': reason,
+          if (startDate != null) 'startDate': startDate,
+        },
+      );
       return SiteModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiClient.extractError(e);
