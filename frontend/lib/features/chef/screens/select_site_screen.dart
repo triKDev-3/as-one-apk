@@ -7,7 +7,10 @@ import '../repositories/sites_repository.dart';
 
 final sitesListProvider = FutureProvider.autoDispose<List<SiteModel>>((ref) {
   final viewAll = ref.watch(viewAllProvider);
-  return ref.watch(sitesRepositoryProvider).getSites(all: viewAll);
+  return ref.watch(sitesRepositoryProvider).getSites(
+        all: viewAll,
+        includeInactive: true,
+      );
 });
 
 class SelectSiteScreen extends ConsumerWidget {
@@ -46,29 +49,29 @@ class SelectSiteScreen extends ConsumerWidget {
         ),
         data: (sites) {
           if (sites.isEmpty) {
-            return const Center(
-              child: Text('Aucun site disponible'),
-            );
+            return const Center(child: Text('Aucun site disponible'));
           }
 
           final myId = ref.read(authProvider).user?.id ?? '';
           final viewAll = ref.watch(viewAllProvider);
 
-          final chantiers =
-              sites.where((s) => s.type == 'CHANTIER').toList();
-          final permanences =
-              sites.where((s) => s.type == 'PERMANENCE').toList();
+          final active = sites.where((s) => s.isActive).toList();
+          final closed = sites.where((s) => !s.isActive).toList();
 
-          chantiers.sort((a, b) {
+          final activeChantiers =
+              active.where((s) => s.type == 'CHANTIER' || s.type == 'ROUTINE').toList();
+          final activePermanences =
+              active.where((s) => s.type == 'PERMANENCE').toList();
+
+          int mineFirst(SiteModel a, SiteModel b) {
             final aIsMine = a.chefIds.contains(myId) ? 0 : 1;
             final bIsMine = b.chefIds.contains(myId) ? 0 : 1;
             return aIsMine.compareTo(bIsMine);
-          });
-          permanences.sort((a, b) {
-            final aIsMine = a.chefIds.contains(myId) ? 0 : 1;
-            final bIsMine = b.chefIds.contains(myId) ? 0 : 1;
-            return aIsMine.compareTo(bIsMine);
-          });
+          }
+
+          activeChantiers.sort(mineFirst);
+          activePermanences.sort(mineFirst);
+          closed.sort(mineFirst);
 
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(sitesListProvider),
@@ -78,32 +81,51 @@ class SelectSiteScreen extends ConsumerWidget {
                 const Padding(
                   padding: EdgeInsets.only(bottom: 12),
                   child: Text(
-                    'Sélectionnez un site pour ouvrir son agenda et ses opérations.',
+                    'Sites actifs pour les opérations. Historique = sites clôturés (relance possible).',
                     style: TextStyle(
                       fontSize: 13,
                       color: AppColors.textSecondary,
                     ),
                   ),
                 ),
-                if (chantiers.isNotEmpty) ...[
-                  _SectionTitle(title: 'Chantiers', count: chantiers.length),
+                if (activeChantiers.isNotEmpty) ...[
+                  _SectionTitle(
+                      title: 'Chantiers actifs', count: activeChantiers.length),
                   const SizedBox(height: 8),
-                  ...chantiers.map(
-                      (s) => _SiteTile(
-                        site: s,
-                        isMine: !viewAll || s.chefIds.contains(myId),
-                      )),
+                  ...activeChantiers.map(
+                    (s) => _SiteTile(
+                      site: s,
+                      isMine: !viewAll || s.chefIds.contains(myId),
+                    ),
+                  ),
                   const SizedBox(height: 20),
                 ],
-                if (permanences.isNotEmpty) ...[
+                if (activePermanences.isNotEmpty) ...[
                   _SectionTitle(
-                      title: 'Sites de permanence', count: permanences.length),
+                      title: 'Permanences actives',
+                      count: activePermanences.length),
                   const SizedBox(height: 8),
-                  ...permanences.map(
-                      (s) => _SiteTile(
-                        site: s,
-                        isMine: !viewAll || s.chefIds.contains(myId),
-                      )),
+                  ...activePermanences.map(
+                    (s) => _SiteTile(
+                      site: s,
+                      isMine: !viewAll || s.chefIds.contains(myId),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+                if (closed.isNotEmpty) ...[
+                  _SectionTitle(
+                    title: 'Historique (clôturés)',
+                    count: closed.length,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(height: 8),
+                  ...closed.map(
+                    (s) => _SiteTile(
+                      site: s,
+                      isMine: !viewAll || s.chefIds.contains(myId),
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -117,11 +139,17 @@ class SelectSiteScreen extends ConsumerWidget {
 class _SectionTitle extends StatelessWidget {
   final String title;
   final int count;
+  final Color? color;
 
-  const _SectionTitle({required this.title, required this.count});
+  const _SectionTitle({
+    required this.title,
+    required this.count,
+    this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final c = color ?? AppColors.primary;
     return Row(
       children: [
         Text(title, style: Theme.of(context).textTheme.titleLarge),
@@ -129,13 +157,13 @@ class _SectionTitle extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
+            color: c.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
             '$count',
-            style: const TextStyle(
-              color: AppColors.primary,
+            style: TextStyle(
+              color: c,
               fontWeight: FontWeight.w600,
               fontSize: 13,
             ),
@@ -155,22 +183,32 @@ class _SiteTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPermanence = site.isPermanence;
-    final color = isPermanence ? AppColors.secondary : AppColors.primary;
-    final borderColor = isMine ? const Color(0xFF10B981) : AppColors.border;
-    final borderWidth = isMine ? 2.0 : 1.0;
+    final color = site.isClosed
+        ? AppColors.textSecondary
+        : (isPermanence ? AppColors.secondary : AppColors.primary);
+    final borderColor = site.isClosed
+        ? AppColors.border
+        : (isMine ? const Color(0xFF10B981) : AppColors.border);
+    final borderWidth = isMine && site.isActive ? 2.0 : 1.0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: isMine
-            ? const Color(0xFF10B981).withValues(alpha: 0.04)
-            : Colors.white,
+        color: site.isClosed
+            ? AppColors.background
+            : (isMine
+                ? const Color(0xFF10B981).withValues(alpha: 0.04)
+                : Colors.white),
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          // Nouveau flux : site → agenda (pas la fiche ops plate)
           onTap: () {
-            context.push('/chef/site/${site.id}/agenda', extra: site);
+            // Agenda si actif, sinon fiche détail (historique + relance)
+            if (site.isActive) {
+              context.push('/chef/site/${site.id}/agenda', extra: site);
+            } else {
+              context.push('/chef/site/${site.id}', extra: site);
+            }
           },
           child: Container(
             padding: const EdgeInsets.all(16),
@@ -187,9 +225,11 @@ class _SiteTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
-                    isPermanence
-                        ? Icons.home_work_outlined
-                        : Icons.construction,
+                    site.isClosed
+                        ? Icons.history_rounded
+                        : (isPermanence
+                            ? Icons.home_work_outlined
+                            : Icons.construction),
                     color: color,
                     size: 24,
                   ),
@@ -204,13 +244,35 @@ class _SiteTile extends StatelessWidget {
                           Expanded(
                             child: Text(
                               site.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 15,
+                                color: site.isClosed
+                                    ? AppColors.textSecondary
+                                    : AppColors.textPrimary,
                               ),
                             ),
                           ),
-                          if (isMine)
+                          if (site.isClosed)
+                            Container(
+                              margin: const EdgeInsets.only(left: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.textSecondary
+                                    .withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text(
+                                'Clôturé',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            )
+                          else if (isMine)
                             Container(
                               margin: const EdgeInsets.only(left: 6),
                               padding: const EdgeInsets.symmetric(
@@ -227,45 +289,36 @@ class _SiteTile extends StatelessWidget {
                                   color: Colors.white,
                                 ),
                               ),
-                            )
-                          else
-                            Container(
-                              margin: const EdgeInsets.only(left: 6),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.warning.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Text(
-                                'Lecture',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.warning,
-                                ),
-                              ),
                             ),
                         ],
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        isMine
-                            ? 'Agenda & opérations →'
-                            : 'Consultation uniquement',
+                        site.isClosed
+                            ? (site.canRelaunch
+                                ? 'Historique \u00b7 Relance possible \u2192'
+                                : 'Historique des activités \u2192')
+                            : (isMine
+                                ? 'Agenda & opérations \u2192'
+                                : 'Consultation uniquement'),
                         style: TextStyle(
                           fontSize: 12,
-                          color: isMine ? color : AppColors.warning,
+                          color: site.isClosed
+                              ? AppColors.primary
+                              : (isMine ? color : AppColors.warning),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (site.address != null && site.address!.isNotEmpty) ...[
+                      if (site.historyCounts.total > 0) ...[
                         const SizedBox(height: 2),
                         Text(
-                          site.address!,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          '${site.historyCounts.pointages} ptg \u00b7 '
+                          '${site.historyCounts.assignments} aff. \u00b7 '
+                          '${site.historyCounts.reports} rapport(s)',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textTertiary,
+                          ),
                         ),
                       ],
                     ],
@@ -288,7 +341,6 @@ class _SiteTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 4),
                 const Icon(Icons.chevron_right, color: AppColors.textSecondary),
               ],
             ),
