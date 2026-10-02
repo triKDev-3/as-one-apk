@@ -35,13 +35,21 @@ export class SitesController {
     @Request() req: any,
     @Query('type') type?: string,
     @Query('all') all?: string,
+    @Query('includeInactive') includeInactive?: string,
   ) {
     return this.sitesService.findAll(
       type,
       req.user.id,
       req.user.role,
       all === 'true',
+      includeInactive === 'true',
     );
+  }
+
+  @Get(':id/history')
+  @Roles(Role.ADMIN, Role.CHEF, Role.COMPTABLE, Role.MAGASINIER)
+  getHistory(@Param('id') id: string) {
+    return this.sitesService.getActivityHistory(id);
   }
 
   @Get(':id')
@@ -62,6 +70,23 @@ export class SitesController {
     return this.sitesService.softDelete(id);
   }
 
+  /** Relance un site clôturé / inactif (remise en état, permanence). */
+  @Post(':id/relaunch')
+  @Roles(Role.CHEF, Role.ADMIN)
+  relaunch(
+    @Param('id') siteId: string,
+    @Body() body: { reason?: string; startDate?: string },
+    @Request() req: any,
+  ) {
+    return this.sitesService.relaunch(
+      siteId,
+      req.user.id,
+      req.user.role,
+      body?.reason,
+      body?.startDate,
+    );
+  }
+
   @Post(':id/chefs/:chefId')
   @Roles(Role.ADMIN)
   assignChef(@Param('id') siteId: string, @Param('chefId') chefId: string) {
@@ -74,7 +99,6 @@ export class SitesController {
     return this.sitesService.removeChef(siteId, chefId);
   }
 
-  /** Transfert de site entre chefs */
   @Post(':id/transfer')
   @Roles(Role.CHEF, Role.ADMIN)
   transfer(
